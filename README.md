@@ -1,4 +1,4 @@
-## envoke
+## envoke-cli
 
 A demo client-side application for persisting music metadata and rights to BigchainDB/IPDB.
 
@@ -6,11 +6,11 @@ A demo client-side application for persisting music metadata and rights to Bigch
 
 Download and install [Go](https://golang.org/dl/).
 
-In a terminal window, `go get github.com/zbo14/envoke/cmd/envoke`
+In a terminal window, `go get github.com/Envoke-org/envoke-cli/cmd/envoke`
 
 ### Usage
 
-In a terminal window, `cd ~/go/src/github.com/zbo14/envoke`...
+In a terminal window, `cd ~/go/src/github.com/Envoke-org/envoke-cli`...
 
 * **Demo app**
 	
@@ -21,10 +21,14 @@ In a terminal window, `cd ~/go/src/github.com/zbo14/envoke`...
 	In your browser, go to `http://localhost:8888/<endpoint>`
     
     Endpoints:  		
-    - login_register,
-    - compose_publish,
-    - record_release,
-    - right_license
+    - login_register
+    - compose
+    - record
+    - right
+    - publish
+    - release
+    - license
+    - transfer
 
 *  **Run tests**
 
