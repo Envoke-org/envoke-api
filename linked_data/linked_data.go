@@ -35,6 +35,7 @@ func DefaultBalloonHash(challenge string) ([]byte, error) {
 func ValidateComposition(compositionId string) (Data, error) {
 	tx, err := QueryAndValidateModel(compositionId, "composition")
 	if err != nil {
+		Println(1)
 		return nil, err
 	}
 	composition := bigchain.GetTxData(tx)
@@ -42,6 +43,7 @@ func ValidateComposition(compositionId string) (Data, error) {
 	composerId := spec.GetComposerId(composition)
 	tx, err = QueryAndValidateModel(composerId, "party")
 	if err != nil {
+		Println(2)
 		return nil, err
 	}
 	if !senderPub.Equals(bigchain.DefaultGetTxSender(tx)) {
@@ -114,8 +116,8 @@ func VerifyComposer(challenge, compositionId string, sig crypto.Signature) error
 	return nil
 }
 
-func ValidateRight(rightId string) (Data, crypto.PublicKey, crypto.PublicKey, error) {
-	tx, err := QueryAndValidateModel(rightId, "right")
+func ValidateCompositionRight(rightId string) (Data, crypto.PublicKey, crypto.PublicKey, error) {
+	tx, err := QueryAndValidateModel(rightId, "composition_right")
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -250,7 +252,7 @@ func ValidatePublication(publicationId string) (Data, []Data, []Data, error) {
 		} else if composerId != spec.GetComposerId(composition) {
 			return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "publication cannot link to compositions by different composers")
 		}
-		composition.Set("id", compositionId)
+		spec.SetId(composition, compositionId)
 		compositions[i] = composition
 	}
 	tx, err = QueryAndValidateModel(composerId, "party")
@@ -267,7 +269,7 @@ func ValidatePublication(publicationId string) (Data, []Data, []Data, error) {
 	rightHolder := false
 	totalShares := 0
 	for i, compositionRightId := range compositionRightIds {
-		compositionRight, recipientPub, _, err := ValidateRight(compositionRightId)
+		compositionRight, recipientPub, _, err := ValidateCompositionRight(compositionRightId)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -298,7 +300,7 @@ func ValidatePublication(publicationId string) (Data, []Data, []Data, error) {
 		if totalShares += shares; totalShares > 100 {
 			return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "total percentage shares cannot exceed 100")
 		}
-		compositionRight.Set("id", compositionRightId)
+		spec.SetId(compositionRight, compositionRightId)
 		compositionRights[i] = compositionRight
 	}
 	if !EmptyStr(publisherId) && !rightHolder {
@@ -580,7 +582,7 @@ func ValidateMechanicalLicense(mechanicalLicenseId string) (Data, []Data, error)
 				return nil, nil, ErrorAppend(ErrCriteriaNotMet, "cannot license composition by another composer")
 			}
 			seen[compositionId] = struct{}{}
-			composition.Set("id", compositionId)
+			spec.SetId(composition, compositionId)
 			compositions[i] = composition
 		}
 	}
@@ -911,6 +913,35 @@ func VerifyRecordingRightHolder(challenge, recordingRightId, releaseId string, s
 	return ErrorAppend(ErrCriteriaNotMet, "release does not link to recording right")
 }
 
+func ValidateRecordingRight(rightId string) (Data, crypto.PublicKey, crypto.PublicKey, error) {
+	tx, err := QueryAndValidateModel(rightId, "recording_right")
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	right := bigchain.GetTxData(tx)
+	recipientId := spec.GetRecipientId(right)
+	recipientPub := bigchain.DefaultGetTxRecipient(tx)
+	recipientShares := bigchain.GetTxShares(tx)
+	senderId := spec.GetSenderId(right)
+	senderPub := bigchain.DefaultGetTxSender(tx)
+	tx, err = QueryAndValidateModel(recipientId, "party")
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if !recipientPub.Equals(bigchain.DefaultGetTxSender(tx)) {
+		return nil, nil, nil, ErrorAppend(ErrInvalidKey, recipientPub.String())
+	}
+	tx, err = QueryAndValidateModel(senderId, "party")
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if !senderPub.Equals(bigchain.DefaultGetTxSender(tx)) {
+		return nil, nil, nil, ErrorAppend(ErrInvalidKey, senderPub.String())
+	}
+	right.Set("recipientShares", recipientShares)
+	return right, recipientPub, senderPub, nil
+}
+
 func ValidateRelease(releaseId string) (Data, []Data, []Data, error) {
 	tx, err := QueryAndValidateModel(releaseId, "release")
 	if err != nil {
@@ -932,7 +963,7 @@ func ValidateRelease(releaseId string) (Data, []Data, []Data, error) {
 		} else if performerId != spec.GetPerformerId(recording) {
 			return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "release cannot link to recording with different performers")
 		}
-		recording.Set("id", recordingId)
+		spec.SetId(recording, recordingId)
 		recordings[i] = recording
 	}
 	tx, err = QueryAndValidateModel(performerId, "party")
@@ -948,8 +979,8 @@ func ValidateRelease(releaseId string) (Data, []Data, []Data, error) {
 	recordLabelId := spec.GetRecordLabelId(release)
 	rightHolder := false
 	totalShares := 0
-	for i, rightId := range recordingRightIds {
-		recordingRight, recipientPub, _, err := ValidateRight(rightId)
+	for i, recordingRightId := range recordingRightIds {
+		recordingRight, recipientPub, _, err := ValidateRecordingRight(recordingRightId)
 		if err != nil {
 			return nil, nil, nil, err
 		}
@@ -980,7 +1011,7 @@ func ValidateRelease(releaseId string) (Data, []Data, []Data, error) {
 		if totalShares += shares; totalShares > 100 {
 			return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "total percentage shares cannot exceed 100")
 		}
-		recordingRight.Set("id", rightId)
+		spec.SetId(recordingRight, recordingRightId)
 		recordingRights[i] = recordingRight
 	}
 	if !EmptyStr(recordLabelId) && !rightHolder {
@@ -1127,7 +1158,7 @@ func ValidateRecordingRightTransfer(recordingRightTransferId string) (Data, erro
 		return nil, ErrorAppend(ErrCriteriaNotMet, "TRANSFER tx does not link to correct recording right")
 	}
 	for _, recordingRight := range recordingRights {
-		if recordingRightId == bigchain.GetId(recordingRight) {
+		if recordingRightId == spec.GetId(recordingRight) {
 			found = true
 			break
 		}

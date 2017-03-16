@@ -5,18 +5,18 @@ import (
 	regex "github.com/zbo14/envoke/regex"
 )
 
-// const CONTEXT = "http://localhost:8888/spec#Context"
+const CONTEXT = "http://localhost:8888/spec#Context"
 
 func NewLink(id string) Data {
-	return Data{"id": id}
+	return Data{"@id": id}
 }
 
 func GetId(data Data) string {
-	return data.GetStr("id")
+	return data.GetStr("@id")
 }
 
 func SetId(data Data, id string) {
-	data.Set("id", id)
+	data.Set("@id", id)
 }
 
 func MatchId(id string) bool {
@@ -24,16 +24,16 @@ func MatchId(id string) bool {
 }
 
 func GetType(data Data) string {
-	return data.GetStr("type")
+	return data.GetStr("@type")
 }
 
 func NewParty(email, ipi, isni string, memberIds []string, name, pro, sameAs, _type string) Data {
 	party := Data{
-		// "@context": CONTEXT,
-		// "type":  _type,
-		"email":  email,
-		"name":   name,
-		"sameAs": sameAs,
+		"@context": CONTEXT,
+		"@type":    _type,
+		"email":    email,
+		"name":     name,
+		"sameAs":   sameAs,
 	}
 	switch _type {
 	case "MusicGroup", "Organization":
@@ -96,6 +96,8 @@ func GetSameAs(data Data) string {
 
 func NewComposition(composerId, hfa, iswc, lang, name, sameAs string) Data {
 	composition := Data{
+		"@context": CONTEXT,
+		"@type":    "MusicComposition",
 		"composer": NewLink(composerId),
 		"name":     name,
 		"sameAs":   sameAs,
@@ -137,11 +139,11 @@ func NewPublication(compositionIds []string, compositionRightIds []string, name,
 	compositions := make([]Data, m)
 	for i, compositionId := range compositionIds {
 		compositions[i] = Data{
-			// "type":     "ListItem",
+			"@type":    "ListItem",
 			"position": i + 1,
 			"item": Data{
-				// "type": "MusicComposition",
-				"id": compositionId,
+				// "@type": "MusicComposition",
+				"@id": compositionId,
 			},
 		}
 	}
@@ -152,24 +154,24 @@ func NewPublication(compositionIds []string, compositionRightIds []string, name,
 	compositionRights := make([]Data, n)
 	for i, compositionRightId := range compositionRightIds {
 		compositionRights[i] = Data{
-			// "type":     "ListItem",
+			"@type":    "ListItem",
 			"position": i + 1,
 			"item": Data{
-				// "type": "CompositionRight",
-				"id": compositionRightId,
+				// "@type": "CompositionRight",
+				"@id": compositionRightId,
 			},
 		}
 	}
 	return Data{
-		// "@context": CONTEXT,
-		// "type":    "MusicPublication",
+		"@context": CONTEXT,
+		"@type":    "MusicPublication",
 		"composition": Data{
-			// "type":            "ItemList",
+			"@type":           "ItemList",
 			"numberOfItems":   m,
 			"itemListElement": compositions,
 		},
 		"compositionRight": Data{
-			// "type":            "ItemList",
+			"@type":           "ItemList",
 			"numberOfItems":   n,
 			"itemListElement": compositionRights,
 		},
@@ -211,8 +213,8 @@ func GetPublisherId(data Data) string {
 
 func NewRecording(compositionId, compositionRightId, duration, isrc, mechanicalLicenseId, performerId, publicationId string) Data {
 	recording := Data{
-		// "@context": CONTEXT,
-		// "type":     "MusicRecording",
+		"@context":    CONTEXT,
+		"@type":       "MusicRecording",
 		"byArtist":    NewLink(performerId),
 		"duration":    duration,
 		"recordingOf": NewLink(compositionId),
@@ -224,7 +226,7 @@ func NewRecording(compositionId, compositionRightId, duration, isrc, mechanicalL
 		recording.Set("compositionRight", NewLink(compositionRightId))
 		recording.Set("publication", NewLink(publicationId))
 	} else if MatchId(mechanicalLicenseId) {
-		recording.Set("mechanicalLicense", Data{"id": mechanicalLicenseId})
+		recording.Set("mechanicalLicense", NewLink(mechanicalLicenseId))
 	} else {
 		// performer should be composer
 	}
@@ -272,11 +274,11 @@ func NewRelease(name string, recordingIds, recordingRightIds []string, recordLab
 	recordings := make([]Data, m)
 	for i, recordingId := range recordingIds {
 		recordings[i] = Data{
-			// "type":     "schema:ListItem",
+			"@type":    "ListItem",
 			"position": i + 1,
 			"item": Data{
-				// "type": "MusicRecording",
-				"id": recordingId,
+				// "@type": "MusicRecording",
+				"@id": recordingId,
 			},
 		}
 	}
@@ -287,25 +289,25 @@ func NewRelease(name string, recordingIds, recordingRightIds []string, recordLab
 	recordingRights := make([]Data, n)
 	for i, recordingRightId := range recordingRightIds {
 		recordingRights[i] = Data{
-			// "type":     "schema:ListItem",
+			"@type":    "ListItem",
 			"position": i + 1,
 			"item": Data{
-				// "type": "RecordingRight",
-				"id": recordingRightId,
+				// "@type": "RecordingRight",
+				"@id": recordingRightId,
 			},
 		}
 	}
 	return Data{
-		// "@context": CONTEXT,
-		// "type": "MusicRelease",
-		"name": name,
+		"@context": CONTEXT,
+		"@type":    "MusicRelease",
+		"name":     name,
 		"recording": Data{
-			// "type":            "schema:ItemList",
+			"@type":           "ItemList",
 			"numberOfItems":   m,
 			"itemListElement": recordings,
 		},
 		"recordingRight": Data{
-			// "type":            "schema:ItemList",
+			"@type":           "ItemList",
 			"numberOfItems":   n,
 			"itemListElement": recordingRights,
 		},
@@ -354,8 +356,8 @@ func NewRecordingRight(recipientId, senderId string, territory []string, validFr
 
 func NewRight(recipientId, senderId string, territory []string, _type, validFrom, validThrough string) Data {
 	return Data{
-		// "@context": CONTEXT,
-		// "type":     _type,
+		"@context":     CONTEXT,
+		"@type":        _type,
 		"recipient":    NewLink(recipientId),
 		"sender":       NewLink(senderId),
 		"territory":    territory,
@@ -391,8 +393,8 @@ func GetTerritory(data Data) []string {
 
 func NewCompositionRightTransfer(compositionRightId, publicationId, recipientId, senderId, txId string) Data {
 	return Data{
-		// "@context": CONTEXT,
-		// "type": "CompositionRightTransfer",
+		"@context":         CONTEXT,
+		"@type":            "CompositionRightTransfer",
 		"compositionRight": NewLink(compositionRightId),
 		"publication":      NewLink(publicationId),
 		"recipient":        NewLink(recipientId),
@@ -413,8 +415,8 @@ func GetTxId(data Data) string {
 
 func NewRecordingRightTransfer(recipientId, recordingRightId, releaseId, senderId, txId string) Data {
 	return Data{
-		// "@context": CONTEXT,
-		// "type": "RecordingRightTransfer",
+		"@context":       CONTEXT,
+		"@type":          "RecordingRightTransfer",
 		"recipient":      NewLink(recipientId),
 		"recordingRight": NewLink(recordingRightId),
 		"release":        NewLink(releaseId),
@@ -435,8 +437,8 @@ func GetRecordingRightTransferId(data Data) string {
 
 func NewMechanicalLicense(compositionIds []string, compositionRightId, compositionRightTransferId, publicationId, recipientId, senderId string, territory, usage []string, validFrom, validThrough string) Data {
 	mechanicalLicense := Data{
-		// "@context":     CONTEXT,
-		// "type":         "MechanicalLicense",
+		"@context":     CONTEXT,
+		"@type":        "MechanicalLicense",
 		"recipient":    NewLink(recipientId),
 		"sender":       NewLink(senderId),
 		"territory":    territory,
@@ -452,16 +454,16 @@ func NewMechanicalLicense(compositionIds []string, compositionRightId, compositi
 				panic(ErrorAppend(ErrInvalidId, compositionId))
 			}
 			compositions[i] = Data{
-				// "type":     "schema:ListItem",
+				"@type":    "ListItem",
 				"position": i + 1,
 				"item": Data{
-					// "type": "MusicComposition",
-					"id": compositionId,
+					// "@type": "MusicComposition",
+					"@id": compositionId,
 				},
 			}
 		}
 		mechanicalLicense.Set("composition", Data{
-			// "type":            "schema:ItemList",
+			"@type":           "ItemList",
 			"numberOfItems":   n,
 			"itemListElement": compositions,
 		})
@@ -483,8 +485,8 @@ func NewMechanicalLicense(compositionIds []string, compositionRightId, compositi
 
 func NewMasterLicense(recipientId string, recordingIds []string, recordingRightId, recordingRightTransferId, releaseId, senderId string, territory, usage []string, validFrom, validThrough string) Data {
 	masterLicense := Data{
-		// "@context":     CONTEXT,
-		// "type":         "MasterLicense",
+		"@context":     CONTEXT,
+		"@type":        "MasterLicense",
 		"recipient":    NewLink(recipientId),
 		"sender":       NewLink(senderId),
 		"territory":    territory,
@@ -497,16 +499,16 @@ func NewMasterLicense(recipientId string, recordingIds []string, recordingRightI
 		recordings := make([]Data, n)
 		for i, recordingId := range recordingIds {
 			recordings[i] = Data{
-				// "type":     "schema:ListItem",
+				"@type":    "ListItem",
 				"position": i + 1,
 				"item": Data{
-					"type": "MusicRecording",
-					"id":   recordingId,
+					// "@type": "MusicRecording",
+					"@id": recordingId,
 				},
 			}
 		}
 		masterLicense.Set("recording", Data{
-			// "type":            "schema:ItemList",
+			"@type":           "ItemList",
 			"numberOfItems":   n,
 			"itemListElement": recordings,
 		})
