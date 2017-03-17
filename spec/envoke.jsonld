@@ -9,12 +9,14 @@
 
         "ItemList": "schema:ItemList",
         "ListItem": "schema:ListItem",
+        "MusicCollaboration": "envoke:MusicCollaboration",
         "MusicComposition": "schema:MusicComposition",
         "MusicGroup": "schema:MusicGroup",
         "MusicPublication": "envoke:MusicPublication",
         "MusicRecording": "schema:MusicRecording",
         "MusicRelease": "schema:MusicRelease",
         "Organization": "schema:Organization",
+        "OrganizationRole": "schema:OrganizationRole",
         "Person": "schema:Person",
         "Right": "envoke:Right",
         "CompositionRight": "envoke:CompositionRight",
@@ -29,6 +31,11 @@
         "byArist":
         {
             "@id": "schema:byArtist",
+            "@type": "@id"
+        },
+        "composer":
+        {
+            "@id": "schema:composer",
             "@type": "@id"
         },
         "composition":
@@ -144,6 +151,11 @@
             "@id": "envoke:release",
             "@type": "@id"
         },
+        "roleName": 
+        {
+            "@id": "schema:roleName",
+            "@type": "@id"
+        },
         "sameAs":
         {
             "@id": "schema:sameAs",
@@ -154,6 +166,7 @@
             "@id": "envoke:sender",
             "@type": "@id"
         },
+        "split": "envoke:split",
         "territory": "envoke:territory",
         "tx": 
         {
@@ -165,6 +178,15 @@
         "validThrough": "envoke:validThrough"
     },
     "@graph": [
+    {
+        "@id": "MusicCollaboration",
+        "@type": "rdfs:Class",
+        "rdfs:subClassOf":
+        {
+            "@id": "Organization"
+        },
+        "rdfs:label": "MusicCollaboration"
+    },
     {
         "@id": "MusicPublication",
         "@type": "rdfs:Class",
@@ -367,13 +389,10 @@
         {
             "@id": "Person"
         }],
-        "schema:rangeIncludes": [
-        {
-            "@id": "Organization"
-        },
+        "schema:rangeIncludes":
         {
             "@id": "schema:Text"
-        }],
+        },
         "rdfs:label": "pro"
     },
     {
@@ -392,7 +411,8 @@
         "schema:rangeIncludes":
         {
             "@id": "MusicPublication"
-        }
+        },
+        "rdfs:label": "publication"
     },
     {
         "@id": "recipient",
@@ -531,6 +551,19 @@
             "@id": "Person"
         }],
         "rdfs:label": "sender"
+    },
+    {
+        "@id": "split",
+        "@type": "rdf:Property",
+        "schema:domainIncludes": 
+        {
+            "@id": "OrganizationRole"
+        },
+        "schema:rangeIncludes": 
+        {
+            "@id": "schema:Number"
+        },
+        "rdfs:label": "split"
     },
     {
         "@id": "territory",

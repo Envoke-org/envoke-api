@@ -31,9 +31,7 @@ func NewParty(email, ipi, isni string, memberIds []string, name, pro, sameAs, _t
 	party := Data{
 		"@context": CONTEXT,
 		"@type":    _type,
-		"email":    email,
 		"name":     name,
-		"sameAs":   sameAs,
 	}
 	switch _type {
 	case "MusicGroup", "Organization":
@@ -52,6 +50,9 @@ func NewParty(email, ipi, isni string, memberIds []string, name, pro, sameAs, _t
 	default:
 		panic(ErrorAppend(ErrInvalidType, _type))
 	}
+	if MatchStr(regex.EMAIL, email) {
+		party.Set("email", email)
+	}
 	if MatchStr(regex.IPI, ipi) {
 		party.Set("ipiNumber", ipi)
 	}
@@ -60,6 +61,9 @@ func NewParty(email, ipi, isni string, memberIds []string, name, pro, sameAs, _t
 	}
 	if MatchStr(regex.PRO, pro) {
 		party.Set("pro", pro)
+	}
+	if MatchUrlRelaxed(sameAs) {
+		party.Set("sameAs", sameAs)
 	}
 	return party
 }
@@ -92,7 +96,59 @@ func GetSameAs(data Data) string {
 	return data.GetStr("sameAs")
 }
 
-// TODO: add lyricist
+func NewCollaboration(memberIds []string, name string, roleNames, splits []string) Data {
+	if len(memberIds) == 0 {
+		panic("No memberIds")
+	}
+	var haveRoleNames bool
+	if n := len(roleNames); n > 0 {
+		if n != len(memberIds) {
+			panic("Number of roles doesn't equal number of memberIds")
+		}
+		haveRoleNames = true
+	}
+	var haveSplits bool
+	if n := len(splits); n > 0 {
+		if n != len(splits) {
+			panic("Number of splits doesn't equal number of memberIds")
+		}
+		haveSplits = true
+	}
+	member := make([]Data, len(memberIds))
+	for i, memberId := range memberIds {
+		if !MatchId(memberId) {
+			panic("Invalid memberId")
+		}
+		member[i] = Data{
+			"@type":  "OrganizationRole",
+			"member": NewLink(memberId),
+		}
+		if haveRoleNames {
+			member[i].Set("roleName", roleNames[i])
+		}
+		if haveSplits {
+			member[i].Set("split", splits[i])
+		}
+	}
+	collaboration := Data{
+		"@context": CONTEXT,
+		"@type":    "MusicCollaboration",
+		"member":   member,
+	}
+	if !EmptyStr(name) {
+		collaboration.Set("name", name)
+	}
+	return collaboration
+}
+
+func GetCollaboratorIds(data Data) []string {
+	members := data.GetDataSlice("member")
+	memberIds := make([]string, len(members))
+	for i, member := range members {
+		memberIds[i] = GetId(member.GetData("member"))
+	}
+	return memberIds
+}
 
 func NewComposition(composerId, hfa, iswc, lang, name, publisherId, sameAs string) Data {
 	composition := Data{
@@ -217,8 +273,6 @@ func GetCompositionRightIds(data Data) []string {
 	}
 	return compositionRightIds
 }
-
-// TODO: add producer
 
 func NewRecording(artistId, compositionId, compositionRightId, duration, isrc, mechanicalLicenseId, publicationId, recordLabelId, sameAs string) Data {
 	recording := Data{

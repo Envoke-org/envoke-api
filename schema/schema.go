@@ -50,8 +50,8 @@ func ValidateModel(model Data, _type string) error {
 }
 
 var link = Sprintf(`{
-	"type": "object",
 	"title": "Link",
+	"type": "object",
 	"properties": {
 		"@id": {
 			"type": "string",
@@ -62,8 +62,8 @@ var link = Sprintf(`{
 }`, regex.ID)
 
 var itemList = Sprintf(`{
-	"type": "object",
 	"title": "ItemList",
+	"type": "object",
 	"definitions": {
 		"link": %s
 	},
@@ -84,7 +84,7 @@ var itemList = Sprintf(`{
 						"$ref": "#/definitions/link"
 					},
 					"position": {
-						"type": "number"
+						"type": "integer"
 					}
 				},
 				"required": ["@type", "item", "position"]
@@ -93,11 +93,69 @@ var itemList = Sprintf(`{
 			"uniqueItems": true
 		},
 		"numberOfItems": {
-			"type": "number"
+			"type": "integer"
 		}
 	},
 	"required": ["@type", "itemListElement", "numberOfItems"]
 }`, link)
+
+var organizationRole = jsonschema.NewStringLoader(Sprintf(`{
+	"title": "OrganizationRole",
+	"type": "object",
+	"definitions": {
+		"link": %s
+	},
+	"properties": {
+		"@type": {
+			"type": "string",
+			"pattern": "^OrganizationRole$"
+		},
+		"member": {
+			"$ref": "#/definitions/link"
+		},
+		"roleName": {
+			"type": "string"
+		},
+		"split": {
+			"type": "integer",
+			"minimum": 0,
+			"maximum": 100,
+			"exclusiveMinimum": true,
+			"exclusiveMaximum": true
+		}
+	},
+	"required": ["@type", "member"]
+}`, link))
+
+var CollaborationLoader = jsonschema.NewStringLoader(Sprintf(`{
+	"$schema": "%s",
+	"title": "MusicCollaboration",
+	"type": "object",
+	"definitions": {
+		"link": %s,
+		"organizationRole": %s
+	},
+	"properties": {
+		"@context": {
+			"type": "string",
+			"pattern": "^%s$"
+		},
+		"@type": {
+			"type": "string",
+			"pattern": "^MusicCollaboration$"
+		},
+		"member": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/organizationRole"
+			}
+		},
+		"name": {
+			"type": "string"
+		}
+	},
+	"required": ["@context", "@type", "member"]
+}`, SCHEMA, link, organizationRole, spec.CONTEXT))
 
 var PartyLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"$schema": "%s",
@@ -144,7 +202,7 @@ var PartyLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "string"
 		}
 	},
-	"required": ["@context", "@type", "email", "name", "sameAs"]
+	"required": ["@context", "@type", "name"]
 }`, SCHEMA, link, spec.CONTEXT, regex.EMAIL, regex.IPI, regex.ISNI, regex.PRO))
 
 var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
