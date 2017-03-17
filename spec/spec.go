@@ -84,6 +84,15 @@ func GetISNI(data Data) string {
 	return data.GetStr("isniNumber")
 }
 
+func GetMemberIds(data Data) []string {
+	members := data.GetDataSlice("member")
+	memberIds := make([]string, len(members))
+	for i, member := range members {
+		memberIds = GetId(member)
+	}
+	return memberIds
+}
+
 func GetName(data Data) string {
 	return data.GetStr("name")
 }
@@ -141,13 +150,20 @@ func NewCollaboration(memberIds []string, name string, roleNames, splits []strin
 	return collaboration
 }
 
-func GetCollaboratorIds(data Data) []string {
-	members := data.GetDataSlice("member")
-	memberIds := make([]string, len(members))
-	for i, member := range members {
-		memberIds[i] = GetId(member.GetData("member"))
-	}
-	return memberIds
+func GetOrganizationRoles(data Data) []Data {
+	return data.GetDataSlice("member")
+}
+
+func GetMemberId(data Data) string {
+	return GetId(data.GetData("member"))
+}
+
+func GetRoleName(data Data) string {
+	return data.GetStr("roleName")
+}
+
+func GetSplit(data Data) int {
+	return data.GetInt("split")
 }
 
 func NewComposition(composerId, hfa, iswc, lang, name, publisherId, sameAs string) Data {

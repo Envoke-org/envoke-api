@@ -558,7 +558,7 @@ func (c *Condition) MarshalBinary() ([]byte, error) {
 	WriteUint16(buf, c.id)
 	WriteVarUint(buf, c.bitmask)
 	WriteVarOctet(buf, c.hash)
-	WriteUint16(buf, c.size)
+	WriteVarUint(buf, c.size)
 	return buf.Bytes(), nil
 }
 

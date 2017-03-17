@@ -16,6 +16,8 @@ func ValidateModel(model Data, _type string) error {
 	switch _type {
 	case "party":
 		schemaLoader = PartyLoader
+	case "collaboration":
+		schemaLoader = CollaborationLoader
 	case "composition":
 		schemaLoader = CompositionLoader
 	case "composition_right":
@@ -148,7 +150,9 @@ var CollaborationLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "array",
 			"items": {
 				"$ref": "#/definitions/organizationRole"
-			}
+			},
+			"minItems": 2,
+			"uniqueItems": true
 		},
 		"name": {
 			"type": "string"
@@ -189,7 +193,9 @@ var PartyLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "array",
 			"items": {
 				"$ref": "#/definitions/link"
-			}
+			},
+			"minItems": 1,
+			"uniqueItems": true
 		},
 		"name": {
 			"type": "string"
@@ -448,7 +454,9 @@ var RecordingRightLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"items": {
 				"type": "string",
 				"pattern": "%s"
-			}
+			},
+			"minItems": 1,
+			"uniqueItems": true
 		},
 		"validFrom": {
 			"type": "string",
@@ -572,7 +580,9 @@ var MechanicalLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"items": {
 				"type": "string",
 				"pattern": "%s"
-			}
+			},
+			"minItems": 1,
+			"uniqueItems": true
 		},
 		"usage": {
 			"oneOf": [
@@ -580,7 +590,9 @@ var MechanicalLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 					"type": "array",
 					"items": {
 						"type": "string"
-					}
+					},
+					"minItems": 1,
+					"uniqueItems": true
 				},
 				{
 					"type": "null"
@@ -659,7 +671,9 @@ var MasterLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"items": {
 				"type": "string",
 				"pattern": "%s"
-			}
+			},
+			"minItems": 1,
+			"uniqueItems": true
 		},
 		"usage": {
 			"oneOf": [
@@ -667,7 +681,9 @@ var MasterLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 					"type": "array",
 					"items": {
 						"type": "string"
-					}
+					},
+					"minItems": 1,
+					"uniqueItems": true
 				},
 				{
 					"type": "null"

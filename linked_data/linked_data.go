@@ -32,10 +32,34 @@ func DefaultBalloonHash(challenge string) ([]byte, error) {
 	return balloon.BalloonHash(p, SALT, 256, 32, 2), nil
 }
 
+func ValidateCollaboration(collabId string) (Data, error) {
+	tx, err := QueryAndValidateModel(collabId, "collaboration")
+	if err != nil {
+		return nil, err
+	}
+	collab := bigchain.GetTxData(tx)
+	organizationRoles := spec.GetOrganizationRoles(collab)
+	memberIds := make(map[string]struct{})
+	var totalSplits int
+	for _, role := range organizationRoles {
+		memberId := spec.GetMemberId(role)
+		if _, ok := memberIds[memberId]; ok {
+			return nil, ErrorAppend(ErrCriteriaNotMet, "collab links to member multiple times")
+		}
+		memberIds[memberId] = struct{}{}
+		tx, err = QueryAndValidateModel(memberId, "party")
+		if err != nil {
+			return nil, err
+		}
+		if totalSplits += spec.GetSplit(role); totalSplits > 100 {
+			return nil, ErrorAppend(ErrCriteriaNotMet, "splits cannot exceed 100")
+		}
+	}
+}
+
 func ValidateComposition(compositionId string) (Data, error) {
 	tx, err := QueryAndValidateModel(compositionId, "composition")
 	if err != nil {
-		Println(1)
 		return nil, err
 	}
 	composition := bigchain.GetTxData(tx)
@@ -43,7 +67,6 @@ func ValidateComposition(compositionId string) (Data, error) {
 	composerId := spec.GetComposerId(composition)
 	tx, err = QueryAndValidateModel(composerId, "party")
 	if err != nil {
-		Println(2)
 		return nil, err
 	}
 	if !senderPub.Equals(bigchain.DefaultGetTxSender(tx)) {
