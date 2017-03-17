@@ -234,6 +234,10 @@ func ConditionURI(p []byte) (string, error) {
 	return Sprintf("cc:%x:%x:%s:%d", id, bitmask, hash64, size), nil
 }
 
+func DefaultUnmarshalBinary(p []byte) (Fulfillment, error) {
+	return UnmarshalBinary(p, 1)
+}
+
 func UnmarshalBinary(p []byte, weight int) (f Fulfillment, err error) {
 	c := NilCondition()
 	if err := c.UnmarshalBinary(p); err == nil {
@@ -270,6 +274,10 @@ func UnmarshalBinary(p []byte, weight int) (f Fulfillment, err error) {
 		return nil, ErrInvalidFulfillment
 	}
 	return f, nil
+}
+
+func DefaultUnmarshalURI(uri string) (Fulfillment, error) {
+	return UnmarshalURI(uri, 1)
 }
 
 func UnmarshalURI(uri string, weight int) (f Fulfillment, err error) {

@@ -75,13 +75,13 @@ func TestApi(t *testing.T) {
 	}
 	WriteJSON(output, composition)
 	compositionId := GetId(composition)
-	composerRight, err := api.CompositionRight(composerId, 20, []string{"GB", "US"}, "2020-01-01", "2096-01-01")
+	composerRight, err := api.CompositionRight(composerId, 20, composerId, []string{"GB", "US"}, "2020-01-01", "2096-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, composerRight)
 	composerRightId := GetId(composerRight)
-	publisherRight, err := api.CompositionRight(publisherId, 80, []string{"GB", "US"}, "2020-01-01", "2096-01-01")
+	publisherRight, err := api.CompositionRight(publisherId, 80, composerId, []string{"GB", "US"}, "2020-01-01", "2096-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,13 +115,13 @@ func TestApi(t *testing.T) {
 	}
 	WriteJSON(output, recording)
 	recordingId := GetId(recording)
-	collabRight, err := api.RecordingRight(collabId, 30, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
+	collabRight, err := api.RecordingRight(collabId, 30, collabId, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, collabRight)
 	collabRightId := GetId(collabRight)
-	recordLabelRight, err := api.RecordingRight(recordLabelId, 70, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
+	recordLabelRight, err := api.RecordingRight(recordLabelId, 70, collabId, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}

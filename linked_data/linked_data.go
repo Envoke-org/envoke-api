@@ -33,6 +33,36 @@ func DefaultBalloonHash(challenge string) ([]byte, error) {
 	return balloon.BalloonHash(p, SALT, 256, 32, 2), nil
 }
 
+func ValidateSignature(sigId string) (Data, error) {
+	tx, err := QueryAndValidateModel(sigId, "signature")
+	if err != nil {
+		return nil, err
+	}
+	sig := bigchain.GetTxData(tx)
+	collabId := spec.GetCollaborationId(sig)
+	collab, err := ValidateCollaboration(collabId)
+	if err != nil {
+		return nil, err
+	}
+	fulfillment, err := conds.DefaultUnmarshalURI(spec.GetURI(sig))
+	if err != nil {
+		return nil, err
+	}
+	condition := conds.GetCondition(fulfillment)
+	if condition.String() != spec.GetURI(collab) {
+		return nil, ErrorAppend(ErrInvalidCondition, condition.String())
+	}
+	tx, err = bigchain.GetTx(spec.GetSignedId(sig))
+	if err != nil {
+		return nil, err
+	}
+	p := MustMarshalJSON(bigchain.GetTxData(tx))
+	if !fulfillment.Validate(p) {
+		return nil, ErrorAppend(ErrInvalidFulfillment, fulfillment.String())
+	}
+	return sig, nil
+}
+
 func ValidateCollaboration(collabId string) (Data, error) {
 	tx, err := QueryAndValidateModel(collabId, "collaboration")
 	if err != nil {
@@ -82,6 +112,7 @@ func ValidateCollaboration(collabId string) (Data, error) {
 	if uri != conds.GetCondition(fulfillment).String() {
 		return nil, ErrorAppend(ErrInvalidCondition, uri)
 	}
+	collab.Set("uri", uri)
 	return collab, nil
 }
 
@@ -93,7 +124,7 @@ func ValidateComposition(compositionId string) (Data, error) {
 	composition := bigchain.GetTxData(tx)
 	senderPub := bigchain.DefaultGetTxSender(tx)
 	composerId := spec.GetComposerId(composition)
-	if spec.IsCollaboration(composition) {
+	if spec.Collaborated(composition) {
 		tx, err = QueryAndValidateModel(composerId, "collaboration")
 	} else {
 		tx, err = QueryAndValidateModel(composerId, "party")
@@ -194,8 +225,19 @@ func ValidateCompositionRight(rightId string) (Data, crypto.PublicKey, crypto.Pu
 	} else if err = schema.ValidateModel(recipient, "party"); err != nil {
 		return nil, nil, nil, err
 	}
-	tx, err = QueryAndValidateModel(senderId, "party")
+	if !recipientPub.Equals(bigchain.DefaultGetTxSender(tx)) {
+		return nil, nil, nil, ErrorAppend(ErrInvalidKey, recipientPub.String())
+	}
+	tx, err = bigchain.GetTx(senderId)
 	if err != nil {
+		return nil, nil, nil, err
+	}
+	sender := bigchain.GetTxData(tx)
+	if spec.GetType(sender) == "MusicCollaboration" {
+		if err = schema.ValidateModel(sender, "collaboration"); err != nil {
+			return nil, nil, nil, err
+		}
+	} else if err = schema.ValidateModel(sender, "party"); err != nil {
 		return nil, nil, nil, err
 	}
 	if !senderPub.Equals(bigchain.DefaultGetTxSender(tx)) {
@@ -783,7 +825,7 @@ func ValidateRecording(recordingId string) (Data, error) {
 	recording := bigchain.GetTxData(tx)
 	senderPub := bigchain.DefaultGetTxSender(tx)
 	artistId := spec.GetArtistId(recording)
-	if spec.IsCollaboration(recording) {
+	if spec.Collaborated(recording) {
 		tx, err = QueryAndValidateModel(artistId, "collaboration")
 	} else {
 		tx, err = QueryAndValidateModel(artistId, "party")
@@ -1009,16 +1051,22 @@ func ValidateRecordingRight(rightId string) (Data, crypto.PublicKey, crypto.Publ
 		if err = schema.ValidateModel(recipient, "collaboration"); err != nil {
 			return nil, nil, nil, err
 		}
-	} else {
-		if err = schema.ValidateModel(recipient, "party"); err != nil {
-			return nil, nil, nil, err
-		}
+	} else if err = schema.ValidateModel(recipient, "party"); err != nil {
+		return nil, nil, nil, err
 	}
 	if !recipientPub.Equals(bigchain.DefaultGetTxSender(tx)) {
 		return nil, nil, nil, ErrorAppend(ErrInvalidKey, recipientPub.String())
 	}
-	tx, err = QueryAndValidateModel(senderId, "party")
+	tx, err = bigchain.GetTx(senderId)
 	if err != nil {
+		return nil, nil, nil, err
+	}
+	sender := bigchain.GetTxData(tx)
+	if spec.GetType(sender) == "MusicCollaboration" {
+		if err = schema.ValidateModel(sender, "collaboration"); err != nil {
+			return nil, nil, nil, err
+		}
+	} else if err = schema.ValidateModel(sender, "party"); err != nil {
 		return nil, nil, nil, err
 	}
 	if !senderPub.Equals(bigchain.DefaultGetTxSender(tx)) {
@@ -1080,9 +1128,9 @@ func ValidateRelease(releaseId string) (Data, []Data, []Data, error) {
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		// if artistId != spec.GetSenderId(recordingRight) {
-		//	return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "artist must be right sender")
-		// }
+		if artistId != spec.GetSenderId(recordingRight) {
+			return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "artist must be right sender")
+		}
 		recipientId := spec.GetRecipientId(recordingRight)
 		if _, ok := recipientIds[recipientId]; ok {
 			return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "recipient cannot hold multiple recording rights")

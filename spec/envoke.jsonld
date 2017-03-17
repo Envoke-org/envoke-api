@@ -10,6 +10,7 @@
         "ItemList": "schema:ItemList",
         "ListItem": "schema:ListItem",
         "MusicCollaboration": "envoke:MusicCollaboration",
+        "CollaborationSignature": "envoke:CollaborationSignature",
         "MusicComposition": "schema:MusicComposition",
         "MusicGroup": "schema:MusicGroup",
         "MusicPublication": "envoke:MusicPublication",
@@ -33,7 +34,12 @@
             "@id": "schema:byArist",
             "@type": "@id"
         },
-        "collaboration": "envoke:collaboration",
+        "collaborate": "envoke:collaborate",
+        "collaboration": 
+        {
+            "@id": "envoke:collaboration",
+            "@type":"@id"
+        },
         "composer":
         {
             "@id": "schema:composer",
@@ -279,7 +285,7 @@
         "rdfs:label": "MasterLicense"
     },
     {
-        "@id": "collaboration",
+        "@id": "collaborate",
         "@type": "rdf:Property",
         "schema:domainIncludes": [
         {
@@ -291,6 +297,17 @@
         "schema:rangeIncludes":
         {
             "@id": "schema:Boolean"
+        },
+        "rdfs:label": "collaborate"
+    },
+    {
+        "@id": "collaboration",
+        "@type": "rdf:Property",
+        "schema:domainIncludes": {
+            "@id": "CollaborationSignature"
+        },
+        "schema:rangeIncludes": {
+            "@id": "MusicCollaboration"
         },
         "rdfs:label": "collaboration"
     },

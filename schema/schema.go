@@ -18,6 +18,8 @@ func ValidateModel(model Data, _type string) error {
 		schemaLoader = PartyLoader
 	case "collaboration":
 		schemaLoader = CollaborationLoader
+	case "signature":
+		schemaLoader = SignatureLoader
 	case "composition":
 		schemaLoader = CompositionLoader
 	case "composition_right":
@@ -102,6 +104,35 @@ var itemList = Sprintf(`{
 	},
 	"required": ["@type", "itemListElement", "numberOfItems"]
 }`, link)
+
+var SignatureLoader = jsonschema.NewStringLoader(Sprintf(`{
+	"$schema": "%s",
+	"title": "CollaborationSignature",
+	"type": "object",
+	"definitions": {
+		"link": %s
+	},
+	"properties": {
+		"@context": {
+			"type": "string",
+			"pattern": "^%s$"
+		},
+		"@type": {
+			"type": "string",
+			"pattern": "^CollaborationSignature$"
+		},
+		"collaboration": {
+			"$ref": "#/definitions/link"
+		},
+		"signature": {
+			"type": "string"
+		},
+		"signed": {
+			"$ref": "#/definitions/link"
+		}
+	},
+	"required": ["@context", "@type", "collaboration", "signature", "signed"]
+}`))
 
 var CollaborationLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"$schema": "%s",
@@ -219,7 +250,7 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "string",
 			"pattern": "^MusicComposition$"
 		},
-		"collaboration": {
+		"collaborate": {
 			"type": "boolean"
 		},
 		"composer": {
@@ -247,7 +278,7 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "string"
 		}
 	},
-	"required": ["@context", "@type", "collaboration", "composer", "name"]
+	"required": ["@context", "@type", "collaborate", "composer", "name"]
 }`, SCHEMA, link, spec.CONTEXT, regex.HFA, regex.LANGUAGE, regex.ISWC))
 
 var PublicationLoader = jsonschema.NewStringLoader(Sprintf(`{
@@ -305,7 +336,7 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 		"byArtist": {
 			"$ref": "#/definitions/link"
 		},
-		"collaboration": {
+		"collaborate": {
 			"type": "boolean"
 		},
 		"compositionRight": {
@@ -345,7 +376,7 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 			}
 		]
 	},
-	"required": ["@context", "@type", "byArtist", "collaboration", "recordingOf"]
+	"required": ["@context", "@type", "byArtist", "collaborate", "recordingOf"]
 }`, SCHEMA, link, spec.CONTEXT, regex.ISRC))
 
 var ReleaseLoader = jsonschema.NewStringLoader(Sprintf(`{
