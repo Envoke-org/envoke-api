@@ -88,7 +88,7 @@ func GetMemberIds(data Data) []string {
 	members := data.GetDataSlice("member")
 	memberIds := make([]string, len(members))
 	for i, member := range members {
-		memberIds = GetId(member)
+		memberIds[i] = GetId(member)
 	}
 	return memberIds
 }
@@ -105,7 +105,7 @@ func GetSameAs(data Data) string {
 	return data.GetStr("sameAs")
 }
 
-func NewCollaboration(memberIds []string, name string, roleNames, splits []string) Data {
+func NewCollaboration(memberIds []string, name string, roleNames []string, splits []int) Data {
 	if len(memberIds) == 0 {
 		panic("No memberIds")
 	}
@@ -166,12 +166,13 @@ func GetSplit(data Data) int {
 	return data.GetInt("split")
 }
 
-func NewComposition(composerId, hfa, iswc, lang, name, publisherId, sameAs string) Data {
+func NewComposition(collaboration bool, composerId, hfa, iswc, lang, name, publisherId, sameAs string) Data {
 	composition := Data{
-		"@context": CONTEXT,
-		"@type":    "MusicComposition",
-		"composer": NewLink(composerId),
-		"name":     name,
+		"@context":      CONTEXT,
+		"@type":         "MusicComposition",
+		"collaboration": collaboration,
+		"composer":      NewLink(composerId),
+		"name":          name,
 	}
 	if MatchStr(regex.HFA, hfa) {
 		composition.Set("hfaCode", hfa)
@@ -211,6 +212,10 @@ func GetLanguage(data Data) string {
 func GetPublisherId(data Data) string {
 	publisher := data.GetData("publisher")
 	return GetId(publisher)
+}
+
+func IsCollaboration(data Data) bool {
+	return data.GetBool("collaboration")
 }
 
 func NewPublication(compositionIds []string, compositionRightIds []string, name, publisherId, sameAs string) Data {
@@ -290,12 +295,13 @@ func GetCompositionRightIds(data Data) []string {
 	return compositionRightIds
 }
 
-func NewRecording(artistId, compositionId, compositionRightId, duration, isrc, mechanicalLicenseId, publicationId, recordLabelId, sameAs string) Data {
+func NewRecording(artistId string, collaboration bool, compositionId, compositionRightId, duration, isrc, mechanicalLicenseId, publicationId, recordLabelId, sameAs string) Data {
 	recording := Data{
-		"@context":    CONTEXT,
-		"@type":       "MusicRecording",
-		"byArtist":    NewLink(artistId),
-		"recordingOf": NewLink(compositionId),
+		"@context":      CONTEXT,
+		"@type":         "MusicRecording",
+		"byArtist":      NewLink(artistId),
+		"collaboration": collaboration,
+		"recordingOf":   NewLink(compositionId),
 	}
 	if MatchId(compositionRightId) {
 		if !MatchId(publicationId) {

@@ -68,17 +68,6 @@ func AssertInt64(v interface{}) int64 {
 	return 0
 }
 
-func AssertMap(v interface{}) map[string]interface{} {
-	if m, ok := v.(map[string]interface{}); ok {
-		return m
-	}
-	return nil
-}
-
-func AssertMapData(v interface{}) Data {
-	return Data(AssertMap(v))
-}
-
 func AssertStr(v interface{}) string {
 	if str, ok := v.(string); ok {
 		return str

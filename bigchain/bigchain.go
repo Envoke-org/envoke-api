@@ -67,6 +67,10 @@ func IndividualCreateTx(amount int, data Data, ownerAfter, ownerBefore crypto.Pu
 	return CreateTx(amounts, asset, fulfills, ownersAfter, ownersBefore)
 }
 
+func DefaultMultipleOwnersCreateTx(data Data, ownersAfter []crypto.PublicKey, ownerBefore crypto.PublicKey) Data {
+	return MultipleOwnersCreateTx([]int{1}, data, ownersAfter, ownerBefore)
+}
+
 func MultipleOwnersCreateTx(amounts []int, data Data, ownersAfter []crypto.PublicKey, ownerBefore crypto.PublicKey) Data {
 	asset := Data{"data": data}
 	fulfills := []Data{nil}
@@ -158,7 +162,7 @@ func FulfilledTx(tx Data) bool {
 	inputs := tx.GetInterfaceSlice("inputs")
 	fulfillments := make([]conds.Fulfillment, len(inputs))
 	for i, input := range inputs {
-		mapData := AssertMapData(input)
+		mapData := AssertData(input)
 		uri := mapData.GetStr("fulfillment")
 		fulfillments[i], err = conds.UnmarshalURI(uri, 1)
 		Check(err)
@@ -173,7 +177,7 @@ func FulfilledTx(tx Data) bool {
 		}
 	}
 	for i, input := range inputs {
-		AssertMapData(input).Set("fulfillment", fulfillments[i])
+		AssertData(input).Set("fulfillment", fulfillments[i])
 	}
 	return fulfilled
 }
@@ -190,7 +194,7 @@ func GetPublicKey(data Data) crypto.PublicKey {
 }
 
 func GetTxAsset(tx Data) Data {
-	return tx.GetMapData("asset")
+	return tx.GetData("asset")
 }
 
 func GetTxAssetId(tx Data) string {
@@ -245,7 +249,7 @@ func GetTxInputs(tx Data) []Data {
 	inputs := tx.GetInterfaceSlice("inputs")
 	datas := make([]Data, len(inputs))
 	for i, input := range inputs {
-		datas[i] = AssertMapData(input)
+		datas[i] = AssertData(input)
 	}
 	return datas
 }
@@ -277,9 +281,13 @@ func GetTxOutputs(tx Data) []Data {
 	outputs := tx.GetInterfaceSlice("outputs")
 	datas := make([]Data, len(outputs))
 	for i, output := range outputs {
-		datas[i] = AssertMapData(output)
+		datas[i] = AssertData(output)
 	}
 	return datas
+}
+
+func DefaultGetTxOutput(tx Data) Data {
+	return GetTxOutput(tx, 0)
 }
 
 func GetTxOutput(tx Data, n int) Data {
@@ -288,15 +296,19 @@ func GetTxOutput(tx Data, n int) Data {
 }
 
 func GetOutputAmount(output Data) int {
-	return int(output.GetFloat64("amount"))
+	return output.GetInt("amount")
 }
 
 func GetOutputCondition(output Data) Data {
-	return output.GetMapData("condition")
+	return output.GetData("condition")
 }
 
 func GetConditionDetails(condition Data) Data {
-	return condition.GetMapData("details")
+	return condition.GetData("details")
+}
+
+func GetConditionUri(condition Data) string {
+	return GetConditionDetails(condition).GetStr("uri")
 }
 
 func GetDetailsSubfulfillments(details Data) []Data {
@@ -306,7 +318,7 @@ func GetDetailsSubfulfillments(details Data) []Data {
 	}
 	datas := make([]Data, len(subs))
 	for i, sub := range subs {
-		datas[i] = AssertMapData(sub)
+		datas[i] = AssertData(sub)
 	}
 	return datas
 }

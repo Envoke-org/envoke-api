@@ -43,10 +43,12 @@ func ValidateModel(model Data, _type string) error {
 	}
 	result, err := jsonschema.Validate(schemaLoader, modelLoader)
 	if err != nil {
+		PrintJSON(model)
 		return err
 	}
 	if !result.Valid() {
-		return Error("Validation failed")
+		PrintJSON(model)
+		return Error(_type + " validation failed")
 	}
 	return nil
 }
@@ -101,41 +103,12 @@ var itemList = Sprintf(`{
 	"required": ["@type", "itemListElement", "numberOfItems"]
 }`, link)
 
-var organizationRole = jsonschema.NewStringLoader(Sprintf(`{
-	"title": "OrganizationRole",
-	"type": "object",
-	"definitions": {
-		"link": %s
-	},
-	"properties": {
-		"@type": {
-			"type": "string",
-			"pattern": "^OrganizationRole$"
-		},
-		"member": {
-			"$ref": "#/definitions/link"
-		},
-		"roleName": {
-			"type": "string"
-		},
-		"split": {
-			"type": "integer",
-			"minimum": 0,
-			"maximum": 100,
-			"exclusiveMinimum": true,
-			"exclusiveMaximum": true
-		}
-	},
-	"required": ["@type", "member"]
-}`, link))
-
 var CollaborationLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"$schema": "%s",
 	"title": "MusicCollaboration",
 	"type": "object",
 	"definitions": {
-		"link": %s,
-		"organizationRole": %s
+		"link": %s
 	},
 	"properties": {
 		"@context": {
@@ -149,7 +122,26 @@ var CollaborationLoader = jsonschema.NewStringLoader(Sprintf(`{
 		"member": {
 			"type": "array",
 			"items": {
-				"$ref": "#/definitions/organizationRole"
+				"properties": {
+					"@type": {
+						"type": "string",
+						"pattern": "^OrganizationRole$"
+					},
+					"member": {
+						"$ref": "#/definitions/link"
+					},
+					"roleName": {
+						"type": "string"
+					},
+					"split": {
+						"type": "integer",
+						"minimum": 0,
+						"maximum": 100,
+						"exclusiveMinimum": true,
+						"exclusiveMaximum": true
+					}
+				},
+				"required": ["@type", "member"]
 			},
 			"minItems": 2,
 			"uniqueItems": true
@@ -159,7 +151,7 @@ var CollaborationLoader = jsonschema.NewStringLoader(Sprintf(`{
 		}
 	},
 	"required": ["@context", "@type", "member"]
-}`, SCHEMA, link, organizationRole, spec.CONTEXT))
+}`, SCHEMA, link, spec.CONTEXT))
 
 var PartyLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"$schema": "%s",
@@ -227,6 +219,9 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "string",
 			"pattern": "^MusicComposition$"
 		},
+		"collaboration": {
+			"type": "boolean"
+		},
 		"composer": {
 			"$ref": "#/definitions/link"
 		},
@@ -252,7 +247,7 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "string"
 		}
 	},
-	"required": ["@context", "@type", "composer", "name"]
+	"required": ["@context", "@type", "collaboration", "composer", "name"]
 }`, SCHEMA, link, spec.CONTEXT, regex.HFA, regex.LANGUAGE, regex.ISWC))
 
 var PublicationLoader = jsonschema.NewStringLoader(Sprintf(`{
@@ -310,6 +305,9 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 		"byArtist": {
 			"$ref": "#/definitions/link"
 		},
+		"collaboration": {
+			"type": "boolean"
+		},
 		"compositionRight": {
 			"$ref": "#/definitions/link"
 		},
@@ -347,7 +345,7 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 			}
 		]
 	},
-	"required": ["@context", "@type", "byArtist", "recordingOf"]
+	"required": ["@context", "@type", "byArtist", "collaboration", "recordingOf"]
 }`, SCHEMA, link, spec.CONTEXT, regex.ISRC))
 
 var ReleaseLoader = jsonschema.NewStringLoader(Sprintf(`{

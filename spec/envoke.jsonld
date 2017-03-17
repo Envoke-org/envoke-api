@@ -28,11 +28,12 @@
         "MechanicalLicense": "envoke:MechanicalLicense",
         "MasterLicense": "envoke:MasterLicense",
         
-        "byArist":
+        "byArist": 
         {
-            "@id": "schema:byArtist",
+            "@id": "schema:byArist",
             "@type": "@id"
         },
+        "collaboration": "envoke:collaboration",
         "composer":
         {
             "@id": "schema:composer",
@@ -183,7 +184,7 @@
         "@type": "rdfs:Class",
         "rdfs:subClassOf":
         {
-            "@id": "Organization"
+            "@id": "MusicGroup"
         },
         "rdfs:label": "MusicCollaboration"
     },
@@ -276,6 +277,22 @@
             "@id": "License"
         },
         "rdfs:label": "MasterLicense"
+    },
+    {
+        "@id": "collaboration",
+        "@type": "rdf:Property",
+        "schema:domainIncludes": [
+        {
+            "@id": "MusicComposition"
+        },
+        {
+            "@id": "MusicRecording"
+        }], 
+        "schema:rangeIncludes":
+        {
+            "@id": "schema:Boolean"
+        },
+        "rdfs:label": "collaboration"
     },
     {
         "@id": "composition",

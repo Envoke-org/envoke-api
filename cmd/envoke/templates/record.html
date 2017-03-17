@@ -5,6 +5,10 @@
 {{define "body"}}
 <form id="record-form" name="record-form" enctype="multipart/form-data">
     <header>RECORD</header>
+    <input type="text" name="artistId" placeholder="ARTIST ID" required /><br><br>
+    <br><br>
+    <label>COLLABORATION?</label>
+    <input type="checkbox" name="collaboration" value="true" /><br><br>
     <input type="text" name="compositionId" placeholder="COMPOSITION ID" required />
     <input type="text" name="compositionRightId" placeholder="COMPOSITION RIGHT ID" />
     <input type="text" name="duration" placeholder="DURATION" required /> 

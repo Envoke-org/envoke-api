@@ -29,6 +29,7 @@ func NewApi() *Api {
 func (api *Api) AddRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/login_handler", api.LoginHandler)
 	mux.HandleFunc("/register_handler", api.RegisterHandler)
+	mux.HandleFunc("/collaboration_handler", api.CollaborationHandler)
 	mux.HandleFunc("/compose_handler", api.ComposeHandler)
 	mux.HandleFunc("/record_handler", api.RecordHandler)
 	mux.HandleFunc("/right_handler", api.RightHandler)
@@ -135,6 +136,36 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, right)
 }
 
+func (api *Api) CollaborationHandler(w http.ResponseWriter, req *http.Request) {
+	if !api.LoggedIn() {
+		http.Error(w, "Not logged in", http.StatusUnauthorized)
+		return
+	}
+	if req.Method != http.MethodPost {
+		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
+		return
+	}
+	values, err := UrlValues(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	memberIds := SplitStr(values.Get("memberIds"), ",")
+	name := values.Get("name")
+	roleNames := SplitStr(values.Get("roleNames"), ",")
+	_splits := SplitStr(values.Get("splits"), ",")
+	splits := make([]int, len(_splits))
+	for i, split := range _splits {
+		splits[i] = MustAtoi(split)
+	}
+	collab, err := api.Collaborate(memberIds, name, roleNames, splits)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	WriteJSON(w, collab)
+}
+
 func (api *Api) ComposeHandler(w http.ResponseWriter, req *http.Request) {
 	if !api.LoggedIn() {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
@@ -149,13 +180,15 @@ func (api *Api) ComposeHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	collaboration := values.Get("collaboration") == "true"
+	composerId := values.Get("composerId")
 	hfa := values.Get("hfa")
 	iswc := values.Get("iswc")
 	lang := values.Get("lang")
 	publisherId := values.Get("publisherId")
 	sameAs := values.Get("sameAs")
 	title := values.Get("title")
-	composition, err := api.Compose(hfa, iswc, lang, publisherId, sameAs, title)
+	composition, err := api.Compose(collaboration, composerId, hfa, iswc, lang, publisherId, sameAs, title)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -177,6 +210,8 @@ func (api *Api) RecordHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	artistId := form.Value["artistId"][0]
+	collaboration := form.Value["collaboration"][0] == "true"
 	compositionId := form.Value["compositionId"][0]
 	compositionRightId := form.Value["compositionRightId"][0]
 	duration := form.Value["duration"][0]
@@ -190,7 +225,7 @@ func (api *Api) RecordHandler(w http.ResponseWriter, req *http.Request) {
 	publicationId := form.Value["publicationId"][0]
 	recordLabelId := form.Value["recordLabelId"][0]
 	sameAs := form.Value["sameAs"][0]
-	recording, err := api.Record(compositionId, compositionRightId, duration, file, isrc, mechanicalLicenseId, publicationId, recordLabelId, sameAs)
+	recording, err := api.Record(artistId, collaboration, compositionId, compositionRightId, duration, file, isrc, mechanicalLicenseId, publicationId, recordLabelId, sameAs)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -567,8 +602,8 @@ func (api *Api) Register(email, ipi, isni string, memberIds []string, name, pass
 	return v, nil
 }
 
-func (api *Api) Compose(hfa, iswc, lang, publisherId, sameAs, title string) (Data, error) {
-	composition := spec.NewComposition(api.partyId, hfa, iswc, lang, title, publisherId, sameAs)
+func (api *Api) Compose(collaboration bool, composerId, hfa, iswc, lang, publisherId, sameAs, title string) (Data, error) {
+	composition := spec.NewComposition(collaboration, composerId, hfa, iswc, lang, title, publisherId, sameAs)
 	tx := bigchain.DefaultIndividualCreateTx(composition, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
@@ -582,14 +617,37 @@ func (api *Api) Compose(hfa, iswc, lang, publisherId, sameAs, title string) (Dat
 	}, nil
 }
 
-func (api *Api) Record(compositionId, compositionRightId, duration string, file io.Reader, isrc, mechanicalLicenseId, publicationId, recordLabelId, sameAs string) (Data, error) {
+func (api *Api) Collaborate(memberIds []string, name string, roleNames []string, splits []int) (Data, error) {
+	collab := spec.NewCollaboration(memberIds, name, roleNames, splits)
+	pubs := make([]crypto.PublicKey, len(memberIds))
+	for i, memberId := range memberIds {
+		tx, err := ld.QueryAndValidateModel(memberId, "party")
+		if err != nil {
+			return nil, err
+		}
+		pubs[i] = bigchain.DefaultGetTxSender(tx)
+	}
+	tx := bigchain.DefaultMultipleOwnersCreateTx(collab, pubs, api.pub)
+	bigchain.FulfillTx(tx, api.priv)
+	id, err := bigchain.PostTx(tx)
+	if err != nil {
+		return nil, err
+	}
+	api.logger.Info("SUCCESS sent tx with collaboration")
+	return Data{
+		"collaboration": collab,
+		"id":            id,
+	}, nil
+}
+
+func (api *Api) Record(artistId string, collaboration bool, compositionId, compositionRightId, duration string, file io.Reader, isrc, mechanicalLicenseId, publicationId, recordLabelId, sameAs string) (Data, error) {
 	// rs := MustReadSeeker(file)
 	// meta, err := tag.ReadFrom(rs)
 	// if err != nil {
 	//	return nil, err
 	// }
 	// metadata := meta.Raw()
-	recording := spec.NewRecording(api.partyId, compositionId, compositionRightId, duration, isrc, mechanicalLicenseId, publicationId, recordLabelId, sameAs)
+	recording := spec.NewRecording(artistId, collaboration, compositionId, compositionRightId, duration, isrc, mechanicalLicenseId, publicationId, recordLabelId, sameAs)
 	tx := bigchain.DefaultIndividualCreateTx(recording, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)

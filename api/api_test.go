@@ -38,12 +38,21 @@ func TestApi(t *testing.T) {
 	WriteJSON(output, performer)
 	performerId := GetId(performer)
 	performerPriv := GetPrivateKey(performer)
-	// producer, err := api.Register("producer@email.com", "producer", "1234", "www.soundcloud_page.com")
-	// if err != nil {
-	//	t.Fatal(err)
-	// }
-	// WriteJSON(output, producer)
-	// producerId := GetId(producer)
+	producer, err := api.Register("producer@email.com", "", "", nil, "producer", "1234", "/Users/zach/Desktop/envoke/producer", "", "www.soundcloud_page.com", "Person")
+	if err != nil {
+		t.Fatal(err)
+	}
+	WriteJSON(output, producer)
+	producerId := GetId(producer)
+	if err = api.Login(performerId, performerPriv); err != nil {
+		t.Fatal(err)
+	}
+	collab, err := api.Collaborate([]string{performerId, producerId}, "collab", []string{"performer", "producer"}, []int{60, 40})
+	if err != nil {
+		t.Fatal(err)
+	}
+	WriteJSON(output, collab)
+	collabId := GetId(collab)
 	publisher, err := api.Register("publisher@email.com", "", "", nil, "publisher", "didyousaysomething?", "/Users/zach/Desktop/envoke/publisher", "", "www.soundcloud_page.com", "MusicGroup")
 	if err != nil {
 		t.Fatal(err)
@@ -60,7 +69,7 @@ func TestApi(t *testing.T) {
 	if err = api.Login(composerId, composerPriv); err != nil {
 		t.Fatal(err)
 	}
-	composition, err := api.Compose("B3107S", "T-034.524.680-1", "EN", publisherId, "www.url_to_composition.com", "untitled")
+	composition, err := api.Compose(false, composerId, "B3107S", "T-034.524.680-1", "EN", publisherId, "www.url_to_composition.com", "untitled")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +96,7 @@ func TestApi(t *testing.T) {
 	if err = api.Login(publisherId, publisherPriv); err != nil {
 		t.Fatal(err)
 	}
-	mechanicalLicense, err := api.MechanicalLicense(nil, publisherRightId, "", publicationId, performerId, []string{"US"}, nil, "2020-01-01", "2024-01-01")
+	mechanicalLicense, err := api.MechanicalLicense(nil, publisherRightId, "", publicationId, collabId, []string{"US"}, nil, "2020-01-01", "2024-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,25 +109,25 @@ func TestApi(t *testing.T) {
 	if err = api.Login(performerId, performerPriv); err != nil {
 		t.Fatal(err)
 	}
-	recording, err := api.Record(compositionId, "", "PT2M43S", file, "US-S1Z-99-00001", mechanicalLicenseId, "", recordLabelId, "www.url_to_recording.com")
+	recording, err := api.Record(collabId, true, compositionId, "", "PT2M43S", file, "US-S1Z-99-00001", mechanicalLicenseId, "", recordLabelId, "www.url_to_recording.com")
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, recording)
 	recordingId := GetId(recording)
-	performerRight, err := api.RecordingRight(performerId, 30, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
+	collabRight, err := api.RecordingRight(collabId, 30, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, performerRight)
-	performerRightId := GetId(performerRight)
+	WriteJSON(output, collabRight)
+	collabRightId := GetId(collabRight)
 	recordLabelRight, err := api.RecordingRight(recordLabelId, 70, []string{"GB", "US"}, "2020-01-01", "2080-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, recordLabelRight)
 	recordLabelRightId := GetId(recordLabelRight)
-	release, err := api.Release([]string{recordingId}, []string{performerRightId, recordLabelRightId}, recordLabelId, "www.url_to_release.com", "release_title")
+	release, err := api.Release([]string{recordingId}, []string{collabRightId, recordLabelRightId}, recordLabelId, "www.url_to_release.com", "release_title")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +141,6 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	WriteJSON(output, masterLicense)
-	// masterLicenseId := GetId(masterLicense)
 	if err = api.Login(composerId, composerPriv); err != nil {
 		t.Fatal(err)
 	}
@@ -153,21 +161,21 @@ func TestApi(t *testing.T) {
 	}
 	WriteJSON(output, compositionRightTransfer)
 	compositionRightTransferId = GetId(compositionRightTransfer)
-	if err = api.Login(performerId, performerPriv); err != nil {
+	if err = api.Login(recordLabelId, recordLabelPriv); err != nil {
 		t.Fatal(err)
 	}
 	SleepSeconds(2)
-	recordingRightTransfer, err := api.TransferRecordingRight(recordLabelId, 10, performerRightId, "", releaseId)
+	recordingRightTransfer, err := api.TransferRecordingRight(performerId, 10, recordLabelRightId, "", releaseId)
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, recordingRightTransfer)
 	recordingRightTransferId := GetId(recordingRightTransfer)
-	if err = api.Login(recordLabelId, recordLabelPriv); err != nil {
+	if err = api.Login(performerId, performerPriv); err != nil {
 		t.Fatal(err)
 	}
 	SleepSeconds(2)
-	recordingRightTransfer, err = api.TransferRecordingRight(performerId, 5, performerRightId, recordingRightTransferId, releaseId)
+	recordingRightTransfer, err = api.TransferRecordingRight(recordLabelId, 5, recordLabelRightId, recordingRightTransferId, releaseId)
 	if err != nil {
 		t.Fatal(err)
 	}
