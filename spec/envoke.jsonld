@@ -78,10 +78,6 @@
             "@id": "schema:iswcCode",
             "@type": "@id"
         },
-        "lyrics": {
-            "@id": "schema:lyrics",
-            "@type": "@id"
-        },
         "mechanicalLicense":
         {
             "@id": "envoke:mechanicalLicense",
@@ -138,9 +134,9 @@
             "@id": "envoke:recordingRightTransfer",
             "@type": "@id"
         },
-        "recordLabel":
+        "recordLabel": 
         {
-            "@id": "schema:recordLabel",
+            "@id": "envoke:recordLabel",
             "@type": "@id"
         },
         "release":
@@ -262,16 +258,16 @@
     {
         "@id": "composition",
         "@type": "rdf:Property",
-        "schema:domainIncludes":
+        "schema:domainIncludes": [
+        {
+            "@id": "MechanicalLicense"
+        },
         {
             "@id": "MusicPublication"
-        },
+        }],
         "schema:rangeIncludes": [
         {
             "@id": "ItemList"
-        },
-        {
-            "@id": "MechanicalLicense"
         },
         {
             "@id": "MusicComposition"
@@ -427,16 +423,16 @@
         {
             "@id": "schema:track"
         },
-        "schema:domainIncludes":
+        "schema:domainIncludes": [
+        {
+            "@id": "MasterLicense"
+        },
         {
             "@id": "MusicRelease"
-        },
+        }],
         "schema:rangeIncludes": [
         {
             "@id": "ItemList"
-        },
-        {
-            "@id": "MasterLicense"
         },
         {
             "@id": "MusicRecording"
@@ -464,6 +460,26 @@
             "@id": "RecordingRight"
         }],
         "rdfs:label": "recordingRight"
+    },
+    {
+        "@id": "recordLabel",
+        "@type": "rdf:Property",
+        "owl:equivalentProperty": 
+        {
+            "@id": "schema:recordLabel"
+        },
+        "schema:domainIncludes": [
+        {
+            "@id": "MusicRecording"
+        },
+        {
+            "@id": "MusicRelease"
+        }],
+        "schema:rangeIncludes": 
+        {
+            "@id": "Organization"
+        },
+        "rdfs:label": "recordLabel"
     },
     {
         "@id": "recordingRightTransfer",

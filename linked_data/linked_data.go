@@ -237,6 +237,7 @@ func ValidatePublication(publicationId string) (Data, []Data, []Data, error) {
 		return nil, nil, nil, err
 	}
 	publication := bigchain.GetTxData(tx)
+	publisherId := spec.GetPublisherId(publication)
 	senderPub := bigchain.DefaultGetTxSender(tx)
 	var composerId string
 	compositionIds := spec.GetCompositionIds(publication)
@@ -246,9 +247,11 @@ func ValidatePublication(publicationId string) (Data, []Data, []Data, error) {
 		if err != nil {
 			return nil, nil, nil, err
 		}
+		if publisherId != spec.GetPublisherId(composition) {
+			return nil, nil, nil, ErrorAppend(ErrInvalidId, publisherId)
+		}
 		if i == 0 {
 			composerId = spec.GetComposerId(composition)
-			// TODO: check composerId
 		} else if composerId != spec.GetComposerId(composition) {
 			return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "publication cannot link to compositions by different composers")
 		}
@@ -264,7 +267,6 @@ func ValidatePublication(publicationId string) (Data, []Data, []Data, error) {
 	}
 	compositionRightIds := spec.GetCompositionRightIds(publication)
 	compositionRights := make([]Data, len(compositionRightIds))
-	publisherId := spec.GetPublisherId(publication)
 	recipientIds := make(map[string]struct{})
 	rightHolder := false
 	totalShares := 0
@@ -710,20 +712,20 @@ func ValidateRecording(recordingId string) (Data, error) {
 	}
 	recording := bigchain.GetTxData(tx)
 	senderPub := bigchain.DefaultGetTxSender(tx)
-	performerId := spec.GetPerformerId(recording)
-	tx, err = QueryAndValidateModel(performerId, "party")
+	artistId := spec.GetArtistId(recording)
+	tx, err = QueryAndValidateModel(artistId, "party")
 	if err != nil {
 		return nil, err
 	}
 	if !senderPub.Equals(bigchain.DefaultGetTxSender(tx)) {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "performer is not recording sender")
+		return nil, ErrorAppend(ErrCriteriaNotMet, "artist is not recording sender")
 	}
 	compositionId := spec.GetRecordingOfId(recording)
 	composition, err := ValidateComposition(compositionId)
 	if err != nil {
 		return nil, err
 	}
-	if performerId == spec.GetComposerId(composition) {
+	if artistId == spec.GetComposerId(composition) {
 		return recording, nil
 		// what if composer is no longer composition right-holder?
 	}
@@ -747,7 +749,7 @@ func ValidateRecording(recordingId string) (Data, error) {
 		rightHolder := false
 		for _, compositionRight := range compositionRights {
 			if compositionRightId == spec.GetId(compositionRight) {
-				if performerId != spec.GetRecipientId(compositionRight) {
+				if artistId != spec.GetRecipientId(compositionRight) {
 					return nil, ErrorAppend(ErrCriteriaNotMet, "sender does not hold composition right")
 				}
 				rightHolder = true
@@ -763,7 +765,7 @@ func ValidateRecording(recordingId string) (Data, error) {
 	if err != nil {
 		return nil, err
 	}
-	if performerId != spec.GetRecipientId(mechanicalLicense) {
+	if artistId != spec.GetRecipientId(mechanicalLicense) {
 		return nil, ErrorAppend(ErrCriteriaNotMet, "perfomer is not mechanical license holder")
 	}
 	for _, composition := range compositions {
@@ -779,8 +781,8 @@ func ProvePerformer(challenge string, priv crypto.PrivateKey, recordingId string
 	if err != nil {
 		return nil, err
 	}
-	performerId := spec.GetPerformerId(recording)
-	tx, err := bigchain.GetTx(performerId)
+	artistId := spec.GetArtistId(recording)
+	tx, err := bigchain.GetTx(artistId)
 	if err != nil {
 		return nil, err
 	}
@@ -800,8 +802,8 @@ func VerifyPerformer(challenge, recordingId string, sig crypto.Signature) error 
 	if err != nil {
 		return err
 	}
-	performerId := spec.GetPerformerId(recording)
-	tx, err := bigchain.GetTx(performerId)
+	artistId := spec.GetArtistId(recording)
+	tx, err := bigchain.GetTx(artistId)
 	if err != nil {
 		return err
 	}
@@ -835,8 +837,8 @@ func GetMechanicalLicense(data Data) (Data, error) {
 }
 
 func GetPerformer(data Data) (Data, error) {
-	performerId := spec.GetPerformerId(data)
-	tx, err := bigchain.GetTx(performerId)
+	artistId := spec.GetArtistId(data)
+	tx, err := bigchain.GetTx(artistId)
 	if err != nil {
 		return nil, err
 	}
@@ -855,7 +857,7 @@ func QueryRecordingField(field, recordingId string) (interface{}, error) {
 		return GetCompositionRight(recording)
 	case "mechanical_license":
 		return GetMechanicalLicense(recording)
-	case "performer":
+	case "artist":
 		return GetPerformer(recording)
 	}
 	return nil, ErrorAppend(ErrInvalidField, field)
@@ -947,8 +949,9 @@ func ValidateRelease(releaseId string) (Data, []Data, []Data, error) {
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	var performerId string
+	var artistId string
 	release := bigchain.GetTxData(tx)
+	recordLabelId := spec.GetRecordLabelId(release)
 	senderPub := bigchain.DefaultGetTxSender(tx)
 	recordingIds := spec.GetRecordingIds(release)
 	recordings := make([]Data, len(recordingIds))
@@ -957,26 +960,27 @@ func ValidateRelease(releaseId string) (Data, []Data, []Data, error) {
 		if err != nil {
 			return nil, nil, nil, err
 		}
+		if recordLabelId != spec.GetRecordLabelId(recording) {
+			return nil, nil, nil, ErrorAppend(ErrInvalidId, recordLabelId)
+		}
 		if i == 0 {
-			performerId = spec.GetPerformerId(recording)
-			// TODO: check performerId
-		} else if performerId != spec.GetPerformerId(recording) {
-			return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "release cannot link to recording with different performers")
+			artistId = spec.GetArtistId(recording)
+		} else if artistId != spec.GetArtistId(recording) {
+			return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "release cannot link to recording with different artists")
 		}
 		spec.SetId(recording, recordingId)
 		recordings[i] = recording
 	}
-	tx, err = QueryAndValidateModel(performerId, "party")
+	tx, err = QueryAndValidateModel(artistId, "party")
 	if err != nil {
 		return nil, nil, nil, err
 	}
 	if !senderPub.Equals(bigchain.DefaultGetTxSender(tx)) {
-		return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "performer must be sender of release")
+		return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "artist must be sender of release")
 	}
 	recipientIds := make(map[string]struct{})
 	recordingRightIds := spec.GetRecordingRightIds(release)
 	recordingRights := make([]Data, len(recordingRightIds))
-	recordLabelId := spec.GetRecordLabelId(release)
 	rightHolder := false
 	totalShares := 0
 	for i, recordingRightId := range recordingRightIds {
@@ -984,8 +988,8 @@ func ValidateRelease(releaseId string) (Data, []Data, []Data, error) {
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		if performerId != spec.GetSenderId(recordingRight) {
-			return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "performer must be right sender")
+		if artistId != spec.GetSenderId(recordingRight) {
+			return nil, nil, nil, ErrorAppend(ErrCriteriaNotMet, "artist must be right sender")
 		}
 		recipientId := spec.GetRecipientId(recordingRight)
 		if _, ok := recipientIds[recipientId]; ok {
@@ -1291,8 +1295,8 @@ func ValidateMasterLicense(masterLicenseId string) (Data, []Data, error) {
 			if err != nil {
 				return nil, nil, err
 			}
-			if senderId != spec.GetPerformerId(recording) {
-				return nil, nil, ErrorAppend(ErrCriteriaNotMet, "cannot license recording by another performer")
+			if senderId != spec.GetArtistId(recording) {
+				return nil, nil, ErrorAppend(ErrCriteriaNotMet, "cannot license recording by another artist")
 			}
 			seen[recordingId] = struct{}{}
 			spec.SetId(recording, recordingId)

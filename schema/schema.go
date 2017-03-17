@@ -181,11 +181,14 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 		"name": {
 			"type": "string"
 		},
+		"publisher": {
+			"$ref": "#/definitions/link"
+		},
 		"sameAs": {
 			"type": "string"
 		}
 	},
-	"required": ["@context", "@type", "composer", "name", "sameAs"]
+	"required": ["@context", "@type", "composer", "name"]
 }`, SCHEMA, link, spec.CONTEXT, regex.HFA, regex.LANGUAGE, regex.ISWC))
 
 var PublicationLoader = jsonschema.NewStringLoader(Sprintf(`{
@@ -216,9 +219,12 @@ var PublicationLoader = jsonschema.NewStringLoader(Sprintf(`{
 		},
 		"publisher": {
 			"$ref": "#/definitions/link"
+		},
+		"sameAs": {
+			"type": "string"
 		}
 	},
-	"required": ["@context", "@type", "composition", "compositionRight", "name"]
+	"required": ["@context", "@type", "composition", "compositionRight", "name", "publisher"]
 }`, SCHEMA, itemList, link, spec.CONTEXT))
 
 var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
@@ -255,6 +261,12 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 		},
 		"recordingOf": {
 			"$ref": "#/definitions/link"
+		},
+		"recordLabel": {
+			"$ref": "#/definitions/link"
+		},
+		"sameAs": {
+			"type": "string"
 		}
 	},
 	"dependencies": {
@@ -271,7 +283,7 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 			}
 		]
 	},
-	"required": ["@context", "@type", "byArtist", "duration", "recordingOf"]
+	"required": ["@context", "@type", "byArtist", "recordingOf"]
 }`, SCHEMA, link, spec.CONTEXT, regex.ISRC))
 
 var ReleaseLoader = jsonschema.NewStringLoader(Sprintf(`{
@@ -302,9 +314,12 @@ var ReleaseLoader = jsonschema.NewStringLoader(Sprintf(`{
 		},
 		"recordLabel": {
 			"$ref": "#/definitions/link"
+		},
+		"sameAs": {
+			"type": "string"
 		}
 	},
-	"required": ["@context", "@type", "name", "recording", "recordingRight"]
+	"required": ["@context", "@type", "name", "recording", "recordingRight", "recordLabel"]
 }`, SCHEMA, itemList, link, spec.CONTEXT))
 
 var CompositionRightLoader = jsonschema.NewStringLoader(Sprintf(`{

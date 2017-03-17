@@ -60,7 +60,7 @@ func TestApi(t *testing.T) {
 	if err = api.Login(composerId, composerPriv); err != nil {
 		t.Fatal(err)
 	}
-	composition, err := api.Compose("B3107S", "T-034.524.680-1", "EN", "www.url_to_composition.com", "untitled")
+	composition, err := api.Compose("B3107S", "T-034.524.680-1", "EN", publisherId, "www.url_to_composition.com", "untitled")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +78,7 @@ func TestApi(t *testing.T) {
 	}
 	WriteJSON(output, publisherRight)
 	publisherRightId := GetId(publisherRight)
-	publication, err := api.Publish([]string{compositionId}, []string{composerRightId, publisherRightId}, publisherId, "publication_title")
+	publication, err := api.Publish([]string{compositionId}, []string{composerRightId, publisherRightId}, publisherId, "www.url_to_publication.com", "publication_title")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +100,7 @@ func TestApi(t *testing.T) {
 	if err = api.Login(performerId, performerPriv); err != nil {
 		t.Fatal(err)
 	}
-	recording, err := api.Record(compositionId, "", "PT2M43S", file, "US-S1Z-99-00001", mechanicalLicenseId, performerId, "")
+	recording, err := api.Record(compositionId, "", "PT2M43S", file, "US-S1Z-99-00001", mechanicalLicenseId, "", recordLabelId, "www.url_to_recording.com")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func TestApi(t *testing.T) {
 	}
 	WriteJSON(output, recordLabelRight)
 	recordLabelRightId := GetId(recordLabelRight)
-	release, err := api.Release([]string{recordingId}, []string{performerRightId, recordLabelRightId}, recordLabelId, "release_title")
+	release, err := api.Release([]string{recordingId}, []string{performerRightId, recordLabelRightId}, recordLabelId, "www.url_to_release.com", "release_title")
 	if err != nil {
 		t.Fatal(err)
 	}

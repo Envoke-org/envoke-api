@@ -152,9 +152,10 @@ func (api *Api) ComposeHandler(w http.ResponseWriter, req *http.Request) {
 	hfa := values.Get("hfa")
 	iswc := values.Get("iswc")
 	lang := values.Get("lang")
+	publisherId := values.Get("publisherId")
 	sameAs := values.Get("sameAs")
 	title := values.Get("title")
-	composition, err := api.Compose(hfa, iswc, lang, sameAs, title)
+	composition, err := api.Compose(hfa, iswc, lang, publisherId, sameAs, title)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -186,9 +187,10 @@ func (api *Api) RecordHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	isrc := form.Value["isrc"][0]
 	mechanicalLicenseId := form.Value["mechanicalLicenseId"][0]
-	performerId := form.Value["performerId"][0]
 	publicationId := form.Value["publicationId"][0]
-	recording, err := api.Record(compositionId, compositionRightId, duration, file, isrc, mechanicalLicenseId, performerId, publicationId)
+	recordLabelId := form.Value["recordLabelId"][0]
+	sameAs := form.Value["sameAs"][0]
+	recording, err := api.Record(compositionId, compositionRightId, duration, file, isrc, mechanicalLicenseId, publicationId, recordLabelId, sameAs)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -213,8 +215,9 @@ func (api *Api) PublishHandler(w http.ResponseWriter, req *http.Request) {
 	compositionsId := SplitStr(values.Get("compositionId"), ",")
 	compositionRightIds := SplitStr(values.Get("compositionRightIds"), ",")
 	publisherId := values.Get("publisherId")
+	sameAs := values.Get("sameAs")
 	title := values.Get("title")
-	composition, err := api.Publish(compositionsId, compositionRightIds, publisherId, title)
+	composition, err := api.Publish(compositionsId, compositionRightIds, publisherId, sameAs, title)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -239,8 +242,9 @@ func (api *Api) ReleaseHandler(w http.ResponseWriter, req *http.Request) {
 	recordingIds := SplitStr(values.Get("recordingIds"), ",")
 	recordingRightIds := SplitStr(values.Get("recordingRightIds"), ",")
 	recordLabelId := values.Get("recordLabelId")
+	sameAs := values.Get("sameAs")
 	title := values.Get("title")
-	release, err := api.Release(recordingIds, recordingRightIds, recordLabelId, title)
+	release, err := api.Release(recordingIds, recordingRightIds, recordLabelId, sameAs, title)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -563,8 +567,8 @@ func (api *Api) Register(email, ipi, isni string, memberIds []string, name, pass
 	return v, nil
 }
 
-func (api *Api) Compose(hfa, iswc, lang, sameAs, title string) (Data, error) {
-	composition := spec.NewComposition(api.partyId, hfa, iswc, lang, title, sameAs)
+func (api *Api) Compose(hfa, iswc, lang, publisherId, sameAs, title string) (Data, error) {
+	composition := spec.NewComposition(api.partyId, hfa, iswc, lang, title, publisherId, sameAs)
 	tx := bigchain.DefaultIndividualCreateTx(composition, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
@@ -578,14 +582,14 @@ func (api *Api) Compose(hfa, iswc, lang, sameAs, title string) (Data, error) {
 	}, nil
 }
 
-func (api *Api) Record(compositionId, compositionRightId, duration string, file io.Reader, isrc, mechanicalLicenseId, performerId, publicationId string) (Data, error) {
+func (api *Api) Record(compositionId, compositionRightId, duration string, file io.Reader, isrc, mechanicalLicenseId, publicationId, recordLabelId, sameAs string) (Data, error) {
 	// rs := MustReadSeeker(file)
 	// meta, err := tag.ReadFrom(rs)
 	// if err != nil {
 	//	return nil, err
 	// }
 	// metadata := meta.Raw()
-	recording := spec.NewRecording(compositionId, compositionRightId, duration, isrc, mechanicalLicenseId, performerId, publicationId)
+	recording := spec.NewRecording(api.partyId, compositionId, compositionRightId, duration, isrc, mechanicalLicenseId, publicationId, recordLabelId, sameAs)
 	tx := bigchain.DefaultIndividualCreateTx(recording, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
@@ -599,8 +603,8 @@ func (api *Api) Record(compositionId, compositionRightId, duration string, file 
 	}, nil
 }
 
-func (api *Api) Publish(compositionIds, compositionRightIds []string, publisherId, title string) (Data, error) {
-	publication := spec.NewPublication(compositionIds, compositionRightIds, title, publisherId)
+func (api *Api) Publish(compositionIds, compositionRightIds []string, publisherId, sameAs, title string) (Data, error) {
+	publication := spec.NewPublication(compositionIds, compositionRightIds, title, publisherId, sameAs)
 	tx := bigchain.DefaultIndividualCreateTx(publication, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
@@ -614,8 +618,8 @@ func (api *Api) Publish(compositionIds, compositionRightIds []string, publisherI
 	}, nil
 }
 
-func (api *Api) Release(recordingIds, recordingRightIds []string, recordLabelId, title string) (Data, error) {
-	release := spec.NewRelease(title, recordingIds, recordingRightIds, recordLabelId)
+func (api *Api) Release(recordingIds, recordingRightIds []string, recordLabelId, sameAs, title string) (Data, error) {
+	release := spec.NewRelease(title, recordingIds, recordingRightIds, recordLabelId, sameAs)
 	tx := bigchain.DefaultIndividualCreateTx(release, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)

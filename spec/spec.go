@@ -94,13 +94,12 @@ func GetSameAs(data Data) string {
 
 // TODO: add lyricist
 
-func NewComposition(composerId, hfa, iswc, lang, name, sameAs string) Data {
+func NewComposition(composerId, hfa, iswc, lang, name, publisherId, sameAs string) Data {
 	composition := Data{
 		"@context": CONTEXT,
 		"@type":    "MusicComposition",
 		"composer": NewLink(composerId),
 		"name":     name,
-		"sameAs":   sameAs,
 	}
 	if MatchStr(regex.HFA, hfa) {
 		composition.Set("hfaCode", hfa)
@@ -110,6 +109,12 @@ func NewComposition(composerId, hfa, iswc, lang, name, sameAs string) Data {
 	}
 	if MatchStr(regex.LANGUAGE, lang) {
 		composition.Set("inLanguage", lang)
+	}
+	if MatchId(publisherId) {
+		composition.Set("publisher", NewLink(publisherId))
+	}
+	if MatchUrlRelaxed(sameAs) {
+		composition.Set("sameAs", sameAs)
 	}
 	return composition
 }
@@ -131,7 +136,12 @@ func GetLanguage(data Data) string {
 	return data.GetStr("inLanguage")
 }
 
-func NewPublication(compositionIds []string, compositionRightIds []string, name, publisherId string) Data {
+func GetPublisherId(data Data) string {
+	publisher := data.GetData("publisher")
+	return GetId(publisher)
+}
+
+func NewPublication(compositionIds []string, compositionRightIds []string, name, publisherId, sameAs string) Data {
 	m := len(compositionIds)
 	if m == 0 {
 		panic("No compositionIds")
@@ -162,7 +172,7 @@ func NewPublication(compositionIds []string, compositionRightIds []string, name,
 			},
 		}
 	}
-	return Data{
+	publication := Data{
 		"@context": CONTEXT,
 		"@type":    "MusicPublication",
 		"composition": Data{
@@ -178,6 +188,10 @@ func NewPublication(compositionIds []string, compositionRightIds []string, name,
 		"name":      name,
 		"publisher": NewLink(publisherId),
 	}
+	if MatchUrlRelaxed(sameAs) {
+		publication.Set("sameAs", sameAs)
+	}
+	return publication
 }
 
 func GetCompositionIds(data Data) []string {
@@ -204,19 +218,13 @@ func GetCompositionRightIds(data Data) []string {
 	return compositionRightIds
 }
 
-func GetPublisherId(data Data) string {
-	publisher := data.GetData("publisher")
-	return GetId(publisher)
-}
-
 // TODO: add producer
 
-func NewRecording(compositionId, compositionRightId, duration, isrc, mechanicalLicenseId, performerId, publicationId string) Data {
+func NewRecording(artistId, compositionId, compositionRightId, duration, isrc, mechanicalLicenseId, publicationId, recordLabelId, sameAs string) Data {
 	recording := Data{
 		"@context":    CONTEXT,
 		"@type":       "MusicRecording",
-		"byArtist":    NewLink(performerId),
-		"duration":    duration,
+		"byArtist":    NewLink(artistId),
 		"recordingOf": NewLink(compositionId),
 	}
 	if MatchId(compositionRightId) {
@@ -228,12 +236,26 @@ func NewRecording(compositionId, compositionRightId, duration, isrc, mechanicalL
 	} else if MatchId(mechanicalLicenseId) {
 		recording.Set("mechanicalLicense", NewLink(mechanicalLicenseId))
 	} else {
-		// performer should be composer
+		// artist should be composer
+	}
+	if !EmptyStr(duration) {
+		recording.Set("duration", duration)
 	}
 	if MatchStr(regex.ISRC, isrc) {
 		recording.Set("isrcCode", isrc)
 	}
+	if MatchId(recordLabelId) {
+		recording.Set("recordLabel", NewLink(recordLabelId))
+	}
+	if MatchUrlRelaxed(sameAs) {
+		recording.Set("sameAs", sameAs)
+	}
 	return recording
+}
+
+func GetArtistId(data Data) string {
+	artist := data.GetData("byArtist")
+	return GetId(artist)
 }
 
 func GetCompositionRightId(data Data) string {
@@ -244,11 +266,6 @@ func GetCompositionRightId(data Data) string {
 func GetMechanicalLicenseId(data Data) string {
 	mechanicalLicense := data.GetData("mechanicalLicense")
 	return GetId(mechanicalLicense)
-}
-
-func GetPerformerId(data Data) string {
-	performer := data.GetData("byArtist")
-	return GetId(performer)
 }
 
 func GetProducerId(data Data) string {
@@ -266,7 +283,12 @@ func GetRecordingOfId(data Data) string {
 	return GetId(composition)
 }
 
-func NewRelease(name string, recordingIds, recordingRightIds []string, recordLabelId string) Data {
+func GetRecordLabelId(data Data) string {
+	recordLabel := data.GetData("recordLabel")
+	return GetId(recordLabel)
+}
+
+func NewRelease(name string, recordingIds, recordingRightIds []string, recordLabelId, sameAs string) Data {
 	m := len(recordingIds)
 	if m == 0 {
 		panic("No recordingIds")
@@ -297,7 +319,7 @@ func NewRelease(name string, recordingIds, recordingRightIds []string, recordLab
 			},
 		}
 	}
-	return Data{
+	release := Data{
 		"@context": CONTEXT,
 		"@type":    "MusicRelease",
 		"name":     name,
@@ -313,6 +335,10 @@ func NewRelease(name string, recordingIds, recordingRightIds []string, recordLab
 		},
 		"recordLabel": NewLink(recordLabelId),
 	}
+	if MatchUrlRelaxed(sameAs) {
+		release.Set("sameAs", sameAs)
+	}
+	return release
 }
 
 func GetRecordingIds(data Data) []string {
@@ -337,11 +363,6 @@ func GetRecordingRightIds(data Data) []string {
 		recordingRightIds[i] = GetId(item)
 	}
 	return recordingRightIds
-}
-
-func GetRecordLabelId(data Data) string {
-	recordLabel := data.GetData("recordLabel")
-	return GetId(recordLabel)
 }
 
 // Note: percentageShares is taken from the tx output amount so it's not included in the data model
