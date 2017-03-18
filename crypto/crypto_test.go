@@ -15,18 +15,18 @@ func TestCrypto(t *testing.T) {
 	privRSA, pubRSA := rsa.GenerateKeypair()
 	privPEM := privRSA.MarshalPEM()
 	if err := privRSA.UnmarshalPEM(privPEM); err != nil {
-		t.Error(err.Error())
+		t.Fatal(err)
 	}
 	pubPEM := pubRSA.MarshalPEM()
 	if err := pubRSA.UnmarshalPEM(pubPEM); err != nil {
-		t.Error(err.Error())
+		t.Fatal(err)
 	}
 	// Sha256 Pre-Image
 	preimage := []byte("helloworld")
 	f1 := conds.NewFulfillmentPreImage(preimage, 1)
 	// Validate the fulfillment
 	if !f1.Validate(preimage) {
-		t.Error("Failed to validate pre-image fulfillment")
+		t.Fatal("Failed to validate pre-image fulfillment")
 	}
 	// Sha256 Prefix
 	prefix := []byte("hello")
@@ -34,20 +34,20 @@ func TestCrypto(t *testing.T) {
 	f2 := conds.NewFulfillmentPrefix(prefix, f1, 1)
 	// Validate the fulfillment
 	if !f2.Validate(suffix) {
-		t.Error("Failed to validate prefix fulfillment")
+		t.Fatal("Failed to validate prefix fulfillment")
 	}
 	// Ed25519
 	msg := []byte("deadbeef")
 	privEd25519, _ := ed25519.GenerateKeypairFromPassword("password")
 	f3 := conds.FulfillmentFromPrivKey(msg, privEd25519, 2)
 	if !f3.Validate(msg) {
-		t.Error("Failed to validate ed25519 fulfillment")
+		t.Fatal("Failed to validate ed25519 fulfillment")
 	}
 	// RSA
 	anotherMsg := []byte("foobar")
 	f4 := conds.FulfillmentFromPrivKey(anotherMsg, privRSA, 1)
 	if !f4.Validate(anotherMsg) {
-		t.Error("Failed to validate pre-image fulfillment")
+		t.Fatal("Failed to validate pre-image fulfillment")
 	}
 	// Sha256 Threshold
 	subs := conds.Fulfillments{f1, f2, f3, f4}
@@ -60,18 +60,18 @@ func TestCrypto(t *testing.T) {
 	WriteVarOctet(buf, suffix)
 	WriteVarOctet(buf, anotherMsg)
 	if !f5.Validate(buf.Bytes()) {
-		t.Error("Failed to validate threshold fulfillment")
+		t.Fatal("Failed to validate threshold fulfillment")
 	}
 	// Get fulfillment uri
 	uri := f5.String()
 	// Derive new fulfillment from uri, use same weight
 	f6, err := conds.UnmarshalURI(uri, 1)
 	if err != nil {
-		t.Error(err.Error())
+		t.Fatal(err)
 	}
 	// Check whether hashes are the same
 	if !bytes.Equal(f5.Hash(), f6.Hash()) {
-		t.Error("Expected identical fulfillment hashes")
+		t.Fatal("Expected identical fulfillment hashes")
 	}
 	// Nested Thresholds
 	subs = conds.Fulfillments{f1, f2, f3, f4, f5}
@@ -85,6 +85,6 @@ func TestCrypto(t *testing.T) {
 	threshold = 4
 	f7 := conds.NewFulfillmentThreshold(subs, threshold, 1)
 	if !f7.Validate(buf2.Bytes()) {
-		t.Error("Failed to validate nested thresholds")
+		t.Fatal("Failed to validate nested thresholds")
 	}
 }

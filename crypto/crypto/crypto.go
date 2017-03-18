@@ -11,6 +11,7 @@ type PrivateKey interface {
 	IsPrivateKey()
 	Public() PublicKey
 	Sign([]byte) Signature
+	String() string
 }
 
 type PublicKey interface {

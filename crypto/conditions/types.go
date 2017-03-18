@@ -233,6 +233,10 @@ type fulfillmentThreshold struct {
 	threshold int
 }
 
+func DefaultFullfillmentThreshold(subs Fulfillments, threshold int) *fulfillmentThreshold {
+	return NewFulfillmentThreshold(subs, threshold, 1)
+}
+
 func NewFulfillmentThreshold(subs Fulfillments, threshold, weight int) *fulfillmentThreshold {
 	if len(subs) == 0 {
 		panic("Must have more than 0 subs")
@@ -272,6 +276,16 @@ func DefaultFulfillmentThresholdFromPubKeys(pubs []crypto.PublicKey) *fulfillmen
 func FulfillmentThresholdFromPubKeys(pubs []crypto.PublicKey, threshold, weight int, weights []int) *fulfillmentThreshold {
 	subs := FulfillmentsFromPubKeys(pubs, weights)
 	return NewFulfillmentThreshold(subs, threshold, weight)
+}
+
+// For testing..
+func DefaultFulfillmentThresholdFromPrivKeys(msg []byte, privs ...crypto.PrivateKey) *fulfillmentThreshold {
+	n := len(privs)
+	subs := make(Fulfillments, n)
+	for i, priv := range privs {
+		subs[i] = DefaultFulfillmentFromPrivKey(msg, priv)
+	}
+	return NewFulfillmentThreshold(subs, n, 1)
 }
 
 func (f *fulfillmentThreshold) MarshalJSON() ([]byte, error) {
@@ -527,7 +541,7 @@ func (f *fulfillmentThreshold) Validate(p []byte) bool {
 	}
 	valid := 0
 	buf := bytes.NewBuffer(p)
-	for _, f := range subf {
+	for i, f := range subf {
 		p, err := ReadVarOctet(buf)
 		if err != nil {
 			return false

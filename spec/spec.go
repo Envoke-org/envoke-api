@@ -151,7 +151,12 @@ func NewCollaboration(memberIds []string, name string, roleNames []string, split
 }
 
 func GetOrganizationRoles(data Data) []Data {
-	return data.GetDataSlice("member")
+	roles := data.GetInterfaceSlice("member")
+	organizationRoles := make([]Data, len(roles))
+	for i, role := range roles {
+		organizationRoles[i] = AssertData(role)
+	}
+	return organizationRoles
 }
 
 func GetMemberId(data Data) string {
@@ -166,19 +171,7 @@ func GetSplit(data Data) int {
 	return data.GetInt("split")
 }
 
-func NewSignature(uri string) Data {
-	return Data{
-		"@context": CONTEXT,
-		"@type":    "CollaborationSignature",
-		"uri":      uri,
-	}
-}
-
-func GetURI(data Data) string {
-	return data.GetStr("uri")
-}
-
-func NewComposition(collaboration bool, composerId, hfa, iswc, lang, name, publisherId, sameAs, signatureId string) Data {
+func NewComposition(collaboration bool, composerId, hfa, iswc, lang, name, publisherId, sameAs, uri string) Data {
 	composition := Data{
 		"@context":      CONTEXT,
 		"@type":         "MusicComposition",
@@ -201,11 +194,9 @@ func NewComposition(collaboration bool, composerId, hfa, iswc, lang, name, publi
 	if MatchUrlRelaxed(sameAs) {
 		composition.Set("sameAs", sameAs)
 	}
-	if collaboration {
-		if !MatchId(signatureId) {
-			panic("Invalid signatureId: " + signatureId)
-		}
-		composition.Set("signature", NewLink(signatureId))
+	// not enforcing schema since collaborators sign data model without uri, even though `collaboration=true`
+	if MatchStr(regex.FULFILLMENT, uri) {
+		composition.Set("uri", uri)
 	}
 	return composition
 }
@@ -232,9 +223,8 @@ func GetPublisherId(data Data) string {
 	return GetId(publisher)
 }
 
-func GetSignatureId(data Data) string {
-	signature := data.GetData("signature")
-	return GetId(signature)
+func GetURI(data Data) string {
+	return data.GetStr("uri")
 }
 
 func IsCollaboration(data Data) bool {
@@ -318,7 +308,7 @@ func GetCompositionRightIds(data Data) []string {
 	return compositionRightIds
 }
 
-func NewRecording(artistId string, collaboration bool, compositionId, compositionRightId, duration, isrc, mechanicalLicenseId, publicationId, recordLabelId, sameAs, signatureId string) Data {
+func NewRecording(artistId string, collaboration bool, compositionId, compositionRightId, duration, isrc, mechanicalLicenseId, publicationId, recordLabelId, sameAs, uri string) Data {
 	recording := Data{
 		"@context":      CONTEXT,
 		"@type":         "MusicRecording",
@@ -349,11 +339,8 @@ func NewRecording(artistId string, collaboration bool, compositionId, compositio
 	if MatchUrlRelaxed(sameAs) {
 		recording.Set("sameAs", sameAs)
 	}
-	if collaboration {
-		if !MatchId(signatureId) {
-			panic("Invalid signatureId: " + signatureId)
-		}
-		recording.Set("signature", NewLink(signatureId))
+	if MatchStr(regex.FULFILLMENT, uri) {
+		recording.Set("uri", uri)
 	}
 	return recording
 }
@@ -472,15 +459,15 @@ func GetRecordingRightIds(data Data) []string {
 
 // Note: percentageShares is taken from the tx output amount so it's not included in the data model
 
-func NewCompositionRight(recipientId, senderId, signatureId string, territory []string, validFrom, validThrough string) Data {
-	return NewRight(recipientId, senderId, signatureId, territory, "CompositionRight", validFrom, validThrough)
+func NewCompositionRight(recipientId, senderId string, territory []string, uri, validFrom, validThrough string) Data {
+	return NewRight(recipientId, senderId, territory, "CompositionRight", uri, validFrom, validThrough)
 }
 
-func NewRecordingRight(recipientId, senderId, signatureId string, territory []string, validFrom, validThrough string) Data {
-	return NewRight(recipientId, senderId, signatureId, territory, "RecordingRight", validFrom, validThrough)
+func NewRecordingRight(recipientId, senderId string, territory []string, uri, validFrom, validThrough string) Data {
+	return NewRight(recipientId, senderId, territory, "RecordingRight", uri, validFrom, validThrough)
 }
 
-func NewRight(recipientId, senderId, signatureId string, territory []string, _type, validFrom, validThrough string) Data {
+func NewRight(recipientId, senderId string, territory []string, _type, uri, validFrom, validThrough string) Data {
 	right := Data{
 		"@context":     CONTEXT,
 		"@type":        _type,
@@ -490,8 +477,8 @@ func NewRight(recipientId, senderId, signatureId string, territory []string, _ty
 		"validFrom":    validFrom,
 		"validThrough": validThrough,
 	}
-	if MatchId(signatureId) {
-		right.Set("signature", NewLink(signatureId))
+	if MatchStr(regex.FULFILLMENT, uri) {
+		right.Set("uri", uri)
 	}
 	return right
 }

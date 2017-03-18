@@ -162,11 +162,11 @@ func FulfilledTx(tx Data) bool {
 	inputs := tx.GetInterfaceSlice("inputs")
 	fulfillments := make([]conds.Fulfillment, len(inputs))
 	for i, input := range inputs {
-		mapData := AssertData(input)
-		uri := mapData.GetStr("fulfillment")
-		fulfillments[i], err = conds.UnmarshalURI(uri, 1)
+		data := AssertData(input)
+		uri := data.GetStr("fulfillment")
+		fulfillments[i], err = conds.DefaultUnmarshalURI(uri)
 		Check(err)
-		mapData.Clear("fulfillment")
+		data.Clear("fulfillment")
 	}
 	fulfilled := true
 	json := MustMarshalJSON(tx)
@@ -290,6 +290,10 @@ func DefaultGetTxOutput(tx Data) Data {
 	return GetTxOutput(tx, 0)
 }
 
+func DefaultGetTxCondition(tx Data) Data {
+	return GetOutputCondition(DefaultGetTxOutput(tx))
+}
+
 func GetTxOutput(tx Data, n int) Data {
 	outputs := GetTxOutputs(tx)
 	return outputs[n]
@@ -305,10 +309,6 @@ func GetOutputCondition(output Data) Data {
 
 func GetConditionDetails(condition Data) Data {
 	return condition.GetData("details")
-}
-
-func GetConditionUri(condition Data) string {
-	return GetConditionDetails(condition).GetStr("uri")
 }
 
 func GetDetailsSubfulfillments(details Data) []Data {

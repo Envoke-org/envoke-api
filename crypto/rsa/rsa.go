@@ -106,6 +106,16 @@ func (priv *PrivateKey) Public() crypto.PublicKey {
 	return NewPublicKey(inner)
 }
 
+// TODO:
+
+func (priv *PrivateKey) Bytes() []byte {
+	return nil
+}
+
+func (priv *PrivateKey) String() string {
+	return ""
+}
+
 // PubKey
 
 func (_ *PublicKey) IsPublicKey() {}
