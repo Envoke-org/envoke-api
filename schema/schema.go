@@ -45,11 +45,9 @@ func ValidateModel(model Data, _type string) error {
 	}
 	result, err := jsonschema.Validate(schemaLoader, modelLoader)
 	if err != nil {
-		PrintJSON(model)
 		return err
 	}
 	if !result.Valid() {
-		PrintJSON(model)
 		return Error(_type + " validation failed")
 	}
 	return nil
@@ -121,18 +119,13 @@ var SignatureLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "string",
 			"pattern": "^CollaborationSignature$"
 		},
-		"collaboration": {
-			"$ref": "#/definitions/link"
-		},
-		"signature": {
-			"type": "string"
-		},
-		"signed": {
-			"$ref": "#/definitions/link"
+		"uri": {
+			"type": "string",
+			"pattern": "%s"
 		}
 	},
-	"required": ["@context", "@type", "collaboration", "signature", "signed"]
-}`))
+	"required": ["@context", "@type", "uri"]
+}`, SCHEMA, link, spec.CONTEXT, regex.FULFILLMENT))
 
 var CollaborationLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"$schema": "%s",
@@ -276,8 +269,27 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 		},
 		"sameAs": {
 			"type": "string"
+		},
+		"signature": {
+			"$ref": "#/definitions/link"
 		}
 	},
+	"oneOf": [
+		{
+			"properties": {
+				"collaborate": {"enum": [true]}
+			},
+			"required": ["signature"]
+		},
+		{
+			"properties": {
+				"collaborate": {"enum": [false]}
+			},
+			"not": {
+				"required": ["signature"]
+			}
+		}
+	],
 	"required": ["@context", "@type", "collaborate", "composer", "name"]
 }`, SCHEMA, link, spec.CONTEXT, regex.HFA, regex.LANGUAGE, regex.ISWC))
 
@@ -360,6 +372,9 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 		},
 		"sameAs": {
 			"type": "string"
+		},
+		"signature": {
+			"$ref": "#/definitions/link"
 		}
 	},
 	"dependencies": {
@@ -376,6 +391,22 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 			}
 		]
 	},
+	"oneOf": [
+		{
+			"properties": {
+				"collaborate": {"enum": [true]}
+			},
+			"required": ["signature"]
+		},
+		{
+			"properties": {
+				"collaborate": {"enum": [false]}
+			},
+			"not": {
+				"required": ["signature"]
+			}
+		}
+	],
 	"required": ["@context", "@type", "byArtist", "collaborate", "recordingOf"]
 }`, SCHEMA, link, spec.CONTEXT, regex.ISRC))
 
@@ -437,6 +468,9 @@ var CompositionRightLoader = jsonschema.NewStringLoader(Sprintf(`{
 		"sender": {
 			"$ref": "#/definitions/link"
 		},
+		"signature": {
+			"$ref": "#/definitions/link"
+		},
 		"territory": {
 			"type": "array",
 			"items": {
@@ -477,6 +511,9 @@ var RecordingRightLoader = jsonschema.NewStringLoader(Sprintf(`{
 		},
 		"sender": {
 			"$ref": "#/definitions/link"
+		},
+		"signature": {
+			"$ref": "#/definitions/link"	
 		},
 		"territory": {
 			"type": "array",

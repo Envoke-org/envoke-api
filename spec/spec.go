@@ -166,37 +166,25 @@ func GetSplit(data Data) int {
 	return data.GetInt("split")
 }
 
-func NewSignature(collabId, signedId, uri string) Data {
+func NewSignature(uri string) Data {
 	return Data{
-		"@context":      CONTEXT,
-		"@type":         "CollaborationSignature",
-		"collaboration": NewLink(collabId),
-		"signed":        NewLink(signedId),
-		"uri":           uri,
+		"@context": CONTEXT,
+		"@type":    "CollaborationSignature",
+		"uri":      uri,
 	}
 }
 
-func GetCollaborationId(data Data) string {
-	collaboration := data.GetData("collaboration")
-	return GetId(collaboration)
-}
-
-func GetSignedId(data Data) string {
-	signed := data.GetData("signed")
-	return GetId(signed)
-}
-
 func GetURI(data Data) string {
-	return data.GetStr("signature")
+	return data.GetStr("uri")
 }
 
-func NewComposition(collaborate bool, composerId, hfa, iswc, lang, name, publisherId, sameAs string) Data {
+func NewComposition(collaboration bool, composerId, hfa, iswc, lang, name, publisherId, sameAs, signatureId string) Data {
 	composition := Data{
-		"@context":    CONTEXT,
-		"@type":       "MusicComposition",
-		"collaborate": collaborate,
-		"composer":    NewLink(composerId),
-		"name":        name,
+		"@context":      CONTEXT,
+		"@type":         "MusicComposition",
+		"collaboration": collaboration,
+		"composer":      NewLink(composerId),
+		"name":          name,
 	}
 	if MatchStr(regex.HFA, hfa) {
 		composition.Set("hfaCode", hfa)
@@ -212,6 +200,12 @@ func NewComposition(collaborate bool, composerId, hfa, iswc, lang, name, publish
 	}
 	if MatchUrlRelaxed(sameAs) {
 		composition.Set("sameAs", sameAs)
+	}
+	if collaboration {
+		if !MatchId(signatureId) {
+			panic("Invalid signatureId: " + signatureId)
+		}
+		composition.Set("signature", NewLink(signatureId))
 	}
 	return composition
 }
@@ -238,8 +232,13 @@ func GetPublisherId(data Data) string {
 	return GetId(publisher)
 }
 
-func Collaborated(data Data) bool {
-	return data.GetBool("collaborate")
+func GetSignatureId(data Data) string {
+	signature := data.GetData("signature")
+	return GetId(signature)
+}
+
+func IsCollaboration(data Data) bool {
+	return data.GetBool("collaboration")
 }
 
 func NewPublication(compositionIds []string, compositionRightIds []string, name, publisherId, sameAs string) Data {
@@ -319,13 +318,13 @@ func GetCompositionRightIds(data Data) []string {
 	return compositionRightIds
 }
 
-func NewRecording(artistId string, collaborate bool, compositionId, compositionRightId, duration, isrc, mechanicalLicenseId, publicationId, recordLabelId, sameAs string) Data {
+func NewRecording(artistId string, collaboration bool, compositionId, compositionRightId, duration, isrc, mechanicalLicenseId, publicationId, recordLabelId, sameAs, signatureId string) Data {
 	recording := Data{
-		"@context":    CONTEXT,
-		"@type":       "MusicRecording",
-		"byArtist":    NewLink(artistId),
-		"collaborate": collaborate,
-		"recordingOf": NewLink(compositionId),
+		"@context":      CONTEXT,
+		"@type":         "MusicRecording",
+		"byArtist":      NewLink(artistId),
+		"collaboration": collaboration,
+		"recordingOf":   NewLink(compositionId),
 	}
 	if MatchId(compositionRightId) {
 		if !MatchId(publicationId) {
@@ -349,6 +348,12 @@ func NewRecording(artistId string, collaborate bool, compositionId, compositionR
 	}
 	if MatchUrlRelaxed(sameAs) {
 		recording.Set("sameAs", sameAs)
+	}
+	if collaboration {
+		if !MatchId(signatureId) {
+			panic("Invalid signatureId: " + signatureId)
+		}
+		recording.Set("signature", NewLink(signatureId))
 	}
 	return recording
 }
@@ -467,16 +472,16 @@ func GetRecordingRightIds(data Data) []string {
 
 // Note: percentageShares is taken from the tx output amount so it's not included in the data model
 
-func NewCompositionRight(recipientId, senderId string, territory []string, validFrom, validThrough string) Data {
-	return NewRight(recipientId, senderId, territory, "CompositionRight", validFrom, validThrough)
+func NewCompositionRight(recipientId, senderId, signatureId string, territory []string, validFrom, validThrough string) Data {
+	return NewRight(recipientId, senderId, signatureId, territory, "CompositionRight", validFrom, validThrough)
 }
 
-func NewRecordingRight(recipientId, senderId string, territory []string, validFrom, validThrough string) Data {
-	return NewRight(recipientId, senderId, territory, "RecordingRight", validFrom, validThrough)
+func NewRecordingRight(recipientId, senderId, signatureId string, territory []string, validFrom, validThrough string) Data {
+	return NewRight(recipientId, senderId, signatureId, territory, "RecordingRight", validFrom, validThrough)
 }
 
-func NewRight(recipientId, senderId string, territory []string, _type, validFrom, validThrough string) Data {
-	return Data{
+func NewRight(recipientId, senderId, signatureId string, territory []string, _type, validFrom, validThrough string) Data {
+	right := Data{
 		"@context":     CONTEXT,
 		"@type":        _type,
 		"recipient":    NewLink(recipientId),
@@ -485,6 +490,10 @@ func NewRight(recipientId, senderId string, territory []string, _type, validFrom
 		"validFrom":    validFrom,
 		"validThrough": validThrough,
 	}
+	if MatchId(signatureId) {
+		right.Set("signature", NewLink(signatureId))
+	}
+	return right
 }
 
 func GetRecipientId(data Data) string {

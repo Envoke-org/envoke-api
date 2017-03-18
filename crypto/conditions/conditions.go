@@ -6,6 +6,7 @@ import (
 	"github.com/zbo14/envoke/crypto/crypto"
 	"github.com/zbo14/envoke/crypto/ed25519"
 	"github.com/zbo14/envoke/crypto/rsa"
+	"github.com/zbo14/envoke/regex"
 )
 
 // ILP crypto-conditions
@@ -15,12 +16,6 @@ const (
 	HASH_SIZE         = 32
 	MAX_PAYLOAD_SIZE  = 0xfff
 	SUPPORTED_BITMASK = 0x3f
-
-	// Regex
-	CONDITION_REGEX        = `^cc:([1-9a-f][0-9a-f]{0,3}|0):[1-9a-f][0-9a-f]{0,15}:[a-zA-Z0-9_-]{0,86}:([1-9][0-9]{0,17}|0)$`
-	CONDITION_REGEX_STRICT = `^cc:([1-9a-f][0-9a-f]{0,3}|0):[1-9a-f][0-9a-f]{0,7}:[a-zA-Z0-9_-]{0,86}:([1-9][0-9]{0,17}|0)$`
-	FULFILLMENT_REGEX      = `^cf:([1-9a-f][0-9a-f]{0,3}|0):[a-zA-Z0-9_-]*$`
-	TIMESTAMP_REGEX        = `^\d{10}(\.\d+)?$`
 
 	// Types
 	FULFILLMENT_TYPE = "fulfillment"
@@ -281,7 +276,7 @@ func DefaultUnmarshalURI(uri string) (Fulfillment, error) {
 }
 
 func UnmarshalURI(uri string, weight int) (f Fulfillment, err error) {
-	if MatchStr(CONDITION_REGEX, uri) {
+	if MatchStr(regex.CONDITION, uri) {
 		// Try to parse condition
 		parts := SplitStr(uri, ":")
 		c := NilCondition()
@@ -307,7 +302,7 @@ func UnmarshalURI(uri string, weight int) (f Fulfillment, err error) {
 		}
 		return c, nil
 	}
-	if MatchStr(FULFILLMENT_REGEX, uri) {
+	if MatchStr(regex.FULFILLMENT, uri) {
 		// Try to parse non-condition fulfillment
 		ful := new(fulfillment)
 		parts := SplitStr(uri, ":")
@@ -383,7 +378,7 @@ func NewFulfillment(id int, outer Fulfillment, payload []byte, weight int) *fulf
 func (f *fulfillment) Bitmask() int { return f.bitmask }
 
 func (f *fulfillment) FromString(uri string) (err error) {
-	if !MatchStr(FULFILLMENT_REGEX, uri) {
+	if !MatchStr(regex.FULFILLMENT, uri) {
 		return ErrInvalidFulfillment
 	}
 	parts := SplitStr(uri, ":")
@@ -533,7 +528,7 @@ func NewCondition(bitmask int, hash []byte, id int, pub crypto.PublicKey, size, 
 }
 
 func (c *Condition) FromString(uri string) (err error) {
-	if !MatchStr(CONDITION_REGEX, uri) {
+	if !MatchStr(regex.CONDITION, uri) {
 		return ErrInvalidCondition
 	}
 	parts := SplitStr(uri, ":")

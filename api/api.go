@@ -118,14 +118,15 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 	recipientId := values.Get("recipientId")
 	recipientShares := MustAtoi(values.Get("recipientShares"))
 	senderId := values.Get("senderId")
+	signatureId := values.Get("signatureId")
 	territory := SplitStr(values.Get("territory"), ",")
 	_type := values.Get("type")
 	validFrom := values.Get("validFrom")
 	validThrough := values.Get("validThrough")
 	if _type == "composition_right" {
-		right, err = api.CompositionRight(recipientId, recipientShares, senderId, territory, validFrom, validThrough)
+		right, err = api.CompositionRight(recipientId, recipientShares, senderId, signatureId, territory, validFrom, validThrough)
 	} else if _type == "recording_right" {
-		right, err = api.RecordingRight(recipientId, recipientShares, senderId, territory, validFrom, validThrough)
+		right, err = api.RecordingRight(recipientId, recipientShares, senderId, signatureId, territory, validFrom, validThrough)
 	} else {
 		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
 		return
@@ -188,8 +189,9 @@ func (api *Api) ComposeHandler(w http.ResponseWriter, req *http.Request) {
 	lang := values.Get("lang")
 	publisherId := values.Get("publisherId")
 	sameAs := values.Get("sameAs")
+	signatureId := values.Get("signatureId")
 	title := values.Get("title")
-	composition, err := api.Compose(collaboration, composerId, hfa, iswc, lang, publisherId, sameAs, title)
+	composition, err := api.Compose(collaboration, composerId, hfa, iswc, lang, publisherId, sameAs, signatureId, title)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -226,7 +228,8 @@ func (api *Api) RecordHandler(w http.ResponseWriter, req *http.Request) {
 	publicationId := form.Value["publicationId"][0]
 	recordLabelId := form.Value["recordLabelId"][0]
 	sameAs := form.Value["sameAs"][0]
-	recording, err := api.Record(artistId, collaboration, compositionId, compositionRightId, duration, file, isrc, mechanicalLicenseId, publicationId, recordLabelId, sameAs)
+	signatureId := form.Value["signatureId"][0]
+	recording, err := api.Record(artistId, collaboration, compositionId, compositionRightId, duration, file, isrc, mechanicalLicenseId, publicationId, recordLabelId, sameAs, signatureId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -603,8 +606,8 @@ func (api *Api) Register(email, ipi, isni string, memberIds []string, name, pass
 	return v, nil
 }
 
-func (api *Api) Compose(collaboration bool, composerId, hfa, iswc, lang, publisherId, sameAs, title string) (Data, error) {
-	composition := spec.NewComposition(collaboration, composerId, hfa, iswc, lang, title, publisherId, sameAs)
+func (api *Api) Compose(collaboration bool, composerId, hfa, iswc, lang, publisherId, sameAs, signatureId, title string) (Data, error) {
+	composition := spec.NewComposition(collaboration, composerId, hfa, iswc, lang, title, publisherId, sameAs, signatureId)
 	tx := bigchain.DefaultIndividualCreateTx(composition, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
@@ -641,14 +644,14 @@ func (api *Api) Collaborate(memberIds []string, name string, roleNames []string,
 	}, nil
 }
 
-func (api *Api) Record(artistId string, collaboration bool, compositionId, compositionRightId, duration string, file io.Reader, isrc, mechanicalLicenseId, publicationId, recordLabelId, sameAs string) (Data, error) {
+func (api *Api) Record(artistId string, collaboration bool, compositionId, compositionRightId, duration string, file io.Reader, isrc, mechanicalLicenseId, publicationId, recordLabelId, sameAs, signatureId string) (Data, error) {
 	// rs := MustReadSeeker(file)
 	// meta, err := tag.ReadFrom(rs)
 	// if err != nil {
 	//	return nil, err
 	// }
 	// metadata := meta.Raw()
-	recording := spec.NewRecording(artistId, collaboration, compositionId, compositionRightId, duration, isrc, mechanicalLicenseId, publicationId, recordLabelId, sameAs)
+	recording := spec.NewRecording(artistId, collaboration, compositionId, compositionRightId, duration, isrc, mechanicalLicenseId, publicationId, recordLabelId, sameAs, signatureId)
 	tx := bigchain.DefaultIndividualCreateTx(recording, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
@@ -692,13 +695,13 @@ func (api *Api) Release(recordingIds, recordingRightIds []string, recordLabelId,
 	}, nil
 }
 
-func (api *Api) CompositionRight(recipientId string, recipientShares int, senderId string, territory []string, validFrom, validThrough string) (Data, error) {
+func (api *Api) CompositionRight(recipientId string, recipientShares int, senderId, signatureId string, territory []string, validFrom, validThrough string) (Data, error) {
 	tx, err := bigchain.GetTx(recipientId)
 	if err != nil {
 		return nil, err
 	}
 	recipientPub := bigchain.DefaultGetTxSender(tx)
-	compositionRight := spec.NewCompositionRight(recipientId, senderId, territory, validFrom, validThrough)
+	compositionRight := spec.NewCompositionRight(recipientId, senderId, signatureId, territory, validFrom, validThrough)
 	tx = bigchain.IndividualCreateTx(recipientShares, compositionRight, recipientPub, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
@@ -712,13 +715,13 @@ func (api *Api) CompositionRight(recipientId string, recipientShares int, sender
 	}, nil
 }
 
-func (api *Api) RecordingRight(recipientId string, recipientShares int, senderId string, territory []string, validFrom, validThrough string) (Data, error) {
+func (api *Api) RecordingRight(recipientId string, recipientShares int, senderId, signatureId string, territory []string, validFrom, validThrough string) (Data, error) {
 	tx, err := bigchain.GetTx(recipientId)
 	if err != nil {
 		return nil, err
 	}
 	recipientPub := bigchain.DefaultGetTxSender(tx)
-	recordingRight := spec.NewRecordingRight(recipientId, senderId, territory, validFrom, validThrough)
+	recordingRight := spec.NewRecordingRight(recipientId, senderId, signatureId, territory, validFrom, validThrough)
 	tx = bigchain.IndividualCreateTx(recipientShares, recordingRight, recipientPub, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)

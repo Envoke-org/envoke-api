@@ -33,18 +33,19 @@ func DefaultBalloonHash(challenge string) ([]byte, error) {
 	return balloon.BalloonHash(p, SALT, 256, 32, 2), nil
 }
 
-func ValidateSignature(sigId string) (Data, error) {
-	tx, err := QueryAndValidateModel(sigId, "signature")
+/*
+func ValidateSignature(signatureId string) (Data, error) {
+	tx, err := QueryAndValidateModel(signatureId, "signature")
 	if err != nil {
 		return nil, err
 	}
-	sig := bigchain.GetTxData(tx)
-	collabId := spec.GetCollaborationId(sig)
+	signature := bigchain.GetTxData(tx)
+	collabId := spec.GetCollaborationId(signature)
 	collab, err := ValidateCollaboration(collabId)
 	if err != nil {
 		return nil, err
 	}
-	fulfillment, err := conds.DefaultUnmarshalURI(spec.GetURI(sig))
+	fulfillment, err := conds.DefaultUnmarshalURI(spec.GetURI(signature))
 	if err != nil {
 		return nil, err
 	}
@@ -52,16 +53,18 @@ func ValidateSignature(sigId string) (Data, error) {
 	if condition.String() != spec.GetURI(collab) {
 		return nil, ErrorAppend(ErrInvalidCondition, condition.String())
 	}
-	tx, err = bigchain.GetTx(spec.GetSignedId(sig))
+	tx, err = bigchain.GetTx(spec.GetSignedId(signature))
 	if err != nil {
 		return nil, err
 	}
-	p := MustMarshalJSON(bigchain.GetTxData(tx))
-	if !fulfillment.Validate(p) {
+	model := bigchain.GetTxData(tx)
+	model.Set("signature", nil)
+	if !fulfillment.Validate(MustMarshalJSON(model)) {
 		return nil, ErrorAppend(ErrInvalidFulfillment, fulfillment.String())
 	}
-	return sig, nil
+	return signature, nil
 }
+*/
 
 func ValidateCollaboration(collabId string) (Data, error) {
 	tx, err := QueryAndValidateModel(collabId, "collaboration")
@@ -124,7 +127,7 @@ func ValidateComposition(compositionId string) (Data, error) {
 	composition := bigchain.GetTxData(tx)
 	senderPub := bigchain.DefaultGetTxSender(tx)
 	composerId := spec.GetComposerId(composition)
-	if spec.Collaborated(composition) {
+	if spec.IsCollaboration(composition) {
 		tx, err = QueryAndValidateModel(composerId, "collaboration")
 	} else {
 		tx, err = QueryAndValidateModel(composerId, "party")
@@ -134,6 +137,28 @@ func ValidateComposition(compositionId string) (Data, error) {
 	}
 	if !senderPub.Equals(bigchain.DefaultGetTxSender(tx)) {
 		return nil, ErrorAppend(ErrInvalidKey, senderPub.String())
+	}
+	if spec.IsCollaboration(composition) {
+		collab := bigchain.GetTxData(tx)
+		signatureId := spec.GetSignatureId(composition)
+		tx, err := QueryAndValidateModel(signatureId, "signature")
+		if err != nil {
+			return nil, err
+		}
+		signature := bigchain.GetTxData(tx)
+		fulfillment, err := conds.DefaultUnmarshalURI(spec.GetURI(signature))
+		if err != nil {
+			return nil, err
+		}
+		condition := conds.GetCondition(fulfillment)
+		if condition.String() != spec.GetURI(collab) {
+			return nil, ErrorAppend(ErrInvalidCondition, condition.String())
+		}
+		composition.Set("signature", nil)
+		if !fulfillment.Validate(MustMarshalJSON(composition)) {
+			return nil, ErrorAppend(ErrInvalidFulfillment, fulfillment.String())
+		}
+		composition.Set("signature", spec.NewLink(signatureId))
 	}
 	return composition, nil
 }
@@ -207,11 +232,11 @@ func ValidateCompositionRight(rightId string) (Data, crypto.PublicKey, crypto.Pu
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	right := bigchain.GetTxData(tx)
-	recipientId := spec.GetRecipientId(right)
+	compositionRight := bigchain.GetTxData(tx)
+	recipientId := spec.GetRecipientId(compositionRight)
 	recipientPub := bigchain.DefaultGetTxRecipient(tx)
 	recipientShares := bigchain.GetTxShares(tx)
-	senderId := spec.GetSenderId(right)
+	senderId := spec.GetSenderId(compositionRight)
 	senderPub := bigchain.DefaultGetTxSender(tx)
 	tx, err = bigchain.GetTx(recipientId)
 	if err != nil {
@@ -237,14 +262,33 @@ func ValidateCompositionRight(rightId string) (Data, crypto.PublicKey, crypto.Pu
 		if err = schema.ValidateModel(sender, "collaboration"); err != nil {
 			return nil, nil, nil, err
 		}
+		signatureId := spec.GetSignatureId(compositionRight)
+		tx, err = QueryAndValidateModel(signatureId, "signature")
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		signature := bigchain.GetTxData(tx)
+		fulfillment, err := conds.DefaultUnmarshalURI(spec.GetURI(signature))
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		condition := conds.GetCondition(fulfillment)
+		if condition.String() != spec.GetURI(sender) {
+			return nil, nil, nil, ErrorAppend(ErrInvalidCondition, condition.String())
+		}
+		compositionRight.Set("signature", nil)
+		if !fulfillment.Validate(MustMarshalJSON(compositionRight)) {
+			return nil, nil, nil, ErrorAppend(ErrInvalidFulfillment, fulfillment.String())
+		}
+		compositionRight.Set("signature", spec.NewLink(signatureId))
 	} else if err = schema.ValidateModel(sender, "party"); err != nil {
 		return nil, nil, nil, err
 	}
 	if !senderPub.Equals(bigchain.DefaultGetTxSender(tx)) {
 		return nil, nil, nil, ErrorAppend(ErrInvalidKey, senderPub.String())
 	}
-	right.Set("recipientShares", recipientShares)
-	return right, recipientPub, senderPub, nil
+	compositionRight.Set("recipientShares", recipientShares)
+	return compositionRight, recipientPub, senderPub, nil
 }
 
 func ProveCompositionRightHolder(challenge, compositionRightId string, priv crypto.PrivateKey, publicationId string) (crypto.Signature, error) {
@@ -825,7 +869,7 @@ func ValidateRecording(recordingId string) (Data, error) {
 	recording := bigchain.GetTxData(tx)
 	senderPub := bigchain.DefaultGetTxSender(tx)
 	artistId := spec.GetArtistId(recording)
-	if spec.Collaborated(recording) {
+	if spec.IsCollaboration(recording) {
 		tx, err = QueryAndValidateModel(artistId, "collaboration")
 	} else {
 		tx, err = QueryAndValidateModel(artistId, "party")
@@ -835,6 +879,28 @@ func ValidateRecording(recordingId string) (Data, error) {
 	}
 	if !senderPub.Equals(bigchain.DefaultGetTxSender(tx)) {
 		return nil, ErrorAppend(ErrCriteriaNotMet, "artist is not recording sender")
+	}
+	if spec.IsCollaboration(recording) {
+		collab := bigchain.GetTxData(tx)
+		signatureId := spec.GetSignatureId(recording)
+		tx, err = QueryAndValidateModel(signatureId, "signature")
+		if err != nil {
+			return nil, err
+		}
+		signature := bigchain.GetTxData(tx)
+		fulfillment, err := conds.DefaultUnmarshalURI(spec.GetURI(signature))
+		if err != nil {
+			return nil, err
+		}
+		condition := conds.GetCondition(fulfillment)
+		if condition.String() != spec.GetURI(collab) {
+			return nil, ErrorAppend(ErrInvalidCondition, condition.String())
+		}
+		recording.Set("signature", nil)
+		if !fulfillment.Validate(MustMarshalJSON(recording)) {
+			return nil, ErrorAppend(ErrInvalidFulfillment, fulfillment.String())
+		}
+		recording.Set("signature", spec.NewLink(signatureId))
 	}
 	compositionId := spec.GetRecordingOfId(recording)
 	composition, err := ValidateComposition(compositionId)
@@ -1036,11 +1102,11 @@ func ValidateRecordingRight(rightId string) (Data, crypto.PublicKey, crypto.Publ
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	right := bigchain.GetTxData(tx)
-	recipientId := spec.GetRecipientId(right)
+	recordingRight := bigchain.GetTxData(tx)
+	recipientId := spec.GetRecipientId(recordingRight)
 	recipientPub := bigchain.DefaultGetTxRecipient(tx)
 	recipientShares := bigchain.GetTxShares(tx)
-	senderId := spec.GetSenderId(right)
+	senderId := spec.GetSenderId(recordingRight)
 	senderPub := bigchain.DefaultGetTxSender(tx)
 	tx, err = bigchain.GetTx(recipientId)
 	if err != nil {
@@ -1066,14 +1132,33 @@ func ValidateRecordingRight(rightId string) (Data, crypto.PublicKey, crypto.Publ
 		if err = schema.ValidateModel(sender, "collaboration"); err != nil {
 			return nil, nil, nil, err
 		}
+		signatureId := spec.GetSignatureId(recordingRight)
+		tx, err = QueryAndValidateModel(signatureId, "signature")
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		signature := bigchain.GetTxData(tx)
+		fulfillment, err := conds.DefaultUnmarshalURI(spec.GetURI(signature))
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		condition := conds.GetCondition(fulfillment)
+		if condition.String() != spec.GetURI(sender) {
+			return nil, nil, nil, ErrorAppend(ErrInvalidCondition, condition.String())
+		}
+		recordingRight.Set("signature", nil)
+		if !fulfillment.Validate(MustMarshalJSON(recordingRight)) {
+			return nil, nil, nil, ErrorAppend(ErrInvalidFulfillment, fulfillment.String())
+		}
+		recordingRight.Set("signature", spec.NewLink(signatureId))
 	} else if err = schema.ValidateModel(sender, "party"); err != nil {
 		return nil, nil, nil, err
 	}
 	if !senderPub.Equals(bigchain.DefaultGetTxSender(tx)) {
 		return nil, nil, nil, ErrorAppend(ErrInvalidKey, senderPub.String())
 	}
-	right.Set("recipientShares", recipientShares)
-	return right, recipientPub, senderPub, nil
+	recordingRight.Set("recipientShares", recipientShares)
+	return recordingRight, recipientPub, senderPub, nil
 }
 
 func ValidateRelease(releaseId string) (Data, []Data, []Data, error) {

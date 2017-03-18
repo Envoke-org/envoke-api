@@ -35,11 +35,6 @@
             "@type": "@id"
         },
         "collaborate": "envoke:collaborate",
-        "collaboration": 
-        {
-            "@id": "envoke:collaboration",
-            "@type":"@id"
-        },
         "composer":
         {
             "@id": "schema:composer",
@@ -173,6 +168,11 @@
             "@id": "envoke:sender",
             "@type": "@id"
         },
+        "signature": 
+        {
+            "@id": "envoke:signature",
+            "@type": "@id"
+        },
         "split": "envoke:split",
         "territory": "envoke:territory",
         "tx": 
@@ -180,6 +180,7 @@
             "@id": "envoke:tx",
             "@type": "@id"
         },
+        "uri": "envoke:uri",
         "usage": "envoke:usage",
         "validFrom": "envoke:validFrom",
         "validThrough": "envoke:validThrough"
@@ -299,17 +300,6 @@
             "@id": "schema:Boolean"
         },
         "rdfs:label": "collaborate"
-    },
-    {
-        "@id": "collaboration",
-        "@type": "rdf:Property",
-        "schema:domainIncludes": {
-            "@id": "CollaborationSignature"
-        },
-        "schema:rangeIncludes": {
-            "@id": "MusicCollaboration"
-        },
-        "rdfs:label": "collaboration"
     },
     {
         "@id": "composition",
@@ -587,6 +577,25 @@
         "rdfs:label": "sender"
     },
     {
+        "@id": "signature",
+        "@type": "rdf:Property",
+        "schema:domainIncludes": [
+        {
+            "@id": "MusicComposition"
+        },
+        {
+            "@id": "MusicRecording"
+        },
+        {
+            "@id": "Right"
+        }],
+        "schema:rangeIncludes": 
+        {
+            "@id": "CollaborationSignature"
+        },
+        "rdfs:label": "signature"
+    },
+    {
         "@id": "split",
         "@type": "rdf:Property",
         "schema:domainIncludes": 
@@ -631,6 +640,19 @@
             "@id": "schema:Intangible"
         },
         "rdfs:label": "tx"
+    },
+    {
+        "@id": "uri",
+        "@type": "rdf:Property",
+        "schema:domainIncludes":
+        {
+            "@id": "CollaborationSignature"
+        },
+        "schema:rangeIncludes":
+        {
+            "@id": "schema:Text"
+        },
+        "rdfs:label": "uri"
     },
     {
         "@id": "usage",
