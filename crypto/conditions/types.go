@@ -541,7 +541,7 @@ func (f *fulfillmentThreshold) Validate(p []byte) bool {
 	}
 	valid := 0
 	buf := bytes.NewBuffer(p)
-	for i, f := range subf {
+	for _, f := range subf {
 		p, err := ReadVarOctet(buf)
 		if err != nil {
 			return false

@@ -105,79 +105,30 @@ func GetSameAs(data Data) string {
 	return data.GetStr("sameAs")
 }
 
-func NewCollaboration(memberIds []string, name string, roleNames []string, splits []int) Data {
-	if len(memberIds) == 0 {
-		panic("No memberIds")
-	}
-	var haveRoleNames bool
-	if n := len(roleNames); n > 0 {
-		if n != len(memberIds) {
-			panic("Number of roles doesn't equal number of memberIds")
-		}
-		haveRoleNames = true
-	}
-	var haveSplits bool
-	if n := len(splits); n > 0 {
-		if n != len(splits) {
-			panic("Number of splits doesn't equal number of memberIds")
-		}
-		haveSplits = true
-	}
-	member := make([]Data, len(memberIds))
-	for i, memberId := range memberIds {
-		if !MatchId(memberId) {
-			panic("Invalid memberId")
-		}
-		member[i] = Data{
-			"@type":  "OrganizationRole",
-			"member": NewLink(memberId),
-		}
-		if haveRoleNames {
-			member[i].Set("roleName", roleNames[i])
-		}
-		if haveSplits {
-			member[i].Set("split", splits[i])
-		}
-	}
-	collaboration := Data{
-		"@context": CONTEXT,
-		"@type":    "MusicCollaboration",
-		"member":   member,
-	}
-	if !EmptyStr(name) {
-		collaboration.Set("name", name)
-	}
-	return collaboration
-}
-
-func GetOrganizationRoles(data Data) []Data {
-	roles := data.GetInterfaceSlice("member")
-	organizationRoles := make([]Data, len(roles))
-	for i, role := range roles {
-		organizationRoles[i] = AssertData(role)
-	}
-	return organizationRoles
-}
-
-func GetMemberId(data Data) string {
-	return GetId(data.GetData("member"))
-}
-
-func GetRoleName(data Data) string {
-	return data.GetStr("roleName")
-}
-
-func GetSplit(data Data) int {
-	return data.GetInt("split")
-}
-
-func NewComposition(collaboration bool, composerId, hfa, iswc, lang, name, publisherId, sameAs, uri string) Data {
+func NewComposition(composerIds []string, hfa, iswc, lang, name string, roles []string, sameAs, uri string) Data {
 	composition := Data{
-		"@context":      CONTEXT,
-		"@type":         "MusicComposition",
-		"collaboration": collaboration,
-		"composer":      NewLink(composerId),
-		"name":          name,
+		"@context": CONTEXT,
+		"@type":    "MusicComposition",
+		"name":     name,
+	}
+	if n := len(composerIds); n == 0 {
+		panic("No composers")
+	} else if n == 1 {
+		composition.Set("composer", NewLink(composerIds[0]))
+	} else {
+		if roles != nil {
+			if n != len(roles) {
+				panic("Number of roles doesn't equal number of composers")
+			}
+		}
+		composers := make([]Data, n)
+		for i, composerId := range composerIds {
+			composers[i] = NewLink(composerId)
+			if roles != nil {
+				composers[i].Set("role", roles[i])
+			}
+		}
+		composition.Set("composer", composers)
 	}
 	if MatchStr(regex.HFA, hfa) {
 		composition.Set("hfaCode", hfa)
@@ -188,22 +139,21 @@ func NewComposition(collaboration bool, composerId, hfa, iswc, lang, name, publi
 	if MatchStr(regex.LANGUAGE, lang) {
 		composition.Set("inLanguage", lang)
 	}
-	if MatchId(publisherId) {
-		composition.Set("publisher", NewLink(publisherId))
-	}
 	if MatchUrlRelaxed(sameAs) {
 		composition.Set("sameAs", sameAs)
 	}
-	// not enforcing schema since collaborators sign data model without uri, even though `collaboration=true`
 	if MatchStr(regex.FULFILLMENT, uri) {
 		composition.Set("uri", uri)
 	}
 	return composition
 }
 
-func GetComposerId(data Data) string {
-	composer := data.GetData("composer")
-	return GetId(composer)
+func GetComposers(data Data) []Data {
+	v := data.Get("composer")
+	if composer, ok := v.(Data); ok {
+		return []Data{composer}
+	}
+	return AssertDataSlice(v)
 }
 
 func GetHFA(data Data) string {
@@ -218,65 +168,35 @@ func GetLanguage(data Data) string {
 	return data.GetStr("inLanguage")
 }
 
-func GetPublisherId(data Data) string {
-	publisher := data.GetData("publisher")
-	return GetId(publisher)
-}
-
 func GetURI(data Data) string {
 	return data.GetStr("uri")
 }
 
-func IsCollaboration(data Data) bool {
-	return data.GetBool("collaboration")
-}
-
-func NewPublication(compositionIds []string, compositionRightIds []string, name, publisherId, sameAs string) Data {
-	m := len(compositionIds)
-	if m == 0 {
-		panic("No compositionIds")
-	}
-	compositions := make([]Data, m)
-	for i, compositionId := range compositionIds {
-		compositions[i] = Data{
-			"@type":    "ListItem",
-			"position": i + 1,
-			"item": Data{
-				// "@type": "MusicComposition",
-				"@id": compositionId,
-			},
-		}
-	}
-	n := len(compositionRightIds)
-	if n == 0 {
-		panic("No compositionRightIds")
-	}
-	compositionRights := make([]Data, n)
-	for i, compositionRightId := range compositionRightIds {
-		compositionRights[i] = Data{
-			"@type":    "ListItem",
-			"position": i + 1,
-			"item": Data{
-				// "@type": "CompositionRight",
-				"@id": compositionRightId,
-			},
-		}
-	}
+func NewPublication(compositionIds []string, name, publisherId string, rightIds []string, sameAs string) Data {
 	publication := Data{
-		"@context": CONTEXT,
-		"@type":    "MusicPublication",
-		"composition": Data{
-			"@type":           "ItemList",
-			"numberOfItems":   m,
-			"itemListElement": compositions,
-		},
-		"compositionRight": Data{
-			"@type":           "ItemList",
-			"numberOfItems":   n,
-			"itemListElement": compositionRights,
-		},
+		"@context":  CONTEXT,
+		"@type":     "MusicPublication",
 		"name":      name,
 		"publisher": NewLink(publisherId),
+	}
+	if n, m := len(compositionIds), len(rightIds); n == 0 {
+		panic("No compositionIds")
+	} else if n == 1 && m == 1 {
+		publication.Set("composition", Data{
+			"@id":   compositionIds[0],
+			"right": NewLink(rightIds[0]),
+		})
+	} else if n == m {
+		compositions := make([]Data, n)
+		for i := range compositions {
+			compositions[i] = Data{
+				"@id":   compositionIds[i],
+				"right": NewLink(rightIds[i]),
+			}
+		}
+		publication.Set("composition", compositions)
+	} else {
+		panic("Invalid number of compositionIds/rightIds")
 	}
 	if MatchUrlRelaxed(sameAs) {
 		publication.Set("sameAs", sameAs)
@@ -284,57 +204,60 @@ func NewPublication(compositionIds []string, compositionRightIds []string, name,
 	return publication
 }
 
-func GetCompositionIds(data Data) []string {
-	compositions := data.GetData("composition")
-	n := compositions.GetInt("numberOfItems")
-	compositionIds := make([]string, n)
-	itemListElement := compositions.GetInterfaceSlice("itemListElement")
-	for i, elem := range itemListElement {
-		item := AssertData(elem).GetData("item")
-		compositionIds[i] = GetId(item)
+func GetCompositions(data Data) []Data {
+	v := data.Get("compositions")
+	if composer, ok := v.(Data); ok {
+		return []Data{composer}
 	}
-	return compositionIds
+	return AssertDataSlice(v)
 }
 
-func GetCompositionRightIds(data Data) []string {
-	compositionRights := data.GetData("compositionRight")
-	n := compositionRights.GetInt("numberOfItems")
-	compositionRightIds := make([]string, n)
-	itemListElement := compositionRights.GetInterfaceSlice("itemListElement")
-	for i, elem := range itemListElement {
-		item := AssertData(elem).GetData("item")
-		compositionRightIds[i] = GetId(item)
-	}
-	return compositionRightIds
+func GetPublisherId(data Data) string {
+	publisher := data.GetData("publisher")
+	return GetId(publisher)
 }
 
-func NewRecording(artistId string, collaboration bool, compositionId, compositionRightId, duration, isrc, mechanicalLicenseId, publicationId, recordLabelId, sameAs, uri string) Data {
+func GetRightId(data Data) string {
+	right := data.GetData("right")
+	return GetId(right)
+}
+
+func NewRecording(artistIds []string, compositionId, duration, isrc string, mechanicalLicenseIds, roles []string, sameAs, uri string) Data {
 	recording := Data{
-		"@context":      CONTEXT,
-		"@type":         "MusicRecording",
-		"byArtist":      NewLink(artistId),
-		"collaboration": collaboration,
-		"recordingOf":   NewLink(compositionId),
+		"@context":    CONTEXT,
+		"@type":       "MusicRecording",
+		"recordingOf": NewLink(compositionId),
 	}
-	if MatchId(compositionRightId) {
-		if !MatchId(publicationId) {
-			panic("must have compositionRightId and publicationId")
-		}
-		recording.Set("compositionRight", NewLink(compositionRightId))
-		recording.Set("publication", NewLink(publicationId))
-	} else if MatchId(mechanicalLicenseId) {
-		recording.Set("mechanicalLicense", NewLink(mechanicalLicenseId))
+	if n := len(artistIds); n == 0 {
+		panic("No artists")
+	} else if n == 1 {
+		recording.Set("byArtist", NewLink(artistIds[0]))
 	} else {
-		// artist should be composer
+		if n != len(mechanicalLicenseIds) {
+			panic("Number of mechanicalLicenseIds doesn't equal number of artists")
+		}
+		if roles != nil {
+			if n != len(roles) {
+				panic("Number of roles doesn't equal number of artists")
+			}
+		}
+		artists := make([]Data, n)
+		for i, artistId := range artistIds {
+			artists[i] = NewLink(artistId)
+			if MatchId(mechanicalLicenseIds[i]) {
+				artists[i].Set("mechanicalLicense", NewLink(mechanicalLicenseIds[i]))
+			}
+			if roles != nil {
+				artists[i].Set("role", roles[i])
+			}
+		}
+		recording.Set("byArtist", artists)
 	}
 	if !EmptyStr(duration) {
 		recording.Set("duration", duration)
 	}
 	if MatchStr(regex.ISRC, isrc) {
 		recording.Set("isrcCode", isrc)
-	}
-	if MatchId(recordLabelId) {
-		recording.Set("recordLabel", NewLink(recordLabelId))
 	}
 	if MatchUrlRelaxed(sameAs) {
 		recording.Set("sameAs", sameAs)
@@ -345,29 +268,25 @@ func NewRecording(artistId string, collaboration bool, compositionId, compositio
 	return recording
 }
 
-func GetArtistId(data Data) string {
-	artist := data.GetData("byArtist")
-	return GetId(artist)
+func GetArtists(data Data) []Data {
+	v := data.Get("artist")
+	if artist, ok := v.(Data); ok {
+		return []Data{artist}
+	}
+	return AssertDataSlice(v)
 }
 
-func GetCompositionRightId(data Data) string {
-	compositionRight := data.GetData("compositionRight")
-	return GetId(compositionRight)
+func GetDuration(data Data) string {
+	return data.GetStr("duration")
+}
+
+func GetISRC(data Data) string {
+	return data.GetStr("isrc")
 }
 
 func GetMechanicalLicenseId(data Data) string {
-	mechanicalLicense := data.GetData("mechanicalLicense")
-	return GetId(mechanicalLicense)
-}
-
-func GetProducerId(data Data) string {
-	producer := data.GetData("producer")
-	return GetId(producer)
-}
-
-func GetPublicationId(data Data) string {
-	publication := data.GetData("publication")
-	return GetId(publication)
+	mechanical := data.GetData("mechanicalLicense")
+	return GetId(mechanical)
 }
 
 func GetRecordingOfId(data Data) string {
@@ -375,57 +294,31 @@ func GetRecordingOfId(data Data) string {
 	return GetId(composition)
 }
 
-func GetRecordLabelId(data Data) string {
-	recordLabel := data.GetData("recordLabel")
-	return GetId(recordLabel)
-}
-
-func NewRelease(name string, recordingIds, recordingRightIds []string, recordLabelId, sameAs string) Data {
-	m := len(recordingIds)
-	if m == 0 {
-		panic("No recordingIds")
-	}
-	recordings := make([]Data, m)
-	for i, recordingId := range recordingIds {
-		recordings[i] = Data{
-			"@type":    "ListItem",
-			"position": i + 1,
-			"item": Data{
-				// "@type": "MusicRecording",
-				"@id": recordingId,
-			},
-		}
-	}
-	n := len(recordingRightIds)
-	if n == 0 {
-		panic("No recordingRightIds")
-	}
-	recordingRights := make([]Data, n)
-	for i, recordingRightId := range recordingRightIds {
-		recordingRights[i] = Data{
-			"@type":    "ListItem",
-			"position": i + 1,
-			"item": Data{
-				// "@type": "RecordingRight",
-				"@id": recordingRightId,
-			},
-		}
-	}
+func NewRelease(name string, recordingIds []string, recordLabelId string, rightIds []string, sameAs string) Data {
 	release := Data{
-		"@context": CONTEXT,
-		"@type":    "MusicRelease",
-		"name":     name,
-		"recording": Data{
-			"@type":           "ItemList",
-			"numberOfItems":   m,
-			"itemListElement": recordings,
-		},
-		"recordingRight": Data{
-			"@type":           "ItemList",
-			"numberOfItems":   n,
-			"itemListElement": recordingRights,
-		},
+		"@context":    CONTEXT,
+		"@type":       "MusicRelease",
+		"name":        name,
 		"recordLabel": NewLink(recordLabelId),
+	}
+	if n, m := len(recordingIds), len(rightIds); n == 0 {
+		panic("No recordingIds")
+	} else if n == 1 && m == 1 {
+		release.Set("recording", Data{
+			"@id":   recordingIds[0],
+			"right": NewLink(rightIds[0]),
+		})
+	} else if n == m {
+		recordings := make([]Data, n)
+		for i := range recordings {
+			recordings[i] = Data{
+				"@id":   recordingIds[i],
+				"right": NewLink(rightIds[i]),
+			}
+		}
+		release.Set("recording", recordings)
+	} else {
+		panic("Invalid number of recordingIds/rightIds")
 	}
 	if MatchUrlRelaxed(sameAs) {
 		release.Set("sameAs", sameAs)
@@ -433,219 +326,158 @@ func NewRelease(name string, recordingIds, recordingRightIds []string, recordLab
 	return release
 }
 
-func GetRecordingIds(data Data) []string {
-	recordings := data.GetData("recording")
-	n := recordings.GetInt("numberOfItems")
-	recordingIds := make([]string, n)
-	itemListElement := recordings.GetInterfaceSlice("itemListElement")
-	for i, elem := range itemListElement {
-		item := AssertData(elem).GetData("item")
-		recordingIds[i] = GetId(item)
+func GetRecordings(data Data) []Data {
+	v := data.Get("recordings")
+	if recording, ok := v.(Data); ok {
+		return []Data{recording}
 	}
-	return recordingIds
+	return AssertDataSlice(v)
 }
 
-func GetRecordingRightIds(data Data) []string {
-	recordingRights := data.GetData("recordingRight")
-	n := recordingRights.GetInt("numberOfItems")
-	recordingRightIds := make([]string, n)
-	itemListElement := recordingRights.GetInterfaceSlice("itemListElement")
-	for i, elem := range itemListElement {
-		item := AssertData(elem).GetData("item")
-		recordingRightIds[i] = GetId(item)
-	}
-	return recordingRightIds
+func GetRecordLabelId(data Data) string {
+	recordLabel := data.GetData("recordLabel")
+	return GetId(recordLabel)
 }
 
-// Note: percentageShares is taken from the tx output amount so it's not included in the data model
-
-func NewCompositionRight(recipientId, senderId string, territory []string, uri, validFrom, validThrough string) Data {
-	return NewRight(recipientId, senderId, territory, "CompositionRight", uri, validFrom, validThrough)
-}
-
-func NewRecordingRight(recipientId, senderId string, territory []string, uri, validFrom, validThrough string) Data {
-	return NewRight(recipientId, senderId, territory, "RecordingRight", uri, validFrom, validThrough)
-}
-
-func NewRight(recipientId, senderId string, territory []string, _type, uri, validFrom, validThrough string) Data {
-	right := Data{
-		"@context":     CONTEXT,
-		"@type":        _type,
-		"recipient":    NewLink(recipientId),
-		"sender":       NewLink(senderId),
-		"territory":    territory,
-		"validFrom":    validFrom,
-		"validThrough": validThrough,
-	}
-	if MatchStr(regex.FULFILLMENT, uri) {
-		right.Set("uri", uri)
-	}
-	return right
-}
-
-func GetRecipientId(data Data) string {
-	recipient := data.GetData("recipient")
-	return GetId(recipient)
-}
-
-func GetRecipientShares(data Data) int {
-	return data.GetInt("recipientShares")
-}
-
-func GetSenderId(data Data) string {
-	sender := data.GetData("sender")
-	return GetId(sender)
-}
-
-func GetSenderShares(data Data) int {
-	return data.GetInt("senderShares")
-}
-
-func GetTerritory(data Data) []string {
-	return data.GetStrSlice("territory")
-}
-
-// Note: txId is the hex id of a TRANSFER tx in Bigchain/IPDB
+// Note: transferId is the hex id of a TRANSFER tx in BigchainDB/IPDB
 // the output amount(s) will specify shares transferred/kept
 
-func NewCompositionRightTransfer(compositionRightId, publicationId, recipientId, senderId, txId string) Data {
+func NewCompositionRight(compositionId string, rightHolderIds []string, transferId string) Data {
+	n := len(rightHolderIds)
+	if n == 0 {
+		panic("No rightHolderIds")
+	}
+	rightHolders := make([]Data, n)
+	for i, rightHolderId := range rightHolderIds {
+		rightHolders[i] = NewLink(rightHolderId)
+	}
 	return Data{
-		"@context":         CONTEXT,
-		"@type":            "CompositionRightTransfer",
-		"compositionRight": NewLink(compositionRightId),
-		"publication":      NewLink(publicationId),
-		"recipient":        NewLink(recipientId),
-		"sender":           NewLink(senderId),
-		"tx":               NewLink(txId),
+		"@context":    CONTEXT,
+		"@type":       "CompositionRight",
+		"composition": NewLink(compositionId),
+		"rightHolder": rightHolders,
+		"transfer":    NewLink(transferId),
 	}
 }
 
-func GetCompositionRightTransferId(data Data) string {
-	compositionRightTransfer := data.GetData("compositionRightTransfer")
-	return GetId(compositionRightTransfer)
+func GetCompositionId(data Data) string {
+	composition := data.GetData("composition")
+	return GetId(composition)
 }
 
-func GetTxId(data Data) string {
-	tx := data.GetData("tx")
-	return GetId(tx)
+func GetRightHolderIds(data Data) []string {
+	rightHolders := data.GetDataSlice("rightHolder")
+	rightHolderIds := make([]string, len(rightHolders))
+	for i, rightHolder := range rightHolders {
+		rightHolderIds[i] = GetId(rightHolder)
+	}
+	return rightHolderIds
 }
 
-func NewRecordingRightTransfer(recipientId, recordingRightId, releaseId, senderId, txId string) Data {
+func GetTransferId(data Data) string {
+	transfer := data.GetData("transfer")
+	return GetId(transfer)
+}
+
+func NewRecordingRight(recordingId string, rightHolderIds []string, transferId string) Data {
+	n := len(rightHolderIds)
+	if n == 0 {
+		panic("No rightHolderIds")
+	}
+	rightHolders := make([]Data, n)
+	for i, rightHolderId := range rightHolderIds {
+		rightHolders[i] = NewLink(rightHolderId)
+	}
 	return Data{
-		"@context":       CONTEXT,
-		"@type":          "RecordingRightTransfer",
-		"recipient":      NewLink(recipientId),
-		"recordingRight": NewLink(recordingRightId),
-		"release":        NewLink(releaseId),
-		"sender":         NewLink(senderId),
-		"tx":             NewLink(txId),
+		"@context":    CONTEXT,
+		"@type":       "RecordingRight",
+		"recording":   NewLink(recordingId),
+		"rightHolder": rightHolders,
+		"transfer":    NewLink(transferId),
 	}
 }
 
-func GetReleaseId(data Data) string {
-	release := data.GetData("release")
-	return GetId(release)
+func GetRecordingId(data Data) string {
+	recording := data.GetData("recording")
+	return GetId(recording)
 }
 
-func GetRecordingRightTransferId(data Data) string {
-	recordingRightTransfer := data.GetData("recordingRightTransfer")
-	return GetId(recordingRightTransfer)
-}
-
-func NewMechanicalLicense(compositionIds []string, compositionRightId, compositionRightTransferId, publicationId, recipientId, senderId string, territory, usage []string, validFrom, validThrough string) Data {
+func NewMechanicalLicense(compositionIds []string, licenseeId, licenserId string, rightIds []string, validFrom, validThrough string) Data {
 	mechanicalLicense := Data{
 		"@context":     CONTEXT,
 		"@type":        "MechanicalLicense",
-		"recipient":    NewLink(recipientId),
-		"sender":       NewLink(senderId),
-		"territory":    territory,
-		"usage":        usage,
+		"licensee":     NewLink(licenseeId),
+		"licenser":     NewLink(licenserId),
 		"validFrom":    validFrom,
 		"validThrough": validThrough,
 	}
-	n := len(compositionIds)
-	if n > 0 {
+	if n, m := len(compositionIds), len(rightIds); n == 0 {
+		panic("No compositionIds")
+	} else if n == m || m == 0 {
 		compositions := make([]Data, n)
 		for i, compositionId := range compositionIds {
 			if !MatchId(compositionId) {
 				panic(ErrorAppend(ErrInvalidId, compositionId))
 			}
-			compositions[i] = Data{
-				"@type":    "ListItem",
-				"position": i + 1,
-				"item": Data{
-					// "@type": "MusicComposition",
-					"@id": compositionId,
-				},
+			compositions[i] = NewLink(compositionId)
+			if m > 0 {
+				if MatchId(rightIds[i]) {
+					compositions[i].Set("right", NewLink(rightIds[i]))
+				}
 			}
 		}
-		mechanicalLicense.Set("composition", Data{
-			"@type":           "ItemList",
-			"numberOfItems":   n,
-			"itemListElement": compositions,
-		})
-	} else if !MatchId(publicationId) {
-		panic("Expected valid compositionIds or publicationId")
-	}
-	if MatchId(publicationId) {
-		mechanicalLicense.Set("publication", NewLink(publicationId))
-		if MatchId(compositionRightId) {
-			mechanicalLicense.Set("compositionRight", NewLink(compositionRightId))
-		} else if MatchId(compositionRightTransferId) {
-			mechanicalLicense.Set("compositionRightTransfer", NewLink(compositionRightTransferId))
-		} else {
-			panic("Expected valid compositionRightId or compositionRightTransferId")
-		}
+		mechanicalLicense.Set("composition", compositions)
+	} else {
+		panic("Invalid number of compositionIds/rightIds")
 	}
 	return mechanicalLicense
 }
 
-func NewMasterLicense(recipientId string, recordingIds []string, recordingRightId, recordingRightTransferId, releaseId, senderId string, territory, usage []string, validFrom, validThrough string) Data {
+func GetLicenseeId(data Data) string {
+	licensee := data.GetData("licensee")
+	return GetId(licensee)
+}
+
+func GetLicenserId(data Data) string {
+	licenser := data.GetData("licenser")
+	return GetId(licenser)
+}
+
+func GetValidFrom(data Data) string {
+	return data.GetStr("validFrom")
+}
+
+func GetValidTo(data Data) string {
+	return data.GetStr("validTo")
+}
+
+func NewMasterLicense(licenseeId, licenserId string, recordingIds, rightIds []string, validFrom, validThrough string) Data {
 	masterLicense := Data{
 		"@context":     CONTEXT,
 		"@type":        "MasterLicense",
-		"recipient":    NewLink(recipientId),
-		"sender":       NewLink(senderId),
-		"territory":    territory,
-		"usage":        usage,
+		"licensee":     NewLink(licenseeId),
+		"licenser":     NewLink(licenserId),
 		"validFrom":    validFrom,
 		"validThrough": validThrough,
 	}
-	n := len(recordingIds)
-	if n > 0 {
+	if n, m := len(recordingIds), len(rightIds); n == 0 {
+		panic("No recordingIds")
+	} else if n == m || m == 0 {
 		recordings := make([]Data, n)
 		for i, recordingId := range recordingIds {
-			recordings[i] = Data{
-				"@type":    "ListItem",
-				"position": i + 1,
-				"item": Data{
-					// "@type": "MusicRecording",
-					"@id": recordingId,
-				},
+			if !MatchId(recordingId) {
+				panic(ErrorAppend(ErrInvalidId, recordingId))
+			}
+			recordings[i] = NewLink(recordingId)
+			if m > 0 {
+				if MatchId(rightIds[i]) {
+					recordings[i].Set("right", NewLink(rightIds[i]))
+				}
 			}
 		}
-		masterLicense.Set("recording", Data{
-			"@type":           "ItemList",
-			"numberOfItems":   n,
-			"itemListElement": recordings,
-		})
-	} else if !MatchId(releaseId) {
-		panic("Expected valid recordingIds or releaseId")
-	}
-	if MatchId(releaseId) {
-		masterLicense.Set("release", NewLink(releaseId))
-		if MatchId(recordingRightId) {
-			masterLicense.Set("recordingRight", NewLink(recordingRightId))
-		} else if MatchId(recordingRightTransferId) {
-			masterLicense.Set("recordingRightTransfer", NewLink(recordingRightTransferId))
-		} else {
-			panic("Expected valid recordingRightId or recordingRightTransferId")
-		}
+		masterLicense.Set("recording", recordings)
+	} else {
+		panic("Invalid number of recordingIds/rightIds")
 	}
 	return masterLicense
-}
-
-func GetRecordingRightId(data Data) string {
-	recordingRight := data.GetData("recordingRight")
-	return GetId(recordingRight)
 }

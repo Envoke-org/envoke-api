@@ -1,7 +1,5 @@
 package common
 
-import "time"
-
 func MustAssertBool(v interface{}) bool {
 	return v.(bool)
 }
@@ -20,6 +18,13 @@ func AssertDataSlice(v interface{}) []Data {
 	if slice, ok := v.([]Data); ok {
 		return slice
 	}
+	if slice, ok := v.([]interface{}); ok {
+		datas := make([]Data, len(slice))
+		for i, s := range slice {
+			datas[i] = s.(Data)
+		}
+		return datas
+	}
 	return nil
 }
 
@@ -29,41 +34,6 @@ func AssertInt(v interface{}) int {
 	}
 	if n, ok := v.(float64); ok {
 		return int(n)
-	}
-	return 0
-}
-
-func AssertInterfaceSlice(v interface{}) []interface{} {
-	if slice, ok := v.([]interface{}); ok {
-		return slice
-	}
-	return nil
-}
-
-func AssertFloat64(v interface{}) float64 {
-	if n, ok := v.(float64); ok {
-		return n
-	}
-	return 0
-}
-
-func AssertInt32(v interface{}) int32 {
-	if n, ok := v.(int32); ok {
-		return n
-	}
-	return 0
-}
-
-func AssertInt32Slice(v interface{}) []int32 {
-	if slice, ok := v.([]int32); ok {
-		return slice
-	}
-	return nil
-}
-
-func AssertInt64(v interface{}) int64 {
-	if n, ok := v.(int64); ok {
-		return n
 	}
 	return 0
 }
@@ -87,11 +57,4 @@ func AssertStrSlice(v interface{}) []string {
 		return strs
 	}
 	return nil
-}
-
-func AssertTime(v interface{}) time.Time {
-	if time, ok := v.(time.Time); ok {
-		return time
-	}
-	return time.Time{}
 }

@@ -159,14 +159,13 @@ func FulfillTx(tx Data, priv crypto.PrivateKey) {
 
 func FulfilledTx(tx Data) bool {
 	var err error
-	inputs := tx.GetInterfaceSlice("inputs")
+	inputs := tx.GetDataSlice("inputs")
 	fulfillments := make([]conds.Fulfillment, len(inputs))
 	for i, input := range inputs {
-		data := AssertData(input)
-		uri := data.GetStr("fulfillment")
+		uri := input.GetStr("fulfillment")
 		fulfillments[i], err = conds.DefaultUnmarshalURI(uri)
 		Check(err)
-		data.Clear("fulfillment")
+		input.Clear("fulfillment")
 	}
 	fulfilled := true
 	json := MustMarshalJSON(tx)
@@ -177,7 +176,7 @@ func FulfilledTx(tx Data) bool {
 		}
 	}
 	for i, input := range inputs {
-		AssertData(input).Set("fulfillment", fulfillments[i])
+		input.Set("fulfillment", fulfillments[i])
 	}
 	return fulfilled
 }
@@ -246,20 +245,15 @@ func GetTxShares(tx Data) int {
 }
 
 func GetTxInputs(tx Data) []Data {
-	inputs := tx.GetInterfaceSlice("inputs")
-	datas := make([]Data, len(inputs))
-	for i, input := range inputs {
-		datas[i] = AssertData(input)
-	}
-	return datas
+	return tx.GetDataSlice("inputs")
 }
 
 func GetInputPublicKeys(input Data) []crypto.PublicKey {
-	owners := input.GetInterfaceSlice("owners_before")
+	owners := input.GetStrSlice("owners_before")
 	pubs := make([]crypto.PublicKey, len(owners))
 	for i, owner := range owners {
 		pubs[i] = new(ed25519.PublicKey)
-		pubs[i].FromString(AssertStr(owner))
+		pubs[i].FromString(owner)
 	}
 	return pubs
 }
@@ -278,12 +272,7 @@ func GetTxOutputAmount(tx Data, n int) int {
 }
 
 func GetTxOutputs(tx Data) []Data {
-	outputs := tx.GetInterfaceSlice("outputs")
-	datas := make([]Data, len(outputs))
-	for i, output := range outputs {
-		datas[i] = AssertData(output)
-	}
-	return datas
+	return tx.GetDataSlice("outputs")
 }
 
 func DefaultGetTxOutput(tx Data) Data {
@@ -307,20 +296,16 @@ func GetOutputCondition(output Data) Data {
 	return output.GetData("condition")
 }
 
+func GetConditionURI(condition Data) string {
+	return condition.GetStr("uri")
+}
+
 func GetConditionDetails(condition Data) Data {
 	return condition.GetData("details")
 }
 
 func GetDetailsSubfulfillments(details Data) []Data {
-	subs := details.GetInterfaceSlice("subfulfillments")
-	if subs == nil {
-		return nil
-	}
-	datas := make([]Data, len(subs))
-	for i, sub := range subs {
-		datas[i] = AssertData(sub)
-	}
-	return datas
+	return details.GetDataSlice("subfulfillments")
 }
 
 func GetOutputPublicKeys(output Data) []crypto.PublicKey {

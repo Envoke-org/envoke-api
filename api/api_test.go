@@ -23,28 +23,28 @@ func GetPrivateKey(data Data) crypto.PrivateKey {
 func TestApi(t *testing.T) {
 	api := NewApi()
 	output := MustOpenWriteFile("output.json")
-	composer, err := api.Register("composer@email.com", "", "", nil, "composer", "itsasecret", "/Users/zach/Desktop/envoke/composer", "", "www.composer.com", "Person")
+	composer, err := api.Register("composer@email.com", "", "", nil, "composer", "itsasecret", "", "www.composer.com", "Person")
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, composer)
 	composerId := GetId(composer)
 	composerPriv := GetPrivateKey(composer)
-	recordLabel, err := api.Register("record_label@email.com", "", "", nil, "record_label", "shhhh", "/Users/zach/Desktop/envoke/record_label", "", "www.record_label.com", "Organization")
+	recordLabel, err := api.Register("record_label@email.com", "", "", nil, "record_label", "shhhh", "", "www.record_label.com", "Organization")
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, recordLabel)
 	recordLabelId := GetId(recordLabel)
 	recordLabelPriv := GetPrivateKey(recordLabel)
-	performer, err := api.Register("performer@email.com", "123456789", "", nil, "performer", "makeitup", "/Users/zach/Desktop/envoke/performer", "ASCAP", "www.performer.com", "MusicGroup")
+	performer, err := api.Register("performer@email.com", "123456789", "", nil, "performer", "makeitup", "ASCAP", "www.performer.com", "MusicGroup")
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, performer)
 	performerId := GetId(performer)
 	performerPriv := GetPrivateKey(performer)
-	producer, err := api.Register("producer@email.com", "", "", nil, "producer", "1234", "/Users/zach/Desktop/envoke/producer", "", "www.soundcloud_page.com", "Person")
+	producer, err := api.Register("producer@email.com", "", "", nil, "producer", "1234", "", "www.soundcloud_page.com", "Person")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,14 +60,14 @@ func TestApi(t *testing.T) {
 	}
 	WriteJSON(output, collab)
 	collabId := GetId(collab)
-	publisher, err := api.Register("publisher@email.com", "", "", nil, "publisher", "didyousaysomething?", "/Users/zach/Desktop/envoke/publisher", "", "www.soundcloud_page.com", "MusicGroup")
+	publisher, err := api.Register("publisher@email.com", "", "", nil, "publisher", "didyousaysomething?", "", "www.soundcloud_page.com", "MusicGroup")
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, publisher)
 	publisherId := GetId(publisher)
 	publisherPriv := GetPrivateKey(publisher)
-	radio, err := api.Register("radio@email.com", "", "", nil, "radio", "waves", "/Users/zach/Desktop/envoke/radio", "", "www.radio_station.com", "Organization")
+	radio, err := api.Register("radio@email.com", "", "", nil, "radio", "waves", "", "www.radio_station.com", "Organization")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -76,25 +76,25 @@ func TestApi(t *testing.T) {
 	if err = api.Login(composerId, composerPriv.String()); err != nil {
 		t.Fatal(err)
 	}
-	composition, err := api.Compose(false, composerId, "B3107S", "T-034.524.680-1", "EN", publisherId, "www.url_to_composition.com", "untitled", "")
+	composition, err := api.SendTxComposition(spec.NewComposition(false, composerId, "B3107S", "T-034.524.680-1", "EN", publisherId, "www.url_to_composition.com", "untitled", ""))
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, composition)
 	compositionId := GetId(composition)
-	composerRight, err := api.CompositionRight(composerId, 20, composerId, []string{"GB", "US"}, "", "2020-01-01", "2096-01-01")
+	composerRight, err := api.SendTxRight(20, spec.NewCompositionRight(composerId, composerId, []string{"GB", "US"}, "", "2020-01-01", "2096-01-01"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, composerRight)
 	composerRightId := GetId(composerRight)
-	publisherRight, err := api.CompositionRight(publisherId, 80, composerId, []string{"GB", "US"}, "", "2020-01-01", "2096-01-01")
+	publisherRight, err := api.SendTxRight(80, spec.NewCompositionRight(publisherId, composerId, []string{"GB", "US"}, "", "2020-01-01", "2096-01-01"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, publisherRight)
 	publisherRightId := GetId(publisherRight)
-	publication, err := api.Publish([]string{compositionId}, []string{composerRightId, publisherRightId}, publisherId, "www.url_to_publication.com", "publication_title")
+	publication, err := api.SendTxPublication(spec.NewPublication([]string{compositionId}, []string{composerRightId, publisherRightId}, publisherId, "www.url_to_publication.com", "publication_title"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +103,7 @@ func TestApi(t *testing.T) {
 	if err = api.Login(publisherId, publisherPriv.String()); err != nil {
 		t.Fatal(err)
 	}
-	mechanicalLicense, err := api.MechanicalLicense(nil, publisherRightId, "", publicationId, collabId, []string{"US"}, nil, "2020-01-01", "2024-01-01")
+	mechanicalLicense, err := api.SendTxLicense(spec.NewMechanicalLicense(nil, publisherRightId, "", publicationId, collabId, []string{"US"}, nil, "2020-01-01", "2024-01-01"))
 	if err != nil {
 		t.Fatal(err)
 	}

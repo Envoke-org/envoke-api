@@ -10,20 +10,16 @@ import (
 
 const SCHEMA = "http://json-schema.org/draft-04/schema#"
 
-func ValidateModel(model Data, _type string) error {
+func ValidateSchema(model Data, _type string) error {
 	var schemaLoader jsonschema.JSONLoader
 	modelLoader := jsonschema.NewGoLoader(model)
 	switch _type {
 	case "party":
 		schemaLoader = PartyLoader
-	case "collaboration":
-		schemaLoader = CollaborationLoader
 	case "composition":
 		schemaLoader = CompositionLoader
 	case "composition_right":
 		schemaLoader = CompositionRightLoader
-	case "composition_right_transfer":
-		schemaLoader = CompositionRightTransferLoader
 	case "master_license":
 		schemaLoader = MasterLicenseLoader
 	case "mechanical_license":
@@ -34,8 +30,6 @@ func ValidateModel(model Data, _type string) error {
 		schemaLoader = RecordingLoader
 	case "recording_right":
 		schemaLoader = RecordingRightLoader
-	case "recording_right_transfer":
-		schemaLoader = RecordingRightTransferLoader
 	case "release":
 		schemaLoader = ReleaseLoader
 	default:
@@ -62,94 +56,6 @@ var link = Sprintf(`{
 	},
 	"required": ["@id"]
 }`, regex.ID)
-
-var itemList = Sprintf(`{
-	"title": "ItemList",
-	"type": "object",
-	"definitions": {
-		"link": %s
-	},
-	"properties": {
-		"@type": {
-			"type": "string",
-			"pattern": "^ItemList$"
-		},
-		"itemListElement": {
-			"type": "array",
-			"items": {
-				"@type": {
-					"type": "string",
-					"pattern": "^ListItem$"
-				},
-				"properties": {
-					"item": {
-						"$ref": "#/definitions/link"
-					},
-					"position": {
-						"type": "integer"
-					}
-				},
-				"required": ["@type", "item", "position"]
-			},
-			"minItems": 1,
-			"uniqueItems": true
-		},
-		"numberOfItems": {
-			"type": "integer"
-		}
-	},
-	"required": ["@type", "itemListElement", "numberOfItems"]
-}`, link)
-
-var CollaborationLoader = jsonschema.NewStringLoader(Sprintf(`{
-	"$schema": "%s",
-	"title": "MusicCollaboration",
-	"type": "object",
-	"definitions": {
-		"link": %s
-	},
-	"properties": {
-		"@context": {
-			"type": "string",
-			"pattern": "^%s$"
-		},
-		"@type": {
-			"type": "string",
-			"pattern": "^MusicCollaboration$"
-		},
-		"member": {
-			"type": "array",
-			"items": {
-				"properties": {
-					"@type": {
-						"type": "string",
-						"pattern": "^OrganizationRole$"
-					},
-					"member": {
-						"$ref": "#/definitions/link"
-					},
-					"roleName": {
-						"type": "string"
-					},
-					"split": {
-						"type": "integer",
-						"minimum": 0,
-						"maximum": 100,
-						"exclusiveMinimum": true,
-						"exclusiveMaximum": true
-					}
-				},
-				"required": ["@type", "member"]
-			},
-			"minItems": 2,
-			"uniqueItems": true
-		},
-		"name": {
-			"type": "string"
-		}
-	},
-	"required": ["@context", "@type", "member"]
-}`, SCHEMA, link, spec.CONTEXT))
 
 var PartyLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"$schema": "%s",
@@ -206,6 +112,20 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"title": "MusicComposition",
 	"type": "object",
 	"definitions": {
+		"composer": {
+			"allOf": [
+				{
+					"$ref": "#/definitions/link"
+				},
+				{
+					"properties": {
+						"role": {
+							"type": "string" 
+						}
+					}
+				}
+			]
+		},
 		"link": %s
 	},
 	"properties": {
@@ -217,11 +137,20 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "string",
 			"pattern": "^MusicComposition$"
 		},
-		"collaboration": {
-			"type": "boolean"
-		},
 		"composer": {
-			"$ref": "#/definitions/link"
+			"oneOf": [
+				{
+					"$ref": "#/definitions/composer"
+				},
+				{
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/composer"
+					},	
+					"minItems": 2,
+					"uniqueItems": true
+				}
+			]
 		},
 		"hfaCode": {
 			"type": "string",
@@ -238,9 +167,6 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 		"name": {
 			"type": "string"
 		},
-		"publisher": {
-			"$ref": "#/definitions/link"
-		},
 		"sameAs": {
 			"type": "string"
 		},
@@ -252,20 +178,21 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"oneOf": [
 		{
 			"properties": {
-				"collaboration": {"enum": [true]}
+				"composer": {
+					"type": "array"
+				}
 			},
 			"required": ["uri"]
 		},
 		{
 			"properties": {
-				"collaboration": {"enum": [false]}
-			},
-			"not": {
-				"required": ["uri"]
+				"composer": {
+					"$ref": "#/definitions/composer"
+				}
 			}
 		}
 	],
-	"required": ["@context", "@type", "collaboration", "composer", "name"]
+	"required": ["@context", "@type", "composer", "name"]
 }`, SCHEMA, link, spec.CONTEXT, regex.HFA, regex.LANGUAGE, regex.ISWC, regex.FULFILLMENT))
 
 var PublicationLoader = jsonschema.NewStringLoader(Sprintf(`{
@@ -273,7 +200,21 @@ var PublicationLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"title": "MusicPublication",
 	"type": "object",
 	"definitions": {
-		"itemList": %s,
+		"composition": {
+			"allOf": [
+				{
+					"$ref": "#/definitions/link"
+				},
+				{
+					"properties": {
+						"right": {
+							"$ref": "#/definitions/link"
+						}
+					},
+					"required": ["right"]
+				}
+			]
+		},
 		"link": %s
 	},
 	"properties": {
@@ -285,14 +226,23 @@ var PublicationLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "string",
 			"pattern": "^MusicPublication$"
 		},
-		"composition": {
-			"$ref": "#/definitions/itemList"
-		},
-		"compositionRight": {
-			"$ref": "#/definitions/itemList"
-		},
 		"name": {
 			"type": "string"
+		},
+		"composition": {
+			"oneOf": [
+				{
+					"$ref": "#/definitions/composition"
+				},
+				{
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/composition"
+					},
+					"minItems": 2,
+					"uniqueItems": true
+				}
+			]
 		},
 		"publisher": {
 			"$ref": "#/definitions/link"
@@ -301,14 +251,31 @@ var PublicationLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "string"
 		}
 	},
-	"required": ["@context", "@type", "composition", "compositionRight", "name", "publisher"]
-}`, SCHEMA, itemList, link, spec.CONTEXT))
+	"required": ["@context", "@type", "composition", "name", "publisher"]
+}`, SCHEMA, link, spec.CONTEXT))
 
 var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"$schema":  "%s",
 	"title": "MusicRecording",
 	"type": "object",
 	"definitions": {
+		"artist": {
+			"allOf": [
+				{
+					"$ref": "#/definitions/link"
+				},
+				{
+					"properties": {
+						"mechanicalLicense": {
+							"$ref": "#/definitions/link",
+						},
+						"role": {
+							"type": "string" 
+						}
+					}
+				}
+			]
+		},	
 		"link": %s
 	},
 	"properties": {
@@ -321,13 +288,19 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"pattern": "^MusicRecording$"
 		},
 		"byArtist": {
-			"$ref": "#/definitions/link"
-		},
-		"collaboration": {
-			"type": "boolean"
-		},
-		"compositionRight": {
-			"$ref": "#/definitions/link"
+			"oneOf": [
+				{
+					"$ref": "#/definitions/artist"
+				},
+				{
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/artist"
+					},
+					"minItems": 2,
+					"uniqueItems": true
+				}
+			]
 		},
 		"duration": {
 			"type": "string"			
@@ -336,13 +309,7 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "string",
 			"pattern": "%s"
 		},
-		"publication": {
-			"$ref": "#/definitions/link"
-		},
 		"recordingOf": {
-			"$ref": "#/definitions/link"
-		},
-		"recordLabel": {
 			"$ref": "#/definitions/link"
 		},
 		"sameAs": {
@@ -353,37 +320,24 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"pattern": "%s"
 		}
 	},
-	"dependencies": {
-		"compositionRight": ["publication"],
-		"publication": ["compositionRight"]
-	},
-	"not": {
-		"allOf": [
-			{
-				"required": ["compositionRight"]
-			},
-			{
-				"required": ["mechanicalLicense"]
-			}
-		]
-	},
 	"oneOf": [
 		{
 			"properties": {
-				"collaboration": {"enum": [true]}
+				"artist": {
+					"type": "array"
+				}
 			},
 			"required": ["uri"]
 		},
 		{
 			"properties": {
-				"collaboration": {"enum": [false]}
-			},
-			"not": {
-				"required": ["uri"]
+				"artist": {
+					"$ref": "#/definitions/artist"
+				}
 			}
 		}
 	],
-	"required": ["@context", "@type", "byArtist", "collaboration", "recordingOf"]
+	"required": ["@context", "@type", "byArtist", "recordingOf"]
 }`, SCHEMA, link, spec.CONTEXT, regex.ISRC, regex.FULFILLMENT))
 
 var ReleaseLoader = jsonschema.NewStringLoader(Sprintf(`{
@@ -391,7 +345,21 @@ var ReleaseLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"title": "MusicRelease",
 	"type": "object",
 	"definitions": {
-		"itemList": %s,
+		"recording": {
+			"allOf": [
+				{
+					"$ref": "#/definitions/link"
+				},
+				{
+					"properties": {
+						"right": {
+							"$ref": "#/definitions/link"
+						}
+					},
+					"required": ["right"]
+				}
+			]
+		},
 		"link": %s
 	},
 	"properties": {
@@ -407,10 +375,19 @@ var ReleaseLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "string"
 		},
 		"recording": {
-			"$ref": "#/definitions/itemList"
-		},
-		"recordingRight": {
-			"$ref": "#/definitions/itemList"
+			"oneOf": [
+				{
+					"$ref": "#/definitions/recording"
+				},	
+				{
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/recording"
+					},
+					"minItems": 2,
+					"uniqueItems": true
+				}
+			]
 		},
 		"recordLabel": {
 			"$ref": "#/definitions/link"
@@ -419,8 +396,8 @@ var ReleaseLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "string"
 		}
 	},
-	"required": ["@context", "@type", "name", "recording", "recordingRight", "recordLabel"]
-}`, SCHEMA, itemList, link, spec.CONTEXT))
+	"required": ["@context", "@type", "name", "recording", "recordLabel"]
+}`, SCHEMA, link, spec.CONTEXT))
 
 var CompositionRightLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"$schema": "%s",
@@ -438,34 +415,24 @@ var CompositionRightLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "string",
 			"pattern": "^CompositionRight$"
 		},
-		"recipient": {
+		"composition": {
 			"$ref": "#/definitions/link"
 		},
-		"sender": {
-			"$ref": "#/definitions/link"
-		},
-		"territory": {
+		"rightHolder": {
 			"type": "array",
 			"items": {
-				"type": "string",
-				"pattern": "%s"
-			}
+				"$ref": "#/definitions/link"
+			},
+			"minItems": 1,
+			"maxItems": 2,
+			"uniqueItems": true
 		},
-		"uri": {
-			"type": "string",
-			"pattern": "%s"
-		},
-		"validFrom": {
-			"type": "string",
-			"pattern": "%s"
-		},
-		"validThrough": {
-			"type": "string",
-			"pattern": "%s"
+		"transfer": {
+			"$ref": "#/definitions/link"
 		}
 	},
-	"required": ["@context", "@type", "recipient", "sender", "territory", "validFrom", "validThrough"]
-}`, SCHEMA, link, spec.CONTEXT, regex.TERRITORY, regex.FULFILLMENT, regex.DATE, regex.DATE))
+	"required": ["@context", "@type", "composition", "rightHolder", "transfer"]
+}`, SCHEMA, link, spec.CONTEXT))
 
 var RecordingRightLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"$schema": "%s",
@@ -483,105 +450,23 @@ var RecordingRightLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "string",
 			"pattern": "^RecordingRight$"
 		},
-		"recipient": {
+		"recording": {
 			"$ref": "#/definitions/link"
 		},
-		"sender": {
-			"$ref": "#/definitions/link"
-		},
-		"territory": {
+		"rightHolder": {
 			"type": "array",
 			"items": {
-				"type": "string",
-				"pattern": "%s"
+				"$ref": "#/definitions/link"
 			},
 			"minItems": 1,
+			"maxItems": 2,
 			"uniqueItems": true
 		},
-		"uri": {
-			"type": "string",
-			"pattern": "%s"
-		},
-		"validFrom": {
-			"type": "string",
-			"pattern": "%s"
-		},
-		"validThrough": {
-			"type": "string",
-			"pattern": "%s"
-		}
-	},
-	"required": ["@context", "@type", "recipient", "sender", "territory", "validFrom", "validThrough"]
-}`, SCHEMA, link, spec.CONTEXT, regex.TERRITORY, regex.FULFILLMENT, regex.DATE, regex.DATE))
-
-var CompositionRightTransferLoader = jsonschema.NewStringLoader(Sprintf(`{
-	"$schema": "%s",
-	"title": "CompositionRightTransfer",
-	"type": "object",
-	"definitions": {
-		"link": %s
-	},
-	"properties": {
-		"@context": {
-			"type": "string",
-			"pattern": "^%s$"
-		},
-		"@type": {
-			"type": "string",
-			"pattern": "^CompositionRightTransfer$"
-		},
-		"compositionRight": {
-			"$ref": "#/definitions/link"
-		},
-		"publication": {
-			"$ref": "#/definitions/link"
-		},
-		"recipient": {
-			"$ref": "#/definitions/link"
-		},
-		"sender": {
-			"$ref": "#/definitions/link"
-		},
-		"tx": {
+		"transfer": {
 			"$ref": "#/definitions/link"
 		}
 	},
-	"required": ["@context", "@type", "compositionRight", "publication", "recipient", "sender", "tx"]
-}`, SCHEMA, link, spec.CONTEXT))
-
-var RecordingRightTransferLoader = jsonschema.NewStringLoader(Sprintf(`{
-	"$schema": "%s",
-	"title": "RecordingRightTransfer",
-	"type": "object",
-	"definitions": {
-		"link": %s
-	},
-	"properties": {
-		"@context": {
-			"type": "string",
-			"pattern": "^%s$"
-		},
-		"@type": {
-			"type": "string",
-			"pattern": "^RecordingRightTransfer$"
-		},
-		"recipient": {
-			"$ref": "#/definitions/link"
-		},
-		"recordingRight": {
-			"$ref": "#/definitions/link"
-		},
-		"release": {
-			"$ref": "#/definitions/link"
-		},
-		"sender": {
-			"$ref": "#/definitions/link"
-		},
-		"tx": {
-			"$ref": "#/definitions/link"
-		}
-	},
-	"required": ["@context", "@type", "recipient", "recordingRight", "release", "sender", "tx"]
+	"required": ["@context", "@type", "recording", "rightHolder", "transfer"]
 }`, SCHEMA, link, spec.CONTEXT))
 
 var MechanicalLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
@@ -589,7 +474,20 @@ var MechanicalLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"title": "MechanicalLicense",
 	"type": "object",
 	"definitions": {
-		"itemList": %s,
+		"composition": {
+			"allOf": [
+				{
+					"$ref": "#/definitions/link"
+				},
+				{
+					"properties": {
+						"right": {
+							"$ref": "#/definitions/link"
+						}
+					}
+				}
+			]
+		},
 		"link": %s
 	},
 	"properties": {
@@ -602,46 +500,18 @@ var MechanicalLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"pattern": "^MechanicalLicense$"
 		},
 		"composition": {
-			"$ref": "#/definitions/itemList"
-		},
-		"compositionRight": {
-			"$ref": "#/definitions/link"
-		},
-		"compositionRightTransfer": {
-			"$ref": "#/definitions/link"
-		},
-		"publication": {
-			"$ref": "#/definitions/link"
-		},
-		"recipient": {
-			"$ref": "#/definitions/link"
-		},
-		"sender": {
-			"$ref": "#/definitions/link"
-		},
-		"territory": {
 			"type": "array",
 			"items": {
-				"type": "string",
-				"pattern": "%s"
+				"$ref": "#/definitions/composition"
 			},
 			"minItems": 1,
 			"uniqueItems": true
 		},
-		"usage": {
-			"oneOf": [
-				{
-					"type": "array",
-					"items": {
-						"type": "string"
-					},
-					"minItems": 1,
-					"uniqueItems": true
-				},
-				{
-					"type": "null"
-				}
-			]
+		"licensee": {
+			"$ref": "#/definitions/link"
+		},
+		"licenser": {
+			"$ref": "#/definitions/link"
 		},
 		"validFrom": {
 			"type": "string",
@@ -652,35 +522,28 @@ var MechanicalLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"pattern": "%s"
 		}
 	},
-	"anyOf": [
-		{
-			"required": ["composition"]
-		},
-		{
-			"required": ["publication"]
-		}
-	],
-	"dependencies": {
-		"publication": {
-			"oneOf": [
-				{
-					"required": ["compositionRight"]
-				},
-				{
-					"required": ["compositionRightTransfer"]
-				}
-			]
-		}
-	},
-	"required": ["@context", "@type", "recipient", "sender", "territory", "usage", "validFrom", "validThrough"]
-}`, SCHEMA, itemList, link, spec.CONTEXT, regex.TERRITORY, regex.DATE, regex.DATE))
+	"required": ["@context", "@type", "composition", "licensee", "licenser", "validFrom", "validThrough"]
+}`, SCHEMA, link, spec.CONTEXT, regex.DATE, regex.DATE))
 
 var MasterLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"$schema": "%s",
 	"title": "MasterLicense",
 	"type": "object",
 	"definitions": {
-		"itemList": %s,
+		"recording": {
+			"allOf": [
+				{
+					"$ref": "#/definitions/link"
+				},
+				{
+					"properties": {
+						"right": {
+							"$ref": "#/definitions/link"
+						}
+					}
+				}
+			]
+		},
 		"link": %s
 	},
 	"properties": {
@@ -689,50 +552,22 @@ var MasterLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"pattern": "^%s$"
 		},
 		"@type": {
-			"type": "string", 
+			"type": "string",
 			"pattern": "^MasterLicense$"
 		},
-		"recipient": {
+		"licensee": {
+			"$ref": "#/definitions/link"
+		},
+		"licenser": {
 			"$ref": "#/definitions/link"
 		},
 		"recording": {
-			"$ref": "#/definitions/itemList"
-		},
-		"recordingRight": {
-			"$ref": "#/definitions/link"
-		},
-		"recordingRightTransfer": {
-			"$ref": "#/definitions/link"
-		},
-		"release": {
-			"$ref": "#/definitions/link"
-		},
-		"sender": {
-			"$ref": "#/definitions/link"
-		},
-		"territory": {
 			"type": "array",
 			"items": {
-				"type": "string",
-				"pattern": "%s"
+				"$ref": "#/definitions/recording"
 			},
 			"minItems": 1,
 			"uniqueItems": true
-		},
-		"usage": {
-			"oneOf": [
-				{
-					"type": "array",
-					"items": {
-						"type": "string"
-					},
-					"minItems": 1,
-					"uniqueItems": true
-				},
-				{
-					"type": "null"
-				}
-			]
 		},
 		"validFrom": {
 			"type": "string",
@@ -743,25 +578,5 @@ var MasterLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"pattern": "%s"
 		}
 	},
-	"anyOf": [
-		{
-			"required": ["recording"]
-		},
-		{
-			"required": ["release"]
-		}
-	],
-	"dependencies": {
-		"release": {
-			"oneOf": [
-				{
-					"required": ["recordingRight"]
-				},
-				{
-					"required": ["recordingRightTransfer"]
-				}
-			]
-		}
-	},
-	"required": ["@context", "@type", "recipient", "sender", "territory", "usage", "validFrom", "validThrough"]
-}`, SCHEMA, itemList, link, spec.CONTEXT, regex.TERRITORY, regex.DATE, regex.DATE))
+	"required": ["@context", "@type", "licensee", "licenser", "recording", "validFrom", "validThrough"]
+}`, SCHEMA, link, spec.CONTEXT, regex.DATE, regex.DATE))
