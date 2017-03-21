@@ -93,7 +93,7 @@ func (api *Api) RegisterHandler(w http.ResponseWriter, req *http.Request) {
 	sameAs := values.Get("sameAs")
 	_type := values.Get("type")
 	party := spec.NewParty(email, ipi, isni, memberIds, name, pro, sameAs, _type)
-	if err = api.Register(party, password, path); err != nil {
+	if _, err = api.Register(party, password, path); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -605,19 +605,24 @@ func (api *Api) Login(id, privstr string) error {
 	return nil
 }
 
-func (api *Api) Register(party Data, password, path string) error {
+func (api *Api) Register(party Data, password, path string) (Data, error) {
 	file, err := CreateFile(path + "/credentials.json")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	api.priv, api.pub = ed25519.GenerateKeypairFromPassword(password)
-	credentials, err := api.DefaultSendIndividualCreateTx(party)
+	party, err = api.DefaultSendIndividualCreateTx(party)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	credentials := Data{
+		"id":         bigchain.GetId(party),
+		"privateKey": api.priv.String(),
+		"publicKey":  api.pub.String(),
 	}
 	api.priv, api.pub = nil, nil
 	WriteJSON(file, credentials)
-	return nil
+	return credentials, nil
 }
 
 func (api *Api) Compose(composition Data, percentageShares []int) (Data, error) {
@@ -654,6 +659,7 @@ func (api *Api) Record(file io.Reader, percentageShares []int, recording Data) (
 		}
 		artistKeys[i] = bigchain.DefaultGetTxSender(tx)
 	}
+	Println(n)
 	if n == 1 {
 		return api.SendIndividualCreateTx(100, recording, artistKeys[0])
 	}

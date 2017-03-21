@@ -40,6 +40,7 @@ func ValidateSchema(model Data, _type string) error {
 		return err
 	}
 	if !result.Valid() {
+		PrintJSON(model)
 		return Error(_type + " validation failed")
 	}
 	return nil

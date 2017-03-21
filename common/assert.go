@@ -21,7 +21,7 @@ func AssertDataSlice(v interface{}) []Data {
 	if slice, ok := v.([]interface{}); ok {
 		datas := make([]Data, len(slice))
 		for i, s := range slice {
-			datas[i] = s.(Data)
+			datas[i] = AssertData(s)
 		}
 		return datas
 	}

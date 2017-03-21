@@ -269,7 +269,7 @@ func NewRecording(artistIds []string, compositionId, duration, isrc string, mech
 }
 
 func GetArtists(data Data) []Data {
-	v := data.Get("artist")
+	v := data.Get("byArtist")
 	if artist, ok := v.(Data); ok {
 		return []Data{artist}
 	}
