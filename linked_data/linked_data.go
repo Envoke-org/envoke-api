@@ -411,7 +411,7 @@ OUTER:
 	return mechanicalLicense, nil
 }
 
-func ProveMechanicalLicensee(challenge, mechanicalLicenseId string, priv crypto.PrivateKey) (crypto.Signature, error) {
+func ProveMechanicalLicenseHolder(challenge, mechanicalLicenseId string, priv crypto.PrivateKey) (crypto.Signature, error) {
 	mechanicalLicense, err := ValidateMechanicalLicense(mechanicalLicenseId)
 	if err != nil {
 		return nil, err
@@ -432,7 +432,7 @@ func ProveMechanicalLicensee(challenge, mechanicalLicenseId string, priv crypto.
 	return priv.Sign(hash), nil
 }
 
-func VerifyMechanicalLicensee(challenge, mechanicalLicenseId string, sig crypto.Signature) error {
+func VerifyMechanicalLicenseHolder(challenge, mechanicalLicenseId string, sig crypto.Signature) error {
 	mechanicalLicense, err := ValidateMechanicalLicense(mechanicalLicenseId)
 	if err != nil {
 		return err
@@ -855,7 +855,7 @@ OUTER:
 	return masterLicense, nil
 }
 
-func ProveMasterLicensee(challenge, masterLicenseId string, priv crypto.PrivateKey) (crypto.Signature, error) {
+func ProveMasterLicenseHolder(challenge, masterLicenseId string, priv crypto.PrivateKey) (crypto.Signature, error) {
 	masterLicense, err := ValidateMasterLicense(masterLicenseId)
 	if err != nil {
 		return nil, err
@@ -876,7 +876,7 @@ func ProveMasterLicensee(challenge, masterLicenseId string, priv crypto.PrivateK
 	return priv.Sign(hash), nil
 }
 
-func VerifyMasterLicensee(challenge, masterLicenseId string, sig crypto.Signature) error {
+func VerifyMasterLicenseHolder(challenge, masterLicenseId string, sig crypto.Signature) error {
 	masterLicense, err := ValidateMasterLicense(masterLicenseId)
 	if err != nil {
 		return err

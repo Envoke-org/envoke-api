@@ -93,26 +93,26 @@ func MultipleOwnersCreateTx(amounts []int, data Data, ownersAfter []crypto.Publi
 	return CreateTx(amounts, asset, fulfills, owners, [][]crypto.PublicKey{ownersBefore})
 }
 
-func DefaultIndividualTransferTx(assetId, consumeId string, output int, ownerAfter, ownerBefore crypto.PublicKey) Data {
-	return IndividualTransferTx(1, assetId, consumeId, output, ownerAfter, ownerBefore)
+func DefaultIndividualTransferTx(assetId, consumeId string, outputIdx int, ownerAfter, ownerBefore crypto.PublicKey) Data {
+	return IndividualTransferTx(1, assetId, consumeId, outputIdx, ownerAfter, ownerBefore)
 }
 
-func IndividualTransferTx(amount int, assetId, consumeId string, output int, ownerAfter, ownerBefore crypto.PublicKey) Data {
+func IndividualTransferTx(amount int, assetId, consumeId string, outputIdx int, ownerAfter, ownerBefore crypto.PublicKey) Data {
 	amounts := []int{amount}
 	asset := Data{"id": assetId}
-	fulfills := []Data{Data{"txid": consumeId, "output": output}}
+	fulfills := []Data{Data{"txid": consumeId, "output": outputIdx}}
 	ownersAfter := [][]crypto.PublicKey{[]crypto.PublicKey{ownerAfter}}
 	ownersBefore := [][]crypto.PublicKey{[]crypto.PublicKey{ownerBefore}}
 	return TransferTx(amounts, asset, fulfills, ownersAfter, ownersBefore)
 }
 
-func DivisibleTransferTx(amounts []int, assetId, consumeId string, output int, ownersAfter []crypto.PublicKey, ownerBefore crypto.PublicKey) Data {
+func DivisibleTransferTx(amounts []int, assetId, consumeId string, outputIdx int, ownersAfter []crypto.PublicKey, ownerBefore crypto.PublicKey) Data {
 	n := len(amounts)
 	if n <= 1 || n != len(ownersAfter) {
 		panic(ErrInvalidSize)
 	}
 	asset := Data{"id": assetId}
-	fulfills := []Data{Data{"txid": consumeId, "output": output}}
+	fulfills := []Data{Data{"txid": consumeId, "output": outputIdx}}
 	owners := make([][]crypto.PublicKey, len(ownersAfter))
 	for i, owner := range ownersAfter {
 		owners[i] = []crypto.PublicKey{owner}
