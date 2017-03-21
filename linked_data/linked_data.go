@@ -60,7 +60,7 @@ OUTER:
 		}
 		composerKeys[i] = bigchain.DefaultGetTxSender(tx)
 		for i, output := range outputs {
-			if composerKeys[i].Equals(bigchain.GetOutputPublicKeys(tx)[0]) {
+			if composerKeys[i].Equals(bigchain.DefaultGetTxRecipient(tx)) {
 				outputs = append(outputs[:i], outputs[i+1:]...)
 				if totalShares += bigchain.GetOutputAmount(output); totalShares > 100 {
 					return nil, ErrorAppend(ErrCriteriaNotMet, "total shares exceed 100")
@@ -327,8 +327,8 @@ func ProvePublisher(challenge string, priv crypto.PrivateKey, publicationId stri
 	if err != nil {
 		return nil, err
 	}
-	senderPub := bigchain.DefaultGetTxSender(tx)
-	if pub := priv.Public(); !senderPub.Equals(pub) {
+	pubkey := bigchain.DefaultGetTxSender(tx)
+	if pub := priv.Public(); !pubkey.Equals(pub) {
 		return nil, ErrorAppend(ErrInvalidKey, pub.String())
 	}
 	hash, err := DefaultBalloonHash(challenge)
@@ -348,8 +348,12 @@ func VerifyPublisher(challenge, publicationId string, sig crypto.Signature) erro
 	if err != nil {
 		return err
 	}
-	senderPub := bigchain.DefaultGetTxSender(tx)
-	if !senderPub.Verify(MustMarshalJSON(publication), sig) {
+	hash, err := DefaultBalloonHash(challenge)
+	if err != nil {
+		return err
+	}
+	pubkey := bigchain.DefaultGetTxSender(tx)
+	if !pubkey.Verify(hash, sig) {
 		return ErrorAppend(ErrInvalidSignature, sig.String())
 	}
 	return nil
@@ -362,12 +366,12 @@ func ValidateMechanicalLicense(mechanicalLicenseId string) (Data, error) {
 	}
 	mechanicalLicense := bigchain.GetTxData(tx)
 	licenseeId := spec.GetLicenseeId(mechanicalLicense)
+	licenserId := spec.GetLicenserId(mechanicalLicense)
+	licenserKey := bigchain.DefaultGetTxSender(tx)
 	tx, err = QueryAndValidateSchema(licenseeId, "party")
 	if err != nil {
 		return nil, err
 	}
-	licenserId := spec.GetLicenserId(mechanicalLicense)
-	licenserKey := bigchain.DefaultGetTxSender(tx)
 	tx, err = QueryAndValidateSchema(licenserId, "party")
 	if err != nil {
 		return nil, err
@@ -484,19 +488,18 @@ OUTER:
 			return nil, err
 		}
 		artistKeys[i] = bigchain.DefaultGetTxSender(tx)
-		for i, output := range outputs {
-			if artistKeys[i].Equals(bigchain.GetOutputPublicKeys(tx)[0]) {
-				outputs = append(outputs[:i], outputs[i+1:]...)
+		for j, output := range outputs {
+			if artistKeys[i].Equals(bigchain.DefaultGetTxRecipient(tx)) {
+				outputs = append(outputs[:j], outputs[j+1:]...)
 				if totalShares += bigchain.GetOutputAmount(output); totalShares > 100 {
 					return nil, ErrorAppend(ErrCriteriaNotMet, "total shares exceed 100")
 				}
 				mechanicalLicenseId := spec.GetMechanicalLicenseId(artist)
 				if !EmptyStr(mechanicalLicenseId) {
-					tx, err = QueryAndValidateSchema(mechanicalLicenseId, "mechanicalLicense")
+					mechanicalLicense, err := ValidateMechanicalLicense(mechanicalLicenseId)
 					if err != nil {
 						return nil, err
 					}
-					mechanicalLicense := bigchain.GetTxData(tx)
 					compositions := spec.GetCompositions(mechanicalLicense)
 					for _, composition := range compositions {
 						if compositionId == spec.GetId(composition) {
@@ -771,8 +774,8 @@ func ProveRecordLabel(challenge string, priv crypto.PrivateKey, releaseId string
 	if err != nil {
 		return nil, err
 	}
-	senderPub := bigchain.DefaultGetTxSender(tx)
-	if pub := priv.Public(); !senderPub.Equals(pub) {
+	pubkey := bigchain.DefaultGetTxSender(tx)
+	if pub := priv.Public(); !pubkey.Equals(pub) {
 		return nil, ErrorAppend(ErrInvalidKey, pub.String())
 	}
 	hash, err := DefaultBalloonHash(challenge)
@@ -792,8 +795,12 @@ func VerifyRecordLabel(challenge, releaseId string, sig crypto.Signature) error 
 	if err != nil {
 		return err
 	}
-	senderPub := bigchain.DefaultGetTxSender(tx)
-	if !senderPub.Verify(MustMarshalJSON(release), sig) {
+	hash, err := DefaultBalloonHash(challenge)
+	if err != nil {
+		return err
+	}
+	pubkey := bigchain.DefaultGetTxSender(tx)
+	if !pubkey.Verify(hash, sig) {
 		return ErrorAppend(ErrInvalidSignature, sig.String())
 	}
 	return nil
@@ -806,12 +813,12 @@ func ValidateMasterLicense(masterLicenseId string) (Data, error) {
 	}
 	masterLicense := bigchain.GetTxData(tx)
 	licenseeId := spec.GetLicenseeId(masterLicense)
+	licenserId := spec.GetLicenserId(masterLicense)
+	licenserKey := bigchain.DefaultGetTxSender(tx)
 	tx, err = QueryAndValidateSchema(licenseeId, "party")
 	if err != nil {
 		return nil, err
 	}
-	licenserId := spec.GetLicenserId(masterLicense)
-	licenserKey := bigchain.DefaultGetTxSender(tx)
 	tx, err = QueryAndValidateSchema(licenserId, "party")
 	if err != nil {
 		return nil, err

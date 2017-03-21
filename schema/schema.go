@@ -40,6 +40,7 @@ func ValidateSchema(model Data, _type string) error {
 		return err
 	}
 	if !result.Valid() {
+		Println(result.Errors())
 		PrintJSON(model)
 		return Error(_type + " validation failed")
 	}
@@ -190,6 +191,9 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 				"composer": {
 					"$ref": "#/definitions/composer"
 				}
+			},
+			"not": {
+				"required": ["uri"]
 			}
 		}
 	],
@@ -268,7 +272,7 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 				{
 					"properties": {
 						"mechanicalLicense": {
-							"$ref": "#/definitions/link",
+							"$ref": "#/definitions/link"
 						},
 						"role": {
 							"type": "string" 
@@ -324,7 +328,7 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"oneOf": [
 		{
 			"properties": {
-				"artist": {
+				"byArtist": {
 					"type": "array"
 				}
 			},
@@ -332,9 +336,12 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 		},
 		{
 			"properties": {
-				"artist": {
+				"byArtist": {
 					"$ref": "#/definitions/artist"
 				}
+			},
+			"not": {
+				"required": ["uri"]
 			}
 		}
 	],

@@ -565,8 +565,8 @@ func (api *Api) SendMultipleOwnersCreateTx(amounts []int, data Data, owners []cr
 	}, nil
 }
 
-func (api *Api) SendIndividualTransferTx(amount int, assetId, consumeId string, output int, owner crypto.PublicKey) (string, error) {
-	tx := bigchain.IndividualTransferTx(amount, assetId, consumeId, output, owner, api.pub)
+func (api *Api) SendIndividualTransferTx(amount int, assetId, consumeId string, outputIdx int, owner crypto.PublicKey) (string, error) {
+	tx := bigchain.IndividualTransferTx(amount, assetId, consumeId, outputIdx, owner, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
 	if err != nil {
@@ -575,8 +575,8 @@ func (api *Api) SendIndividualTransferTx(amount int, assetId, consumeId string, 
 	return id, nil
 }
 
-func (api *Api) SendDivisibleTransferTx(amounts []int, assetId, consumeId string, output int, owner crypto.PublicKey) (string, error) {
-	tx := bigchain.DivisibleTransferTx(amounts, assetId, consumeId, output, []crypto.PublicKey{api.pub, owner}, api.pub)
+func (api *Api) SendDivisibleTransferTx(amounts []int, assetId, consumeId string, outputIdx int, owner crypto.PublicKey) (string, error) {
+	tx := bigchain.DivisibleTransferTx(amounts, assetId, consumeId, outputIdx, []crypto.PublicKey{api.pub, owner}, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
 	id, err := bigchain.PostTx(tx)
 	if err != nil {
@@ -659,7 +659,6 @@ func (api *Api) Record(file io.Reader, percentageShares []int, recording Data) (
 		}
 		artistKeys[i] = bigchain.DefaultGetTxSender(tx)
 	}
-	Println(n)
 	if n == 1 {
 		return api.SendIndividualCreateTx(100, recording, artistKeys[0])
 	}

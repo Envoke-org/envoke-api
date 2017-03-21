@@ -150,7 +150,7 @@ func NewComposition(composerIds []string, hfa, iswc, lang, name string, roles []
 
 func GetComposers(data Data) []Data {
 	v := data.Get("composer")
-	if composer, ok := v.(Data); ok {
+	if composer := AssertData(v); composer != nil {
 		return []Data{composer}
 	}
 	return AssertDataSlice(v)
@@ -205,9 +205,9 @@ func NewPublication(compositionIds []string, name, publisherId string, rightIds 
 }
 
 func GetCompositions(data Data) []Data {
-	v := data.Get("compositions")
-	if composer, ok := v.(Data); ok {
-		return []Data{composer}
+	v := data.Get("composition")
+	if composition := AssertData(v); composition != nil {
+		return []Data{composition}
 	}
 	return AssertDataSlice(v)
 }
@@ -270,7 +270,7 @@ func NewRecording(artistIds []string, compositionId, duration, isrc string, mech
 
 func GetArtists(data Data) []Data {
 	v := data.Get("byArtist")
-	if artist, ok := v.(Data); ok {
+	if artist := AssertData(v); artist != nil {
 		return []Data{artist}
 	}
 	return AssertDataSlice(v)
@@ -328,7 +328,7 @@ func NewRelease(name string, recordingIds []string, recordLabelId string, rightI
 
 func GetRecordings(data Data) []Data {
 	v := data.Get("recordings")
-	if recording, ok := v.(Data); ok {
+	if recording := AssertData(v); recording != nil {
 		return []Data{recording}
 	}
 	return AssertDataSlice(v)
