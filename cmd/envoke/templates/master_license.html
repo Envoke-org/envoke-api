@@ -3,30 +3,34 @@
 {{end}}
 
 {{define "body"}}
-<form id="release-form" name="release-form">
-    <header>RELEASE</header>
-    <input type="text" name="name" placeholder="TITLE" required />
-    <input type="text" name="recordingIds" placeholder="RECORDING IDs" required />
-    <input type="text" name="recordLabelId" placeholder="RECORD LABEL ID" required />
+<br><br>
+<form id="license-form" name="license-form">
+    <header>MASTER LICENSE</header> 
+    <input type="text" name="licenseHolderId" placeholder="LICENSE HOLDER ID" required />
+    <input type="text" name="recordingIds" placeholder="RECORDING IDs" required /> 
     <input type="text" name="rightIds" placeholder="RIGHT IDs" required />
-    <input type="text" name="sameAs" placeholder="URL" />
-    <input type="submit" value="RELEASE" />
+    <label>VALID FROM</label>
+    <input type="date" name="validFrom" style="border-bottom: solid 1px #025768;" required /><br><br>
+    <label>VALID TO</label>
+    <input type="date" name="validTo" style="border-bottom: solid 1px #025768;" required /><br><br>
+    <input type="submit" value="LICENSE" />
 </form>
 <form id="prove-form" name="prove-form" style="margin-top: -240px">
-    <header>PROVE RECORD LABEL</header>
-    <input type="text" name="type" value="release" hidden />
-    <input type="text" name="challenge" placeholder="CHALLENGE" required />
-    <input type="text" name="releaseId" placeholder="RELEASE ID" required />
+    <header>PROVE LICENSE-HOLDER</header>
+    <input type="text" name="type" value="master_license" hidden />
+    <input type="text" name="challenge" placeholder="CHALLENGE" required /> 
+    <input type="text" name="licenseId" placeholder="LICENSE ID" required />
     <input type="submit" value="PROVE" />
 </form>
 <form id="verify-form" name="verify-form" style="margin-top: -240px">
-    <header>VERIFY RECORD LABEL</header>
-    <input type="text" name="type" value="release" hidden />
+    <header>VERIFY LICENSE-HOLDER</header>
+    <input type="text" name="type" value="master_license" hidden />
     <input type="text" name="challenge" placeholder="CHALLENGE" required />
-    <input type="text" name="releaseId" placeholder="RELEASE ID" required />
+    <input type="text" name="licenseId" placeholder="LICENSE ID" required />
     <input type="text" name="signature" placeholder="SIGNATURE" required />
     <input type="submit" value="VERIFY" />
 </form>
+<br><br>
 <br><br>
 <pre id="message" style="color:#97cc5f; font-size: 1.2em; margin-top: -200px"></pre>
 <script type="text/javascript">
@@ -56,12 +60,12 @@ var callback = function(responseText) {
 
 window.onload = function() {
 
-	var releaseForm = $("#release-form");
-	releaseForm.submit(function(event){
-		event.preventDefault();
-		var formData = releaseForm.serialize();
-		httpPostAsync("http://localhost:8888/release_handler", formData, callback);
-	});
+    var licenseForm = $("#license-form");
+    licenseForm.submit(function(event) {
+        event.preventDefault();
+        var formData = licenseForm.serialize();
+        httpPostAsync("http://localhost:8888/master_license_handler", formData, callback);
+    });
 
     var proveForm = $("#prove-form");
     proveForm.submit(function(event){

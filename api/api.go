@@ -356,11 +356,11 @@ func (api *Api) MechanicalLicenseHandler(w http.ResponseWriter, req *http.Reques
 		return
 	}
 	compositionIds := SplitStr(values.Get("compositionIds"), ",")
-	licenseeId := values.Get("licenseeId")
+	licenseHolderId := values.Get("licenseHolderId")
 	rightIds := SplitStr(values.Get("rightId"), ",")
 	validFrom := values.Get("validFrom")
 	validThrough := values.Get("validThrough")
-	license, err := api.DefaultSendIndividualCreateTx(spec.NewMechanicalLicense(compositionIds, licenseeId, api.id, rightIds, validFrom, validThrough))
+	license, err := api.DefaultSendIndividualCreateTx(spec.NewMechanicalLicense(compositionIds, licenseHolderId, api.id, rightIds, validFrom, validThrough))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -382,12 +382,12 @@ func (api *Api) MasterLicenseHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	licenseeId := values.Get("licenseeId")
+	licenseHolderId := values.Get("licenseHolderId")
 	recordingIds := SplitStr(values.Get("recordingIds"), ",")
 	rightIds := SplitStr(values.Get("rightId"), ",")
 	validFrom := values.Get("validFrom")
 	validThrough := values.Get("validThrough")
-	license, err := api.DefaultSendIndividualCreateTx(spec.NewMasterLicense(licenseeId, api.id, recordingIds, rightIds, validFrom, validThrough))
+	license, err := api.DefaultSendIndividualCreateTx(spec.NewMasterLicense(licenseHolderId, api.id, recordingIds, rightIds, validFrom, validThrough))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -541,6 +541,7 @@ func (api *Api) SendIndividualCreateTx(amount int, data Data, owner crypto.Publi
 	if err != nil {
 		return nil, err
 	}
+	api.logger.Info("SUCCESS sent CREATE tx with " + _type)
 	return Data{
 		_type: data,
 		"id":  id,
@@ -559,6 +560,7 @@ func (api *Api) SendMultipleOwnersCreateTx(amounts []int, data Data, owners []cr
 	if err != nil {
 		return nil, err
 	}
+	api.logger.Info("SUCCESS sent CREATE tx with " + _type)
 	return Data{
 		_type: data,
 		"id":  id,
@@ -572,6 +574,7 @@ func (api *Api) SendIndividualTransferTx(amount int, assetId, consumeId string, 
 	if err != nil {
 		return "", err
 	}
+	api.logger.Info("SUCCESS sent TRANSFER tx")
 	return id, nil
 }
 
@@ -582,6 +585,7 @@ func (api *Api) SendDivisibleTransferTx(amounts []int, assetId, consumeId string
 	if err != nil {
 		return "", err
 	}
+	api.logger.Info("SUCCESS sent TRANSFER tx")
 	return id, nil
 }
 

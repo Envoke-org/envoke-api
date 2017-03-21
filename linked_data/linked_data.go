@@ -365,10 +365,10 @@ func ValidateMechanicalLicense(mechanicalLicenseId string) (Data, error) {
 		return nil, err
 	}
 	mechanicalLicense := bigchain.GetTxData(tx)
-	licenseeId := spec.GetLicenseeId(mechanicalLicense)
+	licenseHolderId := spec.GetLicenseeId(mechanicalLicense)
 	licenserId := spec.GetLicenserId(mechanicalLicense)
 	licenserKey := bigchain.DefaultGetTxSender(tx)
-	tx, err = QueryAndValidateSchema(licenseeId, "party")
+	tx, err = QueryAndValidateSchema(licenseHolderId, "party")
 	if err != nil {
 		return nil, err
 	}
@@ -420,13 +420,13 @@ func ProveMechanicalLicenseHolder(challenge, mechanicalLicenseId string, priv cr
 	if err != nil {
 		return nil, err
 	}
-	licenseeId := spec.GetLicenseeId(mechanicalLicense)
-	tx, err := bigchain.GetTx(licenseeId)
+	licenseHolderId := spec.GetLicenseeId(mechanicalLicense)
+	tx, err := bigchain.GetTx(licenseHolderId)
 	if err != nil {
 		return nil, err
 	}
-	licenseeKey := bigchain.DefaultGetTxSender(tx)
-	if pub := priv.Public(); !licenseeKey.Equals(pub) {
+	licenseHolderKey := bigchain.DefaultGetTxSender(tx)
+	if pub := priv.Public(); !licenseHolderKey.Equals(pub) {
 		return nil, ErrorAppend(ErrInvalidKey, pub.String())
 	}
 	hash, err := DefaultBalloonHash(challenge)
@@ -441,17 +441,17 @@ func VerifyMechanicalLicenseHolder(challenge, mechanicalLicenseId string, sig cr
 	if err != nil {
 		return err
 	}
-	licenseeId := spec.GetLicenseeId(mechanicalLicense)
-	tx, err := bigchain.GetTx(licenseeId)
+	licenseHolderId := spec.GetLicenseeId(mechanicalLicense)
+	tx, err := bigchain.GetTx(licenseHolderId)
 	if err != nil {
 		return err
 	}
-	licenseeKey := bigchain.DefaultGetTxSender(tx)
+	licenseHolderKey := bigchain.DefaultGetTxSender(tx)
 	hash, err := DefaultBalloonHash(challenge)
 	if err != nil {
 		return err
 	}
-	if !licenseeKey.Verify(hash, sig) {
+	if !licenseHolderKey.Verify(hash, sig) {
 		return ErrorAppend(ErrInvalidSignature, sig.String())
 	}
 	return nil
@@ -504,7 +504,7 @@ OUTER:
 					for _, composition := range compositions {
 						if compositionId == spec.GetId(composition) {
 							if artistId != spec.GetLicenseeId(mechanicalLicense) {
-								return nil, ErrorAppend(ErrInvalidId, "wrong licenseeId")
+								return nil, ErrorAppend(ErrInvalidId, "wrong licenseHolderId")
 							}
 							continue OUTER
 						}
@@ -812,10 +812,10 @@ func ValidateMasterLicense(masterLicenseId string) (Data, error) {
 		return nil, err
 	}
 	masterLicense := bigchain.GetTxData(tx)
-	licenseeId := spec.GetLicenseeId(masterLicense)
+	licenseHolderId := spec.GetLicenseeId(masterLicense)
 	licenserId := spec.GetLicenserId(masterLicense)
 	licenserKey := bigchain.DefaultGetTxSender(tx)
-	tx, err = QueryAndValidateSchema(licenseeId, "party")
+	tx, err = QueryAndValidateSchema(licenseHolderId, "party")
 	if err != nil {
 		return nil, err
 	}
@@ -867,13 +867,13 @@ func ProveMasterLicenseHolder(challenge, masterLicenseId string, priv crypto.Pri
 	if err != nil {
 		return nil, err
 	}
-	licenseeId := spec.GetLicenseeId(masterLicense)
-	tx, err := bigchain.GetTx(licenseeId)
+	licenseHolderId := spec.GetLicenseeId(masterLicense)
+	tx, err := bigchain.GetTx(licenseHolderId)
 	if err != nil {
 		return nil, err
 	}
-	licenseeKey := bigchain.DefaultGetTxSender(tx)
-	if pub := priv.Public(); !licenseeKey.Equals(pub) {
+	licenseHolderKey := bigchain.DefaultGetTxSender(tx)
+	if pub := priv.Public(); !licenseHolderKey.Equals(pub) {
 		return nil, ErrorAppend(ErrInvalidKey, pub.String())
 	}
 	hash, err := DefaultBalloonHash(challenge)
@@ -888,17 +888,17 @@ func VerifyMasterLicenseHolder(challenge, masterLicenseId string, sig crypto.Sig
 	if err != nil {
 		return err
 	}
-	licenseeId := spec.GetLicenseeId(masterLicense)
-	tx, err := bigchain.GetTx(licenseeId)
+	licenseHolderId := spec.GetLicenseeId(masterLicense)
+	tx, err := bigchain.GetTx(licenseHolderId)
 	if err != nil {
 		return err
 	}
-	licenseeKey := bigchain.DefaultGetTxSender(tx)
+	licenseHolderKey := bigchain.DefaultGetTxSender(tx)
 	hash, err := DefaultBalloonHash(challenge)
 	if err != nil {
 		return err
 	}
-	if !licenseeKey.Verify(hash, sig) {
+	if !licenseHolderKey.Verify(hash, sig) {
 		return ErrorAppend(ErrInvalidSignature, sig.String())
 	}
 	return nil

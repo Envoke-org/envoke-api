@@ -4,42 +4,27 @@
 
 {{define "body"}}
 <form id="right-form" name="right-form">
-    <header>RIGHT</header>
-    <select form="right-form" name="type" required>
-        <option value="" disabled selected>--TYPE--</option>
-        <option value="composition_right">COMPOSITION RIGHT</option>
-        <option value="recording_right">RECORDING RIGHT</option>
-    </select><br><br>
-    <input type="text" name="recipientId" placeholder="RECIPIENT ID" required />
-    <input type="number" name="recipientShares" placeholder="RECIPIENT SHARES" min=1 max=100 required />
-    <input type="text" name="territory" placeholder="TERRITORY" style="border-bottom: solid 1px #025768;" required /><br><br>
-    <label>VALID FROM</label>
-    <input type="date" name="validFrom" style="border-bottom: solid 1px #025768;" required /><br><br>
-    <label>VALID TO</label>
-    <input type="date" name="validTo" style="border-bottom: solid 1px #025768;" required /><br><br>
+    <header>COMPOSITION RIGHT</header>
+    <input type="text" name="compositionId" placeholder="COMPOSITION ID" required />
+    <input type="number" name="outputIdx" placeholder="OUTPUT INDEX" min=0 max=1 required />
+    <input type="number" name="percentageShares" placeholder="PERCENTAGE SHARES" min=1 max=100 required />
+    <input type="text" name="rightHolderId" placeholder="RIGHT HOLDER ID" required />
+    <input type="text" name="txId" placeholder="TX ID" required />
     <input type="submit" value="ISSUE" />
 </form>
 <form id="prove-form" name="prove-form" style="margin-top: -240px">
     <header>PROVE RIGHT-HOLDER</header>
-    <select form="search-form" name="type" required>
-        <option value="" disabled selected>--TYPE--</option>
-        <option value="composition_right">COMPOSITION RIGHT</option>
-        <option value="recording_right">RECORDING RIGHT</option>
-    </select><br><br>
+    <input type="text" name="type" value="composition_right" hidden />
     <input type="text" name="challenge" placeholder="CHALLENGE" required />
-    <input type="text" name="publicationReleaseId" placeholder="PUBLICATION/RELEASE ID" required />
+    <input type="text" name="rightHolderId" placeholder="RIGHT HOLDER ID" required />
     <input type="text" name="rightId" placeholder="RIGHT ID" required />
     <input type="submit" value="PROVE" />
 </form>
 <form id="verify-form" name="verify-form" style="margin-top: -240px">
     <header>VERIFY RIGHT-HOLDER</header>
-    <select form="verify-form" name="type" required>
-        <option value="" disabled selected>--TYPE--</option>
-        <option value="composition_right">COMPOSITION RIGHT</option>
-        <option value="recording_right">RECORDING RIGHT</option>
-    </select><br><br>
+    <input type="text" name="type" value="composition_right" hidden />
     <input type="text" name="challenge" placeholder="CHALLENGE" required />
-    <input type="text" name="publicationReleaseId" placeholder="PUBLICATION/RELEASE ID" required />
+    <input type="text" name="rightHolderId" placeholder="RIGHT HOLDER ID" required />
     <input type="text" name="rightId" placeholder="RIGHT ID" required />
     <input type="text" name="signature" placeholder="SIGNATURE" required />
     <input type="submit" value="VERIFY" />
@@ -92,9 +77,7 @@ window.onload = function() {
         event.preventDefault();
         var formData = verifyForm.serialize();
         httpPostAsync("http://localhost:8888/verify_handler", formData, callback);
-    });
-
-    
+    }); 
 }
 </script>
 {{end}}

@@ -402,14 +402,14 @@ func GetRecordingId(data Data) string {
 	return GetId(recording)
 }
 
-func NewMechanicalLicense(compositionIds []string, licenseeId, licenserId string, rightIds []string, validFrom, validThrough string) Data {
+func NewMechanicalLicense(compositionIds []string, licenseHolderId, licenserId string, rightIds []string, validFrom, validThrough string) Data {
 	mechanicalLicense := Data{
-		"@context":     CONTEXT,
-		"@type":        "MechanicalLicense",
-		"licensee":     NewLink(licenseeId),
-		"licenser":     NewLink(licenserId),
-		"validFrom":    validFrom,
-		"validThrough": validThrough,
+		"@context":      CONTEXT,
+		"@type":         "MechanicalLicense",
+		"licenseHolder": NewLink(licenseHolderId),
+		"licenser":      NewLink(licenserId),
+		"validFrom":     validFrom,
+		"validThrough":  validThrough,
 	}
 	if n, m := len(compositionIds), len(rightIds); n == 0 {
 		panic("No compositionIds")
@@ -433,9 +433,9 @@ func NewMechanicalLicense(compositionIds []string, licenseeId, licenserId string
 	return mechanicalLicense
 }
 
-func GetLicenseeId(data Data) string {
-	licensee := data.GetData("licensee")
-	return GetId(licensee)
+func GetLicenseHolderId(data Data) string {
+	licenseHolder := data.GetData("licenseHolder")
+	return GetId(licenseHolder)
 }
 
 func GetLicenserId(data Data) string {
@@ -451,14 +451,14 @@ func GetValidTo(data Data) string {
 	return data.GetStr("validTo")
 }
 
-func NewMasterLicense(licenseeId, licenserId string, recordingIds, rightIds []string, validFrom, validThrough string) Data {
+func NewMasterLicense(licenseHolderId, licenserId string, recordingIds, rightIds []string, validFrom, validThrough string) Data {
 	masterLicense := Data{
-		"@context":     CONTEXT,
-		"@type":        "MasterLicense",
-		"licensee":     NewLink(licenseeId),
-		"licenser":     NewLink(licenserId),
-		"validFrom":    validFrom,
-		"validThrough": validThrough,
+		"@context":      CONTEXT,
+		"@type":         "MasterLicense",
+		"licenseHolder": NewLink(licenseHolderId),
+		"licenser":      NewLink(licenserId),
+		"validFrom":     validFrom,
+		"validThrough":  validThrough,
 	}
 	if n, m := len(recordingIds), len(rightIds); n == 0 {
 		panic("No recordingIds")
