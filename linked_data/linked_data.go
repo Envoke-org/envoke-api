@@ -365,7 +365,7 @@ func ValidateMechanicalLicense(mechanicalLicenseId string) (Data, error) {
 		return nil, err
 	}
 	mechanicalLicense := bigchain.GetTxData(tx)
-	licenseHolderId := spec.GetLicenseeId(mechanicalLicense)
+	licenseHolderId := spec.GetLicenseHolderId(mechanicalLicense)
 	licenserId := spec.GetLicenserId(mechanicalLicense)
 	licenserKey := bigchain.DefaultGetTxSender(tx)
 	tx, err = QueryAndValidateSchema(licenseHolderId, "party")
@@ -420,7 +420,7 @@ func ProveMechanicalLicenseHolder(challenge, mechanicalLicenseId string, priv cr
 	if err != nil {
 		return nil, err
 	}
-	licenseHolderId := spec.GetLicenseeId(mechanicalLicense)
+	licenseHolderId := spec.GetLicenseHolderId(mechanicalLicense)
 	tx, err := bigchain.GetTx(licenseHolderId)
 	if err != nil {
 		return nil, err
@@ -441,7 +441,7 @@ func VerifyMechanicalLicenseHolder(challenge, mechanicalLicenseId string, sig cr
 	if err != nil {
 		return err
 	}
-	licenseHolderId := spec.GetLicenseeId(mechanicalLicense)
+	licenseHolderId := spec.GetLicenseHolderId(mechanicalLicense)
 	tx, err := bigchain.GetTx(licenseHolderId)
 	if err != nil {
 		return err
@@ -503,7 +503,7 @@ OUTER:
 					compositions := spec.GetCompositions(mechanicalLicense)
 					for _, composition := range compositions {
 						if compositionId == spec.GetId(composition) {
-							if artistId != spec.GetLicenseeId(mechanicalLicense) {
+							if artistId != spec.GetLicenseHolderId(mechanicalLicense) {
 								return nil, ErrorAppend(ErrInvalidId, "wrong licenseHolderId")
 							}
 							continue OUTER
@@ -812,7 +812,7 @@ func ValidateMasterLicense(masterLicenseId string) (Data, error) {
 		return nil, err
 	}
 	masterLicense := bigchain.GetTxData(tx)
-	licenseHolderId := spec.GetLicenseeId(masterLicense)
+	licenseHolderId := spec.GetLicenseHolderId(masterLicense)
 	licenserId := spec.GetLicenserId(masterLicense)
 	licenserKey := bigchain.DefaultGetTxSender(tx)
 	tx, err = QueryAndValidateSchema(licenseHolderId, "party")
@@ -867,7 +867,7 @@ func ProveMasterLicenseHolder(challenge, masterLicenseId string, priv crypto.Pri
 	if err != nil {
 		return nil, err
 	}
-	licenseHolderId := spec.GetLicenseeId(masterLicense)
+	licenseHolderId := spec.GetLicenseHolderId(masterLicense)
 	tx, err := bigchain.GetTx(licenseHolderId)
 	if err != nil {
 		return nil, err
@@ -888,7 +888,7 @@ func VerifyMasterLicenseHolder(challenge, masterLicenseId string, sig crypto.Sig
 	if err != nil {
 		return err
 	}
-	licenseHolderId := spec.GetLicenseeId(masterLicense)
+	licenseHolderId := spec.GetLicenseHolderId(masterLicense)
 	tx, err := bigchain.GetTx(licenseHolderId)
 	if err != nil {
 		return err

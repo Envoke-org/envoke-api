@@ -226,9 +226,12 @@ func (api *Api) ComposeHandler(w http.ResponseWriter, req *http.Request) {
 	roles := SplitStr(values.Get("roles"), ",")
 	sameAs := values.Get("sameAs")
 	shares := SplitStr(values.Get("splits"), ",")
-	percentageShares := make([]int, len(shares))
-	for i, share := range shares {
-		percentageShares[i] = MustAtoi(share)
+	var percentageShares []int = nil
+	if len(shares) > 1 {
+		percentageShares = make([]int, len(shares))
+		for i, share := range shares {
+			percentageShares[i] = MustAtoi(share)
+		}
 	}
 	uri := values.Get("uri")
 	composition, err := api.Compose(
@@ -270,9 +273,12 @@ func (api *Api) RecordHandler(w http.ResponseWriter, req *http.Request) {
 	roles := SplitStr(form.Value["roles"][0], ",")
 	sameAs := form.Value["sameAs"][0]
 	splits := SplitStr(form.Value["splits"][0], ",")
-	percentageShares := make([]int, len(splits))
-	for i, split := range splits {
-		percentageShares[i] = MustAtoi(split)
+	var percentageShares []int = nil
+	if len(shares) > 1 {
+		percentageShares = make([]int, len(shares))
+		for i, share := range shares {
+			percentageShares[i] = MustAtoi(share)
+		}
 	}
 	uri := form.Value["uri"][0]
 	recording, err = api.Record(

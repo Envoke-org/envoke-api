@@ -19,16 +19,6 @@ In a terminal window, `cd ~/go/src/github.com/Envoke-org/envoke-cli`...
 	You will be prompted to enter an endpoint to the BigchainDB/IPDB http-api. 
 
 	In your browser, go to `http://localhost:8888/<endpoint>`
-    
-    Endpoints:  		
-    - login_register
-    - compose
-    - record
-    - right
-    - publish
-    - release
-    - license
-    - transfer
 
 *  **Run tests**
 

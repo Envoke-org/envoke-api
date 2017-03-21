@@ -515,7 +515,7 @@ var MechanicalLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"minItems": 1,
 			"uniqueItems": true
 		},
-		"licensee": {
+		"licenseHolder": {
 			"$ref": "#/definitions/link"
 		},
 		"licenser": {
@@ -530,7 +530,7 @@ var MechanicalLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"pattern": "%s"
 		}
 	},
-	"required": ["@context", "@type", "composition", "licensee", "licenser", "validFrom", "validThrough"]
+	"required": ["@context", "@type", "composition", "licenseHolder", "licenser", "validFrom", "validThrough"]
 }`, SCHEMA, link, spec.CONTEXT, regex.DATE, regex.DATE))
 
 var MasterLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
@@ -563,7 +563,7 @@ var MasterLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "string",
 			"pattern": "^MasterLicense$"
 		},
-		"licensee": {
+		"licenseHolder": {
 			"$ref": "#/definitions/link"
 		},
 		"licenser": {
@@ -586,5 +586,5 @@ var MasterLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"pattern": "%s"
 		}
 	},
-	"required": ["@context", "@type", "licensee", "licenser", "recording", "validFrom", "validThrough"]
+	"required": ["@context", "@type", "licenseHolder", "licenser", "recording", "validFrom", "validThrough"]
 }`, SCHEMA, link, spec.CONTEXT, regex.DATE, regex.DATE))
