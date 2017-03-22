@@ -35,8 +35,6 @@ func DefaultBalloonHash(challenge string) ([]byte, error) {
 	return balloon.BalloonHash(p, SALT, 256, 32, 2), nil
 }
 
-// COMPOSING & PUBLISHING
-
 func ValidateComposition(compositionId string) (Data, error) {
 	tx, err := QueryAndValidateSchema(compositionId, "composition")
 	if err != nil {
@@ -153,13 +151,13 @@ func VerifyComposer(challenge, composerId, compositionId string, sig crypto.Sign
 	return nil
 }
 
-func ValidateCompositionRight(compositionRightId string) (Data, error) {
-	tx, err := QueryAndValidateSchema(compositionRightId, "composition_right")
+func ValidateRight(rightId string) (Data, error) {
+	tx, err := QueryAndValidateSchema(rightId, "right")
 	if err != nil {
 		return nil, err
 	}
-	compositionRight := bigchain.GetTxData(tx)
-	rightHolderIds := spec.GetRightHolderIds(compositionRight)
+	right := bigchain.GetTxData(tx)
+	rightHolderIds := spec.GetRightHolderIds(right)
 	n := len(rightHolderIds)
 	if n != 1 && n != 2 {
 		return nil, ErrorAppend(ErrInvalidSize, "rightHolderIds must have size 1 or 2")
@@ -183,11 +181,18 @@ func ValidateCompositionRight(compositionRightId string) (Data, error) {
 			recipientKey = rightHolderKey
 		}
 	}
-	compositionId := spec.GetCompositionId(compositionRight)
-	if _, err := ValidateComposition(compositionId); err != nil {
+	rightToId := spec.GetRightToId(right)
+	if _type := spec.GetType(right); _type == "CompositionRight" {
+		_, err = ValidateComposition(rightToId)
+	} else if _type == "RecordingRight" {
+		_, err = ValidateRecording(rightToId)
+	} else {
+		return nil, ErrorAppend(ErrInvalidType, _type)
+	}
+	if err != nil {
 		return nil, err
 	}
-	transferId := spec.GetTransferId(compositionRight)
+	transferId := spec.GetTransferId(right)
 	tx, err = bigchain.GetTx(transferId)
 	if err != nil {
 		return nil, err
@@ -208,7 +213,7 @@ func ValidateCompositionRight(compositionRightId string) (Data, error) {
 	if recipientShares <= 0 || recipientShares > 100 {
 		return nil, ErrorAppend(ErrCriteriaNotMet, "recipient shares must be greater than 0 and less than/equal to 100")
 	}
-	compositionRight.Set("recipientShares", recipientShares)
+	right.Set("recipientShares", recipientShares)
 	if n == 2 {
 		if !senderKey.Equals(bigchain.GetTxRecipient(tx, 0)) {
 			return nil, ErrorAppend(ErrCriteriaNotMet, "sender does not hold primary output of TRANSFER tx")
@@ -217,20 +222,20 @@ func ValidateCompositionRight(compositionRightId string) (Data, error) {
 		if senderShares < 0 || senderShares > 100 {
 			return nil, ErrorAppend(ErrCriteriaNotMet, "sender shares cannot be less than 0 or greater than 100")
 		}
-		compositionRight.Set("senderShares", senderShares)
+		right.Set("senderShares", senderShares)
 	}
-	if compositionId != bigchain.GetTxAssetId(tx) {
+	if rightToId != bigchain.GetTxAssetId(tx) {
 		return nil, ErrorAppend(ErrCriteriaNotMet, "TRANSFER tx does not link to composition")
 	}
-	return compositionRight, nil
+	return right, nil
 }
 
-func ProveCompositionRightHolder(challenge, compositionRightId string, priv crypto.PrivateKey, rightHolderId string) (crypto.Signature, error) {
-	compositionRight, err := ValidateCompositionRight(compositionRightId)
+func ProveRightHolder(challenge string, priv crypto.PrivateKey, rightHolderId, rightId string) (crypto.Signature, error) {
+	right, err := ValidateRight(rightId)
 	if err != nil {
 		return nil, err
 	}
-	rightHolderIds := spec.GetRightHolderIds(compositionRight)
+	rightHolderIds := spec.GetRightHolderIds(right)
 	for i := range rightHolderIds {
 		if rightHolderId == rightHolderIds[i] {
 			tx, err := bigchain.GetTx(rightHolderId)
@@ -250,12 +255,12 @@ func ProveCompositionRightHolder(challenge, compositionRightId string, priv cryp
 	return nil, ErrorAppend(ErrInvalidId, "could not match rightHolderId")
 }
 
-func VerifyCompositionRightHolder(challenge, compositionRightId, rightHolderId string, sig crypto.Signature) error {
-	compositionRight, err := ValidateCompositionRight(compositionRightId)
+func VerifyRightHolder(challenge, rightHolderId, rightId string, sig crypto.Signature) error {
+	right, err := ValidateRight(rightId)
 	if err != nil {
 		return err
 	}
-	rightHolderIds := spec.GetRightHolderIds(compositionRight)
+	rightHolderIds := spec.GetRightHolderIds(right)
 	for i := range rightHolderIds {
 		if rightHolderId == rightHolderIds[i] {
 			tx, err := bigchain.GetTx(rightHolderId)
@@ -276,6 +281,7 @@ func VerifyCompositionRightHolder(challenge, compositionRightId, rightHolderId s
 	return ErrorAppend(ErrInvalidId, "id does not match right-holder id")
 }
 
+/*
 func ValidatePublication(publicationId string) (Data, error) {
 	tx, err := QueryAndValidateSchema(publicationId, "publication")
 	if err != nil {
@@ -298,15 +304,15 @@ OUTER:
 		if _, err := ValidateComposition(compositionId); err != nil {
 			return nil, err
 		}
-		compositionRightId := spec.GetRightId(composition)
-		compositionRight, err := ValidateCompositionRight(compositionRightId)
+		rightId := spec.GetRightId(composition)
+		right, err := ValidateCompositionRight(rightId)
 		if err != nil {
 			return nil, err
 		}
-		if compositionId != spec.GetCompositionId(compositionRight) {
+		if compositionId != spec.GetCompositionId(right) {
 			return nil, ErrorAppend(ErrInvalidId, "composition right has wrong compositionId")
 		}
-		rightHolderIds := spec.GetRightHolderIds(compositionRight)
+		rightHolderIds := spec.GetRightHolderIds(right)
 		for _, rightHolderId := range rightHolderIds {
 			if publisherId == rightHolderId {
 				continue OUTER
@@ -358,16 +364,21 @@ func VerifyPublisher(challenge, publicationId string, sig crypto.Signature) erro
 	}
 	return nil
 }
+*/
 
-func ValidateMechanicalLicense(mechanicalLicenseId string) (Data, error) {
-	tx, err := QueryAndValidateSchema(mechanicalLicenseId, "mechanical_license")
+func ValidateLicense(licenseId string) (Data, error) {
+	tx, err := QueryAndValidateSchema(licenseId, "license")
 	if err != nil {
 		return nil, err
 	}
-	mechanicalLicense := bigchain.GetTxData(tx)
-	licenseHolderIds := spec.GetLicenseHolderIds(mechanicalLicense)
-	licenserId := spec.GetLicenserId(mechanicalLicense)
+	license := bigchain.GetTxData(tx)
+	licenseHolderIds := spec.GetLicenseHolderIds(license)
+	licenserId := spec.GetLicenserId(license)
 	licenserKey := bigchain.DefaultGetTxSender(tx)
+	licenseType := spec.GetType(license)
+	if licenseType != "MasterLicense" && licenseType != "MechanicalLicense" {
+		return nil, ErrorAppend(ErrInvalidType, licenseType)
+	}
 	for _, licenseHolderId := range licenseHolderIds {
 		// TODO: check pubkeys
 		if licenserId == licenseHolderId {
@@ -385,48 +396,64 @@ func ValidateMechanicalLicense(mechanicalLicenseId string) (Data, error) {
 	if !licenserKey.Equals(bigchain.DefaultGetTxSender(tx)) {
 		return nil, ErrorAppend(ErrInvalidKey, licenserKey.String())
 	}
-	compositions := spec.GetCompositions(mechanicalLicense)
+	licenseFor := spec.GetLicenseFor(license)
 OUTER:
-	for i := range compositions {
-		compositionId := spec.GetId(compositions[i])
-		composition, err := ValidateComposition(compositionId)
+	for i := range licenseFor {
+		licenseForId := spec.GetId(licenseFor[i])
+		var licensed Data
+		if licenseType == "MasterLicense" {
+			licensed, err = ValidateRecording(licenseForId)
+		}
+		if licenseType == "MechanicalLicense" {
+			licensed, err = ValidateComposition(licenseForId)
+		}
 		if err != nil {
 			return nil, err
 		}
-		compositionRightId := spec.GetRightId(compositions[i])
-		if !EmptyStr(compositionRightId) {
-			compositionRight, err := ValidateCompositionRight(compositionRightId)
+		rightId := spec.GetRightId(licenseFor[i])
+		if !EmptyStr(rightId) {
+			right, err := ValidateRight(rightId)
 			if err != nil {
 				return nil, err
 			}
-			if compositionId != spec.GetCompositionId(compositionRight) {
-				return nil, ErrorAppend(ErrInvalidId, "composition right has wrong compositionId")
+			if licenseForId != spec.GetRightToId(right) {
+				return nil, ErrorAppend(ErrInvalidId, "right has wrong compositionId/recordingId")
 			}
-			rightHolderIds := spec.GetRightHolderIds(compositionRight)
+			rightHolderIds := spec.GetRightHolderIds(right)
 			for _, rightHolderId := range rightHolderIds {
 				if licenserId == rightHolderId {
 					continue OUTER
 				}
 			}
 		} else {
-			composers := spec.GetComposers(composition)
-			for _, composer := range composers {
-				if licenserId != spec.GetId(composer) {
-					continue OUTER
+			if licenseType == "MasterLicense" {
+				artists := spec.GetArtists(licensed)
+				for _, artist := range artists {
+					if licenserId != spec.GetId(artist) {
+						continue OUTER
+					}
+				}
+			}
+			if licenseType == "MechanicalLicense" {
+				composers := spec.GetComposers(licensed)
+				for _, composer := range composers {
+					if licenserId != spec.GetId(composer) {
+						continue OUTER
+					}
 				}
 			}
 		}
-		return nil, ErrorAppend(ErrCriteriaNotMet, "licenser is not composer/composition right-holder")
+		return nil, ErrorAppend(ErrCriteriaNotMet, "licenser is not artist/composer or right-holder")
 	}
-	return mechanicalLicense, nil
+	return license, nil
 }
 
-func ProveMechanicalLicenseHolder(challenge, licenseHolderId, mechanicalLicenseId string, priv crypto.PrivateKey) (crypto.Signature, error) {
-	mechanicalLicense, err := ValidateMechanicalLicense(mechanicalLicenseId)
+func ProveLicenseHolder(challenge, licenseHolderId, licenseId string, priv crypto.PrivateKey) (crypto.Signature, error) {
+	license, err := ValidateLicense(licenseId)
 	if err != nil {
 		return nil, err
 	}
-	licenseHolderIds := spec.GetLicenseHolderIds(mechanicalLicense)
+	licenseHolderIds := spec.GetLicenseHolderIds(license)
 	for i := range licenseHolderIds {
 		if licenseHolderId == licenseHolderIds[i] {
 			tx, err := bigchain.GetTx(licenseHolderId)
@@ -447,12 +474,12 @@ func ProveMechanicalLicenseHolder(challenge, licenseHolderId, mechanicalLicenseI
 	return nil, ErrorAppend(ErrInvalidId, licenseHolderId)
 }
 
-func VerifyMechanicalLicenseHolder(challenge, licenseHolderId, mechanicalLicenseId string, sig crypto.Signature) error {
-	mechanicalLicense, err := ValidateMechanicalLicense(mechanicalLicenseId)
+func VerifyLicenseHolder(challenge, licenseHolderId, licenseId string, sig crypto.Signature) error {
+	license, err := ValidateLicense(licenseId)
 	if err != nil {
 		return err
 	}
-	licenseHolderIds := spec.GetLicenseHolderIds(mechanicalLicense)
+	licenseHolderIds := spec.GetLicenseHolderIds(license)
 	for i := range licenseHolderIds {
 		if licenseHolderId == licenseHolderIds[i] {
 			tx, err := bigchain.GetTx(licenseHolderId)
@@ -472,8 +499,6 @@ func VerifyMechanicalLicenseHolder(challenge, licenseHolderId, mechanicalLicense
 	}
 	return ErrorAppend(ErrInvalidId, licenseHolderId)
 }
-
-// RECORDING & RELEASING
 
 func ValidateRecording(recordingId string) (Data, error) {
 	tx, err := QueryAndValidateSchema(recordingId, "recording")
@@ -510,16 +535,16 @@ OUTER:
 				if totalShares += bigchain.GetOutputAmount(output); totalShares > 100 {
 					return nil, ErrorAppend(ErrCriteriaNotMet, "total shares exceed 100")
 				}
-				mechanicalLicenseId := spec.GetMechanicalLicenseId(artist)
-				if !EmptyStr(mechanicalLicenseId) {
-					mechanicalLicense, err := ValidateMechanicalLicense(mechanicalLicenseId)
+				licenseId := spec.GetLicenseId(artist)
+				if !EmptyStr(licenseId) {
+					license, err := ValidateLicense(licenseId)
 					if err != nil {
 						return nil, err
 					}
-					compositions := spec.GetCompositions(mechanicalLicense)
-					for _, composition := range compositions {
+					licenseFor := spec.GetLicenseFor(license)
+					for _, composition := range licenseFor {
 						if compositionId == spec.GetId(composition) {
-							licenseHolderIds := spec.GetLicenseHolderIds(mechanicalLicense)
+							licenseHolderIds := spec.GetLicenseHolderIds(license)
 							for _, licenseHolderId := range licenseHolderIds {
 								if artistId == licenseHolderId {
 									continue OUTER
@@ -619,129 +644,6 @@ func VerifyArtist(artistId, challenge, recordingId string, sig crypto.Signature)
 	return ErrorAppend(ErrInvalidId, "could not match artistId")
 }
 
-func ValidateRecordingRight(recordingRightId string) (Data, error) {
-	tx, err := QueryAndValidateSchema(recordingRightId, "recording_right")
-	if err != nil {
-		return nil, err
-	}
-	recordingRight := bigchain.GetTxData(tx)
-	rightHolderIds := spec.GetRightHolderIds(recordingRight)
-	n := len(rightHolderIds)
-	if n != 1 && n != 2 {
-		return nil, ErrorAppend(ErrInvalidSize, "rightHolderIds must have size 1 or 2")
-	}
-	var recipientKey crypto.PublicKey = nil
-	senderKey := bigchain.DefaultGetTxSender(tx)
-	for _, rightHolderId := range rightHolderIds {
-		tx, err = QueryAndValidateSchema(rightHolderId, "party")
-		if err != nil {
-			return nil, err
-		}
-		rightHolderKey := bigchain.DefaultGetTxSender(tx)
-		if senderKey.Equals(rightHolderKey) {
-			if n == 1 {
-				return nil, ErrorAppend(ErrCriteriaNotMet, "sender cannot be sole right-holder")
-			}
-		} else {
-			if recipientKey != nil {
-				return nil, ErrorAppend(ErrCriteriaNotMet, "sender is not second right-holder")
-			}
-			recipientKey = rightHolderKey
-		}
-	}
-	recordingId := spec.GetRecordingId(recordingRight)
-	if _, err := ValidateRecording(recordingId); err != nil {
-		return nil, err
-	}
-	transferId := spec.GetTransferId(recordingRight)
-	tx, err = bigchain.GetTx(transferId)
-	if err != nil {
-		return nil, err
-	}
-	if bigchain.TRANSFER != bigchain.GetTxOperation(tx) {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "expected TRANSFER tx")
-	}
-	if !senderKey.Equals(bigchain.DefaultGetTxSender(tx)) {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "right sender is not sender of TRANSFER tx")
-	}
-	if n != len(bigchain.GetTxOutputs(tx)) {
-		return nil, ErrorAppend(ErrInvalidSize, "TRANSFER tx outputs must have same size as rightHolderIds")
-	}
-	if !recipientKey.Equals(bigchain.GetTxRecipient(tx, 1)) {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "recipient does not hold secondary output of TRANSFER tx")
-	}
-	recipientShares := bigchain.GetTxOutputAmount(tx, 1)
-	if recipientShares <= 0 || recipientShares > 100 {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "recipient shares must be greater than 0 and less than/equal to 100")
-	}
-	recordingRight.Set("recipientShares", recipientShares)
-	if n == 2 {
-		if !senderKey.Equals(bigchain.GetTxRecipient(tx, 0)) {
-			return nil, ErrorAppend(ErrCriteriaNotMet, "sender does not hold primary output of TRANSFER tx")
-		}
-		senderShares := bigchain.GetTxOutputAmount(tx, 0)
-		if senderShares < 0 || senderShares > 100 {
-			return nil, ErrorAppend(ErrCriteriaNotMet, "sender shares cannot be less than 0 or greater than 100")
-		}
-		recordingRight.Set("senderShares", senderShares)
-	}
-	if recordingId != bigchain.GetTxAssetId(tx) {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "TRANSFER tx does not link to recording")
-	}
-	return recordingRight, nil
-}
-
-func ProveRecordingRightHolder(challenge string, priv crypto.PrivateKey, recordingRightId, rightHolderId string) (crypto.Signature, error) {
-	recordingRight, err := ValidateRecordingRight(recordingRightId)
-	if err != nil {
-		return nil, err
-	}
-	rightHolderIds := spec.GetRightHolderIds(recordingRight)
-	for i := range rightHolderIds {
-		if rightHolderId == rightHolderIds[i] {
-			tx, err := bigchain.GetTx(rightHolderId)
-			if err != nil {
-				return nil, err
-			}
-			rightHolderKey := bigchain.DefaultGetTxSender(tx)
-			if rightHolderKey.Equals(priv.Public()) {
-				hash, err := DefaultBalloonHash(challenge)
-				if err != nil {
-					return nil, err
-				}
-				return priv.Sign(hash), nil
-			}
-		}
-	}
-	return nil, ErrorAppend(ErrInvalidId, "could not match rightHolderId")
-}
-
-func VerifyRecordingRightHolder(challenge, recordingRightId, rightHolderId string, sig crypto.Signature) error {
-	recordingRight, err := ValidateRecordingRight(recordingRightId)
-	if err != nil {
-		return err
-	}
-	rightHolderIds := spec.GetRightHolderIds(recordingRight)
-	for i := range rightHolderIds {
-		if rightHolderId == rightHolderIds[i] {
-			tx, err := bigchain.GetTx(rightHolderId)
-			if err != nil {
-				return err
-			}
-			rightHolderKey := bigchain.DefaultGetTxSender(tx)
-			hash, err := DefaultBalloonHash(challenge)
-			if err != nil {
-				return err
-			}
-			if !rightHolderKey.Verify(hash, sig) {
-				return ErrorAppend(ErrInvalidSignature, sig.String())
-			}
-			return nil
-		}
-	}
-	return ErrorAppend(ErrInvalidId, "could not match rightHolderId")
-}
-
 func ValidateRelease(releaseId string) (Data, error) {
 	tx, err := QueryAndValidateSchema(releaseId, "release")
 	if err != nil {
@@ -764,15 +666,15 @@ OUTER:
 		if _, err := ValidateRecording(recordingId); err != nil {
 			return nil, err
 		}
-		recordingRightId := spec.GetRightId(recording)
-		recordingRight, err := ValidateRecordingRight(recordingRightId)
+		rightId := spec.GetRightId(recording)
+		right, err := ValidateRight(rightId)
 		if err != nil {
 			return nil, err
 		}
-		if recordingId != spec.GetRecordingId(recordingRight) {
+		if recordingId != spec.GetRightToId(right) {
 			return nil, ErrorAppend(ErrInvalidId, "recording right has wrong recordingId")
 		}
-		rightHolderIds := spec.GetRightHolderIds(recordingRight)
+		rightHolderIds := spec.GetRightHolderIds(right)
 		for _, rightHolderId := range rightHolderIds {
 			if recordLabelId == rightHolderId {
 				continue OUTER
@@ -823,118 +725,4 @@ func VerifyRecordLabel(challenge, releaseId string, sig crypto.Signature) error 
 		return ErrorAppend(ErrInvalidSignature, sig.String())
 	}
 	return nil
-}
-
-func ValidateMasterLicense(masterLicenseId string) (Data, error) {
-	tx, err := QueryAndValidateSchema(masterLicenseId, "master_license")
-	if err != nil {
-		return nil, err
-	}
-	masterLicense := bigchain.GetTxData(tx)
-	licenseHolderIds := spec.GetLicenseHolderIds(masterLicense)
-	licenserId := spec.GetLicenserId(masterLicense)
-	licenserKey := bigchain.DefaultGetTxSender(tx)
-	for _, licenseHolderId := range licenseHolderIds {
-		// TODO: check pubkeys
-		if licenserId == licenseHolderId {
-			return nil, ErrorAppend(ErrCriteriaNotMet, "licenser cannot be licenseHolder")
-		}
-		tx, err = QueryAndValidateSchema(licenseHolderId, "party")
-		if err != nil {
-			return nil, err
-		}
-	}
-	tx, err = QueryAndValidateSchema(licenserId, "party")
-	if err != nil {
-		return nil, err
-	}
-	if !licenserKey.Equals(bigchain.DefaultGetTxSender(tx)) {
-		return nil, ErrorAppend(ErrInvalidKey, licenserKey.String())
-	}
-	recordings := spec.GetRecordings(masterLicense)
-OUTER:
-	for i := range recordings {
-		recordingId := spec.GetId(recordings[i])
-		recording, err := ValidateRecording(recordingId)
-		if err != nil {
-			return nil, err
-		}
-		recordingRightId := spec.GetRightId(recordings[i])
-		if !EmptyStr(recordingRightId) {
-			recordingRight, err := ValidateRecordingRight(recordingRightId)
-			if err != nil {
-				return nil, err
-			}
-			if recordingId != spec.GetRecordingId(recordingRight) {
-				return nil, ErrorAppend(ErrInvalidId, "recording right has wrong recordingId")
-			}
-			rightHolderIds := spec.GetRightHolderIds(recordingRight)
-			for _, rightHolderId := range rightHolderIds {
-				if licenserId == rightHolderId {
-					continue OUTER
-				}
-			}
-		} else {
-			artists := spec.GetArtists(recording)
-			for _, artist := range artists {
-				if licenserId != spec.GetId(artist) {
-					continue OUTER
-				}
-			}
-		}
-		return nil, ErrorAppend(ErrCriteriaNotMet, "licenser is not artist/recording right-holder")
-	}
-	return masterLicense, nil
-}
-
-func ProveMasterLicenseHolder(challenge, licenseHolderId, masterLicenseId string, priv crypto.PrivateKey) (crypto.Signature, error) {
-	masterLicense, err := ValidateMasterLicense(masterLicenseId)
-	if err != nil {
-		return nil, err
-	}
-	licenseHolderIds := spec.GetLicenseHolderIds(masterLicense)
-	for i := range licenseHolderIds {
-		if licenseHolderId == licenseHolderIds[i] {
-			tx, err := bigchain.GetTx(licenseHolderId)
-			if err != nil {
-				return nil, err
-			}
-			licenseHolderKey := bigchain.DefaultGetTxSender(tx)
-			if pub := priv.Public(); !licenseHolderKey.Equals(pub) {
-				return nil, ErrorAppend(ErrInvalidKey, pub.String())
-			}
-			hash, err := DefaultBalloonHash(challenge)
-			if err != nil {
-				return nil, err
-			}
-			return priv.Sign(hash), nil
-		}
-	}
-	return nil, ErrorAppend(ErrInvalidId, licenseHolderId)
-}
-
-func VerifyMasterLicenseHolder(challenge, licenseHolderId, masterLicenseId string, sig crypto.Signature) error {
-	masterLicense, err := ValidateMasterLicense(masterLicenseId)
-	if err != nil {
-		return err
-	}
-	licenseHolderIds := spec.GetLicenseHolderIds(masterLicense)
-	for i := range licenseHolderIds {
-		if licenseHolderId == licenseHolderIds[i] {
-			tx, err := bigchain.GetTx(licenseHolderId)
-			if err != nil {
-				return err
-			}
-			licenseHolderKey := bigchain.DefaultGetTxSender(tx)
-			hash, err := DefaultBalloonHash(challenge)
-			if err != nil {
-				return err
-			}
-			if !licenseHolderKey.Verify(hash, sig) {
-				return ErrorAppend(ErrInvalidSignature, sig.String())
-			}
-			return nil
-		}
-	}
-	return ErrorAppend(ErrInvalidId, licenseHolderId)
 }

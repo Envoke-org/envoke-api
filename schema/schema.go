@@ -4,7 +4,7 @@ import (
 	jsonschema "github.com/xeipuuv/gojsonschema"
 
 	. "github.com/zbo14/envoke/common"
-	regex "github.com/zbo14/envoke/regex"
+	"github.com/zbo14/envoke/regex"
 	"github.com/zbo14/envoke/spec"
 )
 
@@ -18,20 +18,14 @@ func ValidateSchema(model Data, _type string) error {
 		schemaLoader = PartyLoader
 	case "composition":
 		schemaLoader = CompositionLoader
-	case "composition_right":
-		schemaLoader = CompositionRightLoader
-	case "master_license":
-		schemaLoader = MasterLicenseLoader
-	case "mechanical_license":
-		schemaLoader = MechanicalLicenseLoader
-	case "publication":
-		schemaLoader = PublicationLoader
+	case "license":
+		schemaLoader = LicenseLoader
 	case "recording":
 		schemaLoader = RecordingLoader
-	case "recording_right":
-		schemaLoader = RecordingRightLoader
 	case "release":
 		schemaLoader = ReleaseLoader
+	case "right":
+		schemaLoader = RightLoader
 	default:
 		return ErrorAppend(ErrInvalidType, _type)
 	}
@@ -200,6 +194,7 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"required": ["@context", "@type", "composer", "name"]
 }`, SCHEMA, link, spec.CONTEXT, regex.HFA, regex.LANGUAGE, regex.ISWC, regex.FULFILLMENT))
 
+/*
 var PublicationLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"$schema": "%s",
 	"title": "MusicPublication",
@@ -258,6 +253,7 @@ var PublicationLoader = jsonschema.NewStringLoader(Sprintf(`{
 	},
 	"required": ["@context", "@type", "composition", "name", "publisher"]
 }`, SCHEMA, link, spec.CONTEXT))
+*/
 
 var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"$schema":  "%s",
@@ -360,11 +356,11 @@ var ReleaseLoader = jsonschema.NewStringLoader(Sprintf(`{
 				},
 				{
 					"properties": {
-						"right": {
+						"hasRight": {
 							"$ref": "#/definitions/link"
 						}
 					},
-					"required": ["right"]
+					"required": ["hasRight"]
 				}
 			]
 		},
@@ -407,9 +403,9 @@ var ReleaseLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"required": ["@context", "@type", "name", "recording", "recordLabel"]
 }`, SCHEMA, link, spec.CONTEXT))
 
-var CompositionRightLoader = jsonschema.NewStringLoader(Sprintf(`{
+var RightLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"$schema": "%s",
-	"title": "CompositionRight",
+	"title": "Right",
 	"type": "object",
 	"definitions": {
 		"link": %s
@@ -421,10 +417,7 @@ var CompositionRightLoader = jsonschema.NewStringLoader(Sprintf(`{
 		},
 		"@type": {
 			"type": "string",
-			"pattern": "^CompositionRight$"
-		},
-		"composition": {
-			"$ref": "#/definitions/link"
+			"pattern": "^CompositionRight|RecordingRight$"
 		},
 		"rightHolder": {
 			"type": "array",
@@ -435,61 +428,29 @@ var CompositionRightLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"maxItems": 2,
 			"uniqueItems": true
 		},
-		"transfer": {
+		"rightTo": {
 			"$ref": "#/definitions/link"
-		}
-	},
-	"required": ["@context", "@type", "composition", "rightHolder", "transfer"]
-}`, SCHEMA, link, spec.CONTEXT))
-
-var RecordingRightLoader = jsonschema.NewStringLoader(Sprintf(`{
-	"$schema": "%s",
-	"title": "RecordingRight",
-	"type": "object",
-	"definitions": {
-		"link": %s
-	},
-	"properties": {
-		"@context": {
-			"type": "string",
-			"pattern": "^%s$"
-		},
-		"@type": {
-			"type": "string",
-			"pattern": "^RecordingRight$"
-		},
-		"recording": {
-			"$ref": "#/definitions/link"
-		},
-		"rightHolder": {
-			"type": "array",
-			"items": {
-				"$ref": "#/definitions/link"
-			},
-			"minItems": 1,
-			"maxItems": 2,
-			"uniqueItems": true
 		},
 		"transfer": {
 			"$ref": "#/definitions/link"
 		}
 	},
-	"required": ["@context", "@type", "recording", "rightHolder", "transfer"]
+	"required": ["@context", "@type", "rightHolder", "rightTo", "transfer"]
 }`, SCHEMA, link, spec.CONTEXT))
 
-var MechanicalLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
+var LicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"$schema": "%s",
-	"title": "MechanicalLicense",
+	"title": "License",
 	"type": "object",
 	"definitions": {
-		"composition": {
+		"licenseFor": {
 			"allOf": [
 				{
 					"$ref": "#/definitions/link"
 				},
 				{
 					"properties": {
-						"right": {
+						"hasRight": {
 							"$ref": "#/definitions/link"
 						}
 					}
@@ -505,12 +466,12 @@ var MechanicalLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 		},
 		"@type": {
 			"type": "string",
-			"pattern": "^MechanicalLicense$"
+			"pattern": "^MasterLicense|MechanicalLicense$"
 		},
-		"composition": {
+		"licenseFor": {
 			"type": "array",
 			"items": {
-				"$ref": "#/definitions/composition"
+				"$ref": "#/definitions/licenseFor"
 			},
 			"minItems": 1,
 			"uniqueItems": true
@@ -535,66 +496,5 @@ var MechanicalLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"pattern": "%s"
 		}
 	},
-	"required": ["@context", "@type", "composition", "licenseHolder", "licenser", "validFrom", "validThrough"]
-}`, SCHEMA, link, spec.CONTEXT, regex.DATE, regex.DATE))
-
-var MasterLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
-	"$schema": "%s",
-	"title": "MasterLicense",
-	"type": "object",
-	"definitions": {
-		"recording": {
-			"allOf": [
-				{
-					"$ref": "#/definitions/link"
-				},
-				{
-					"properties": {
-						"right": {
-							"$ref": "#/definitions/link"
-						}
-					}
-				}
-			]
-		},
-		"link": %s
-	},
-	"properties": {
-		"@context": {
-			"type": "string",
-			"pattern": "^%s$"
-		},
-		"@type": {
-			"type": "string",
-			"pattern": "^MasterLicense$"
-		},
-		"licenseHolder": {
-			"type": "array",
-			"items": {
-				"$ref": "#/definitions/link"
-			},
-			"minItems": 1,
-			"uniqueItems": true
-		},
-		"licenser": {
-			"$ref": "#/definitions/link"
-		},
-		"recording": {
-			"type": "array",
-			"items": {
-				"$ref": "#/definitions/recording"
-			},
-			"minItems": 1,
-			"uniqueItems": true
-		},
-		"validFrom": {
-			"type": "string",
-			"pattern": "%s"
-		},
-		"validThrough": {
-			"type": "string",
-			"pattern": "%s"
-		}
-	},
-	"required": ["@context", "@type", "licenseHolder", "licenser", "recording", "validFrom", "validThrough"]
+	"required": ["@context", "@type", "licenseFor", "licenseHolder", "licenser", "validFrom", "validThrough"]
 }`, SCHEMA, link, spec.CONTEXT, regex.DATE, regex.DATE))

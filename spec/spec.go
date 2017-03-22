@@ -2,7 +2,7 @@ package spec
 
 import (
 	. "github.com/zbo14/envoke/common"
-	regex "github.com/zbo14/envoke/regex"
+	"github.com/zbo14/envoke/regex"
 )
 
 const CONTEXT = "http://localhost:8888/spec#Context"
@@ -172,6 +172,7 @@ func GetURI(data Data) string {
 	return data.GetStr("uri")
 }
 
+/*
 func NewPublication(compositionIds []string, name, publisherId string, rightIds []string, sameAs string) Data {
 	publication := Data{
 		"@context":  CONTEXT,
@@ -183,15 +184,15 @@ func NewPublication(compositionIds []string, name, publisherId string, rightIds 
 		panic("No compositionIds")
 	} else if n == 1 && m == 1 {
 		publication.Set("composition", Data{
-			"@id":   compositionIds[0],
-			"right": NewLink(rightIds[0]),
+			"@id":      compositionIds[0],
+			"hasRight": NewLink(rightIds[0]),
 		})
 	} else if n == m {
 		compositions := make([]Data, n)
 		for i := range compositions {
 			compositions[i] = Data{
-				"@id":   compositionIds[i],
-				"right": NewLink(rightIds[i]),
+				"@id":      compositionIds[i],
+				"hasRight": NewLink(rightIds[i]),
 			}
 		}
 		publication.Set("composition", compositions)
@@ -216,13 +217,9 @@ func GetPublisherId(data Data) string {
 	publisher := data.GetData("publisher")
 	return GetId(publisher)
 }
+*/
 
-func GetRightId(data Data) string {
-	right := data.GetData("right")
-	return GetId(right)
-}
-
-func NewRecording(artistIds []string, compositionId, duration, isrc string, mechanicalLicenseIds, roles []string, sameAs, uri string) Data {
+func NewRecording(artistIds []string, compositionId, duration, isrc string, licenseIds, roles []string, sameAs, uri string) Data {
 	recording := Data{
 		"@context":    CONTEXT,
 		"@type":       "MusicRecording",
@@ -233,8 +230,8 @@ func NewRecording(artistIds []string, compositionId, duration, isrc string, mech
 	} else if n == 1 {
 		recording.Set("byArtist", NewLink(artistIds[0]))
 	} else {
-		if n != len(mechanicalLicenseIds) {
-			panic("Number of mechanicalLicenseIds doesn't equal number of artists")
+		if n != len(licenseIds) {
+			panic("Number of licenseIds doesn't equal number of artists")
 		}
 		if roles != nil {
 			if n != len(roles) {
@@ -244,8 +241,8 @@ func NewRecording(artistIds []string, compositionId, duration, isrc string, mech
 		artists := make([]Data, n)
 		for i, artistId := range artistIds {
 			artists[i] = NewLink(artistId)
-			if MatchId(mechanicalLicenseIds[i]) {
-				artists[i].Set("mechanicalLicense", NewLink(mechanicalLicenseIds[i]))
+			if MatchId(licenseIds[i]) {
+				artists[i].Set("hasLicense", NewLink(licenseIds[i]))
 			}
 			if roles != nil {
 				artists[i].Set("role", roles[i])
@@ -284,15 +281,17 @@ func GetISRC(data Data) string {
 	return data.GetStr("isrc")
 }
 
-func GetMechanicalLicenseId(data Data) string {
-	mechanical := data.GetData("mechanicalLicense")
-	return GetId(mechanical)
+func GetLicenseId(data Data) string {
+	license := data.GetData("hasLicense")
+	return GetId(license)
 }
 
 func GetRecordingOfId(data Data) string {
 	composition := data.GetData("recordingOf")
 	return GetId(composition)
 }
+
+// TODO: addition release fields
 
 func NewRelease(name string, recordingIds []string, recordLabelId string, rightIds []string, sameAs string) Data {
 	release := Data{
@@ -305,15 +304,15 @@ func NewRelease(name string, recordingIds []string, recordLabelId string, rightI
 		panic("No recordingIds")
 	} else if n == 1 && m == 1 {
 		release.Set("recording", Data{
-			"@id":   recordingIds[0],
-			"right": NewLink(rightIds[0]),
+			"@id":      recordingIds[0],
+			"hasRight": NewLink(rightIds[0]),
 		})
 	} else if n == m {
 		recordings := make([]Data, n)
 		for i := range recordings {
 			recordings[i] = Data{
-				"@id":   recordingIds[i],
-				"right": NewLink(rightIds[i]),
+				"@id":      recordingIds[i],
+				"hasRight": NewLink(rightIds[i]),
 			}
 		}
 		release.Set("recording", recordings)
@@ -324,6 +323,11 @@ func NewRelease(name string, recordingIds []string, recordLabelId string, rightI
 		release.Set("sameAs", sameAs)
 	}
 	return release
+}
+
+func GetRightId(data Data) string {
+	right := data.GetData("hasRight")
+	return GetId(right)
 }
 
 func GetRecordings(data Data) []Data {
@@ -340,9 +344,17 @@ func GetRecordLabelId(data Data) string {
 }
 
 // Note: transferId is the hex id of a TRANSFER tx in BigchainDB/IPDB
-// the output amount(s) will specify shares transferred/kept
+// the output amount(s) will specify shares kept/transferred
 
-func NewCompositionRight(compositionId string, rightHolderIds []string, transferId string) Data {
+func NewCompositionRight(rightHolderIds []string, rightTo, transferId string) Data {
+	return NewRight(rightHolderIds, rightTo, transferId, "CompositionRight")
+}
+
+func NewRecordingRight(rightHolderIds []string, rightTo, transferId string) Data {
+	return NewRight(rightHolderIds, rightTo, transferId, "RecordingRight")
+}
+
+func NewRight(rightHolderIds []string, rightTo, transferId, _type string) Data {
 	n := len(rightHolderIds)
 	if n == 0 {
 		panic("No rightHolderIds")
@@ -353,15 +365,15 @@ func NewCompositionRight(compositionId string, rightHolderIds []string, transfer
 	}
 	return Data{
 		"@context":    CONTEXT,
-		"@type":       "CompositionRight",
-		"composition": NewLink(compositionId),
+		"@type":       _type,
 		"rightHolder": rightHolders,
+		"rightTo":     NewLink(rightTo),
 		"transfer":    NewLink(transferId),
 	}
 }
 
-func GetCompositionId(data Data) string {
-	composition := data.GetData("composition")
+func GetRightToId(data Data) string {
+	composition := data.GetData("rightTo")
 	return GetId(composition)
 }
 
@@ -379,30 +391,15 @@ func GetTransferId(data Data) string {
 	return GetId(transfer)
 }
 
-func NewRecordingRight(recordingId string, rightHolderIds []string, transferId string) Data {
-	n := len(rightHolderIds)
-	if n == 0 {
-		panic("No rightHolderIds")
-	}
-	rightHolders := make([]Data, n)
-	for i, rightHolderId := range rightHolderIds {
-		rightHolders[i] = NewLink(rightHolderId)
-	}
-	return Data{
-		"@context":    CONTEXT,
-		"@type":       "RecordingRight",
-		"recording":   NewLink(recordingId),
-		"rightHolder": rightHolders,
-		"transfer":    NewLink(transferId),
-	}
+func NewMasterLicense(licenseForIds, licenseHolderIds []string, licenserId string, rightIds []string, validFrom, validThrough string) Data {
+	return NewLicense(licenseForIds, licenseHolderIds, licenserId, rightIds, "MasterLicense", validFrom, validThrough)
 }
 
-func GetRecordingId(data Data) string {
-	recording := data.GetData("recording")
-	return GetId(recording)
+func NewMechanicalLicense(licenseForIds, licenseHolderIds []string, licenserId string, rightIds []string, validFrom, validThrough string) Data {
+	return NewLicense(licenseForIds, licenseHolderIds, licenserId, rightIds, "MechanicalLicense", validFrom, validThrough)
 }
 
-func NewMechanicalLicense(compositionIds, licenseHolderIds []string, licenserId string, rightIds []string, validFrom, validThrough string) Data {
+func NewLicense(licenseForIds, licenseHolderIds []string, licenserId string, rightIds []string, _type, validFrom, validThrough string) Data {
 	n := len(licenseHolderIds)
 	if n == 0 {
 		panic("No licenseHolderIds")
@@ -411,34 +408,38 @@ func NewMechanicalLicense(compositionIds, licenseHolderIds []string, licenserId 
 	for i, licenseHolderId := range licenseHolderIds {
 		licenseHolders[i] = NewLink(licenseHolderId)
 	}
-	mechanicalLicense := Data{
+	license := Data{
 		"@context":      CONTEXT,
-		"@type":         "MechanicalLicense",
+		"@type":         _type,
 		"licenseHolder": licenseHolders,
 		"licenser":      NewLink(licenserId),
 		"validFrom":     validFrom,
 		"validThrough":  validThrough,
 	}
-	if n, m := len(compositionIds), len(rightIds); n == 0 {
-		panic("No compositionIds")
+	if n, m := len(licenseForIds), len(rightIds); n == 0 {
+		panic("No licenseForIds")
 	} else if n == m || m == 0 {
-		compositions := make([]Data, n)
-		for i, compositionId := range compositionIds {
-			if !MatchId(compositionId) {
-				panic(ErrorAppend(ErrInvalidId, compositionId))
+		licenseFor := make([]Data, n)
+		for i, licenseForId := range licenseForIds {
+			if !MatchId(licenseForId) {
+				panic(ErrorAppend(ErrInvalidId, licenseForId))
 			}
-			compositions[i] = NewLink(compositionId)
+			licenseFor[i] = NewLink(licenseForId)
 			if m > 0 {
 				if MatchId(rightIds[i]) {
-					compositions[i].Set("right", NewLink(rightIds[i]))
+					licenseFor[i].Set("hasRight", NewLink(rightIds[i]))
 				}
 			}
 		}
-		mechanicalLicense.Set("composition", compositions)
+		license.Set("licenseFor", licenseFor)
 	} else {
-		panic("Invalid number of compositionIds/rightIds")
+		panic("Invalid number of licenseForIds/rightIds")
 	}
-	return mechanicalLicense
+	return license
+}
+
+func GetLicenseFor(data Data) []Data {
+	return data.GetDataSlice("licenseFor")
 }
 
 func GetLicenseHolderIds(data Data) []string {
@@ -461,43 +462,4 @@ func GetValidFrom(data Data) string {
 
 func GetValidTo(data Data) string {
 	return data.GetStr("validTo")
-}
-
-func NewMasterLicense(licenseHolderIds []string, licenserId string, recordingIds, rightIds []string, validFrom, validThrough string) Data {
-	n := len(licenseHolderIds)
-	if n == 0 {
-		panic("No licenseHolderIds")
-	}
-	licenseHolders := make([]Data, n)
-	for i, licenseHolderId := range licenseHolderIds {
-		licenseHolders[i] = NewLink(licenseHolderId)
-	}
-	masterLicense := Data{
-		"@context":      CONTEXT,
-		"@type":         "MasterLicense",
-		"licenseHolder": licenseHolders,
-		"licenser":      NewLink(licenserId),
-		"validFrom":     validFrom,
-		"validThrough":  validThrough,
-	}
-	if n, m := len(recordingIds), len(rightIds); n == 0 {
-		panic("No recordingIds")
-	} else if n == m || m == 0 {
-		recordings := make([]Data, n)
-		for i, recordingId := range recordingIds {
-			if !MatchId(recordingId) {
-				panic(ErrorAppend(ErrInvalidId, recordingId))
-			}
-			recordings[i] = NewLink(recordingId)
-			if m > 0 {
-				if MatchId(rightIds[i]) {
-					recordings[i].Set("right", NewLink(rightIds[i]))
-				}
-			}
-		}
-		masterLicense.Set("recording", recordings)
-	} else {
-		panic("Invalid number of recordingIds/rightIds")
-	}
-	return masterLicense
 }

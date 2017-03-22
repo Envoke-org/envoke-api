@@ -116,40 +116,27 @@ func TestApi(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	compositionRight, err := api.DefaultSendIndividualCreateTx(spec.NewCompositionRight(compositionId, []string{composerId, publisherId}, transferId))
+	compositionRight, err := api.DefaultSendIndividualCreateTx(spec.NewCompositionRight([]string{composerId, publisherId}, compositionId, transferId))
 	if err != nil {
 		t.Fatal(err)
 	}
 	compositionRightId := GetId(compositionRight)
 	WriteJSON(output, compositionRight)
-	sig, err = ld.ProveCompositionRightHolder(CHALLENGE, compositionRightId, composerPriv, composerId)
+	sig, err = ld.ProveRightHolder(CHALLENGE, composerPriv, composerId, compositionRightId)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = ld.VerifyCompositionRightHolder(CHALLENGE, compositionRightId, composerId, sig); err != nil {
+	if err = ld.VerifyRightHolder(CHALLENGE, composerId, compositionRightId, sig); err != nil {
 		t.Fatal(err)
 	}
-	sig, err = ld.ProveCompositionRightHolder(CHALLENGE, compositionRightId, publisherPriv, publisherId)
+	sig, err = ld.ProveRightHolder(CHALLENGE, publisherPriv, publisherId, compositionRightId)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = ld.VerifyCompositionRightHolder(CHALLENGE, compositionRightId, publisherId, sig); err != nil {
+	if err = ld.VerifyRightHolder(CHALLENGE, publisherId, compositionRightId, sig); err != nil {
 		t.Fatal(err)
 	}
 	if err = api.Login(publisherId, publisherPriv.String()); err != nil {
-		t.Fatal(err)
-	}
-	publication, err := api.DefaultSendIndividualCreateTx(spec.NewPublication([]string{compositionId}, "publication_title", publisherId, []string{compositionRightId}, "www.url_to_publication.com"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	publicationId := GetId(publication)
-	WriteJSON(output, publication)
-	sig, err = ld.ProvePublisher(CHALLENGE, publisherPriv, publicationId)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = ld.VerifyPublisher(CHALLENGE, publicationId, sig); err != nil {
 		t.Fatal(err)
 	}
 	mechanicalLicense, err := api.DefaultSendIndividualCreateTx(spec.NewMechanicalLicense([]string{compositionId}, []string{performerId, producerId}, publisherId, []string{compositionRightId}, "2020-01-01", "2024-01-01"))
@@ -158,18 +145,18 @@ func TestApi(t *testing.T) {
 	}
 	mechanicalLicenseId := GetId(mechanicalLicense)
 	WriteJSON(output, mechanicalLicense)
-	sig, err = ld.ProveMechanicalLicenseHolder(CHALLENGE, performerId, mechanicalLicenseId, performerPriv)
+	sig, err = ld.ProveLicenseHolder(CHALLENGE, performerId, mechanicalLicenseId, performerPriv)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = ld.VerifyMechanicalLicenseHolder(CHALLENGE, performerId, mechanicalLicenseId, sig); err != nil {
+	if err = ld.VerifyLicenseHolder(CHALLENGE, performerId, mechanicalLicenseId, sig); err != nil {
 		t.Fatal(err)
 	}
-	sig, err = ld.ProveMechanicalLicenseHolder(CHALLENGE, producerId, mechanicalLicenseId, producerPriv)
+	sig, err = ld.ProveLicenseHolder(CHALLENGE, producerId, mechanicalLicenseId, producerPriv)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = ld.VerifyMechanicalLicenseHolder(CHALLENGE, producerId, mechanicalLicenseId, sig); err != nil {
+	if err = ld.VerifyLicenseHolder(CHALLENGE, producerId, mechanicalLicenseId, sig); err != nil {
 		t.Fatal(err)
 	}
 	file, err := OpenFile(Getenv("PATH_TO_AUDIO_FILE"))
@@ -208,24 +195,24 @@ func TestApi(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	recordingRight, err := api.DefaultSendIndividualCreateTx(spec.NewRecordingRight(recordingId, []string{performerId, recordLabelId}, transferId))
+	recordingRight, err := api.DefaultSendIndividualCreateTx(spec.NewRecordingRight([]string{performerId, recordLabelId}, recordingId, transferId))
 	if err != nil {
 		t.Fatal(err)
 	}
 	recordingRightId := GetId(recordingRight)
 	WriteJSON(output, recordingRight)
-	sig, err = ld.ProveRecordingRightHolder(CHALLENGE, performerPriv, recordingRightId, performerId)
+	sig, err = ld.ProveRightHolder(CHALLENGE, performerPriv, performerId, recordingRightId)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = ld.VerifyRecordingRightHolder(CHALLENGE, recordingRightId, performerId, sig); err != nil {
+	if err = ld.VerifyRightHolder(CHALLENGE, performerId, recordingRightId, sig); err != nil {
 		t.Fatal(err)
 	}
-	sig, err = ld.ProveRecordingRightHolder(CHALLENGE, recordLabelPriv, recordingRightId, recordLabelId)
+	sig, err = ld.ProveRightHolder(CHALLENGE, recordLabelPriv, recordLabelId, recordingRightId)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = ld.VerifyRecordingRightHolder(CHALLENGE, recordingRightId, recordLabelId, sig); err != nil {
+	if err = ld.VerifyRightHolder(CHALLENGE, recordLabelId, recordingRightId, sig); err != nil {
 		t.Fatal(err)
 	}
 	if err = api.Login(recordLabelId, recordLabelPriv.String()); err != nil {
@@ -244,17 +231,17 @@ func TestApi(t *testing.T) {
 	if err = ld.VerifyRecordLabel(CHALLENGE, releaseId, sig); err != nil {
 		t.Fatal(err)
 	}
-	masterLicense, err := api.DefaultSendIndividualCreateTx(spec.NewMasterLicense([]string{radioId}, recordLabelId, []string{recordingId}, []string{recordingRightId}, "2020-01-01", "2022-01-01"))
+	masterLicense, err := api.DefaultSendIndividualCreateTx(spec.NewMasterLicense([]string{recordingId}, []string{radioId}, recordLabelId, []string{recordingRightId}, "2020-01-01", "2022-01-01"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	masterLicenseId := GetId(masterLicense)
 	WriteJSON(output, masterLicense)
-	sig, err = ld.ProveMasterLicenseHolder(CHALLENGE, radioId, masterLicenseId, radioPriv)
+	sig, err = ld.ProveLicenseHolder(CHALLENGE, radioId, masterLicenseId, radioPriv)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = ld.VerifyMasterLicenseHolder(CHALLENGE, radioId, masterLicenseId, sig); err != nil {
+	if err = ld.VerifyLicenseHolder(CHALLENGE, radioId, masterLicenseId, sig); err != nil {
 		t.Fatal(err)
 	}
 }

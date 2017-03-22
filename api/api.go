@@ -31,7 +31,6 @@ func (api *Api) AddRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/license_handler", api.LicenseHandler)
 	mux.HandleFunc("/login_handler", api.LoginHandler)
 	mux.HandleFunc("/prove_handler", api.ProveHandler)
-	mux.HandleFunc("/publish_handler", api.PublishHandler)
 	mux.HandleFunc("/record_handler", api.RecordHandler)
 	mux.HandleFunc("/register_handler", api.RegisterHandler)
 	mux.HandleFunc("/release_handler", api.ReleaseHandler)
@@ -113,10 +112,10 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	modelId := values.Get("modelId")
 	outputIdx := MustAtoi(values.Get("outputIdx"))
 	percentageShares := MustAtoi(values.Get("percentageShares"))
 	rightHolderIds := []string{values.Get("rightHolderId")}
+	rightToId := values.Get("rightToId")
 	tx, err := ld.QueryAndValidateSchema(rightHolderIds[0], "party")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -124,7 +123,7 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	rightHolderKey := bigchain.DefaultGetTxSender(tx)
 	txId := values.Get("txId")
-	transferId, err := api.Transfer(modelId, txId, outputIdx, rightHolderKey, percentageShares)
+	transferId, err := api.Transfer(rightToId, txId, outputIdx, rightHolderKey, percentageShares)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -132,9 +131,9 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 	var right Data
 	switch _type := values.Get("type"); _type {
 	case "composition_right":
-		right, err = api.DefaultSendIndividualCreateTx(spec.NewCompositionRight(modelId, rightHolderIds, transferId))
+		right, err = api.DefaultSendIndividualCreateTx(spec.NewCompositionRight(rightHolderIds, rightToId, transferId))
 	case "recording_right":
-		right, err = api.DefaultSendIndividualCreateTx(spec.NewRecordingRight(modelId, rightHolderIds, transferId))
+		right, err = api.DefaultSendIndividualCreateTx(spec.NewRecordingRight(rightHolderIds, rightToId, transferId))
 	default:
 		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
 		return
@@ -263,6 +262,7 @@ func (api *Api) RecordHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, recording)
 }
 
+/*
 func (api *Api) PublishHandler(w http.ResponseWriter, req *http.Request) {
 	if !api.LoggedIn() {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
@@ -289,6 +289,7 @@ func (api *Api) PublishHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	WriteJSON(w, publication)
 }
+*/
 
 func (api *Api) ReleaseHandler(w http.ResponseWriter, req *http.Request) {
 	if !api.LoggedIn() {
@@ -331,8 +332,8 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	licenseForIds := SplitStr(values.Get("licenseForIds"), ",")
 	licenseHolderIds := SplitStr(values.Get("licenseHolderIds"), ",")
-	modelIds := SplitStr(values.Get("modelIds"), ",")
 	rightIds := SplitStr(values.Get("rightId"), ",")
 	_type := values.Get("type")
 	validFrom := values.Get("validFrom")
@@ -340,9 +341,9 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 	var license Data
 	switch _type {
 	case "master_license":
-		license, err = api.DefaultSendIndividualCreateTx(spec.NewMasterLicense(licenseHolderIds, api.id, modelIds, rightIds, validFrom, validThrough))
+		license, err = api.DefaultSendIndividualCreateTx(spec.NewMasterLicense(licenseForIds, licenseHolderIds, api.id, rightIds, validFrom, validThrough))
 	case "mechanical_license":
-		license, err = api.DefaultSendIndividualCreateTx(spec.NewMechanicalLicense(modelIds, licenseHolderIds, api.id, rightIds, validFrom, validThrough))
+		license, err = api.DefaultSendIndividualCreateTx(spec.NewMechanicalLicense(licenseForIds, licenseHolderIds, api.id, rightIds, validFrom, validThrough))
 	default:
 		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
 		return
@@ -374,20 +375,14 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 	switch _type {
 	case "composition":
 		model, err = ld.ValidateComposition(modelId)
-	case "composition_right":
-		model, err = ld.ValidateCompositionRight(modelId)
-	case "master_license":
-		model, err = ld.ValidateMasterLicense(modelId)
-	case "mechanical_license":
-		model, err = ld.ValidateMechanicalLicense(modelId)
-	case "publication":
-		model, err = ld.ValidatePublication(modelId)
+	case "license":
+		model, err = ld.ValidateLicense(modelId)
 	case "recording":
 		model, err = ld.ValidateRecording(modelId)
-	case "recording_right":
-		model, err = ld.ValidateRecordingRight(modelId)
 	case "release":
 		model, err = ld.ValidateRelease(modelId)
+	case "right":
+		model, err = ld.ValidateRight(modelId)
 	default:
 		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
 		return
@@ -421,20 +416,14 @@ func (api *Api) ProveHandler(w http.ResponseWriter, req *http.Request) {
 	switch _type {
 	case "composition":
 		sig, err = ld.ProveComposer(challenge, partyId, modelId, api.priv)
-	case "composition_right":
-		sig, err = ld.ProveCompositionRightHolder(challenge, modelId, api.priv, partyId)
-	case "master_license":
-		sig, err = ld.ProveMasterLicenseHolder(challenge, partyId, modelId, api.priv)
-	case "mechanical_license":
-		sig, err = ld.ProveMechanicalLicenseHolder(challenge, partyId, modelId, api.priv)
-	case "publication":
-		sig, err = ld.ProvePublisher(challenge, api.priv, modelId)
+	case "license":
+		sig, err = ld.ProveLicenseHolder(challenge, partyId, modelId, api.priv)
 	case "recording":
 		sig, err = ld.ProveArtist(partyId, challenge, api.priv, modelId)
-	case "recording_right":
-		sig, err = ld.ProveRecordingRightHolder(challenge, api.priv, modelId, partyId)
 	case "release":
 		sig, err = ld.ProveRecordLabel(challenge, api.priv, modelId)
+	case "right":
+		sig, err = ld.ProveRightHolder(challenge, api.priv, partyId, modelId)
 	default:
 		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
 		return
@@ -473,20 +462,14 @@ func (api *Api) VerifyHandler(w http.ResponseWriter, req *http.Request) {
 	switch _type {
 	case "composition":
 		err = ld.VerifyComposer(challenge, partyId, modelId, sig)
-	case "composition_right":
-		err = ld.VerifyCompositionRightHolder(challenge, modelId, partyId, sig)
-	case "master_license":
-		err = ld.VerifyMasterLicenseHolder(challenge, partyId, modelId, sig)
-	case "mechanical_license":
-		err = ld.VerifyMechanicalLicenseHolder(challenge, partyId, modelId, sig)
-	case "publication":
-		err = ld.VerifyPublisher(challenge, modelId, sig)
+	case "license":
+		err = ld.VerifyLicenseHolder(challenge, partyId, modelId, sig)
 	case "recording":
 		err = ld.VerifyArtist(partyId, challenge, modelId, sig)
-	case "recording_right":
-		err = ld.VerifyRecordingRightHolder(challenge, modelId, partyId, sig)
 	case "release":
 		err = ld.VerifyRecordLabel(challenge, modelId, sig)
+	case "right":
+		err = ld.VerifyRightHolder(challenge, modelId, partyId, sig)
 	default:
 		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
 		return
