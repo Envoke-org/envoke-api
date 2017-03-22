@@ -163,6 +163,9 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 		"name": {
 			"type": "string"
 		},
+		"publisher": {
+			"$ref": "#/definitions/link"
+		},
 		"sameAs": {
 			"type": "string"
 		},
@@ -193,67 +196,6 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 	],
 	"required": ["@context", "@type", "composer", "name"]
 }`, SCHEMA, link, spec.CONTEXT, regex.HFA, regex.LANGUAGE, regex.ISWC, regex.FULFILLMENT))
-
-/*
-var PublicationLoader = jsonschema.NewStringLoader(Sprintf(`{
-	"$schema": "%s",
-	"title": "MusicPublication",
-	"type": "object",
-	"definitions": {
-		"composition": {
-			"allOf": [
-				{
-					"$ref": "#/definitions/link"
-				},
-				{
-					"properties": {
-						"right": {
-							"$ref": "#/definitions/link"
-						}
-					},
-					"required": ["right"]
-				}
-			]
-		},
-		"link": %s
-	},
-	"properties": {
-		"@context": {
-			"type": "string",
-			"pattern": "^%s$"
-		},
-		"@type": {
-			"type": "string",
-			"pattern": "^MusicPublication$"
-		},
-		"name": {
-			"type": "string"
-		},
-		"composition": {
-			"oneOf": [
-				{
-					"$ref": "#/definitions/composition"
-				},
-				{
-					"type": "array",
-					"items": {
-						"$ref": "#/definitions/composition"
-					},
-					"minItems": 2,
-					"uniqueItems": true
-				}
-			]
-		},
-		"publisher": {
-			"$ref": "#/definitions/link"
-		},
-		"sameAs": {
-			"type": "string"
-		}
-	},
-	"required": ["@context", "@type", "composition", "name", "publisher"]
-}`, SCHEMA, link, spec.CONTEXT))
-*/
 
 var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"$schema":  "%s",

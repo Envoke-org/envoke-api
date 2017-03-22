@@ -90,6 +90,11 @@
             "@type": "@id"
         },
         "pro": "envoke:pro",
+        "publisher": 
+        {
+            "@id": "schema:publisher",
+            "@type": "@id"
+        },
         "recording":
         {
             "@id": "envoke:recording",

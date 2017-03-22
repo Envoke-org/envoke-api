@@ -6,11 +6,7 @@
 <br><br>
 <form id="license-form" name="license-form">
     <header>LICENSE</header>
-    <select form="license-form" name="type" required>
-        <option value="" disabled selected>--TYPE--</option>
-        <option value="master_license">MASTER</option>
-        <option value="mechanical_license">MECHANICAL</option>
-    </select><br><br>
+    <input type="text" name="type" value="license" hidden />
     <input type="text" name="licenseHolderIds" placeholder="LICENSE HOLDER IDs" required />
     <input type="text" name="modelIds" placeholder="COMPOSITION/RECORDING IDs" required />  
     <input type="text" name="rightIds" placeholder="RIGHT IDs" required /><br><br>
@@ -22,36 +18,24 @@
 </form>
 <form id="search-form" name="search-form">
     <header>SEARCH LICENSE</header>
-    <select form="search-form" name="type" required>
-        <option value="" disabled selected>--TYPE--</option>
-        <option value="master_license">MASTER</option>
-        <option value="mechanical_license">MECHANICAL</option>
-    </select><br><br>
+    <input type="text" name="type" value="license" hidden />
     <input type="text" name="modelId" placeholder="LICENSE ID" required />
     <input type="submit" value="SEARCH" />
 </form>
 <form id="prove-form" name="prove-form">
     <header>PROVE LICENSE-HOLDER</header>
-    <select form="prove-form" name="type" required>
-        <option value="" disabled selected>--TYPE--</option>
-        <option value="master_license">MASTER</option>
-        <option value="mechanical_license">MECHANICAL</option>
-    </select><br><br>
+    <input type="text" name="type" value="license" hidden />
     <input type="text" name="challenge" placeholder="CHALLENGE" required /> 
-    <input type="text" name="modelId" placeholder="LICENSE ID" required />
     <input type="text" name="partyId" placeholder="LICENSE HOLDER ID" required />
+    <input type="text" name="modelId" placeholder="LICENSE ID" required />
     <input type="submit" value="PROVE" />
 </form>
 <form id="verify-form" name="verify-form">
     <header>VERIFY LICENSE-HOLDER</header>
-    <select form="verify-form" name="type" required>
-        <option value="" disabled selected>--TYPE--</option>
-        <option value="master_license">MASTER</option>
-        <option value="mechanical_license">MECHANICAL</option>
-    </select><br><br>
+    <input type="text" name="type" value="license" hidden />
     <input type="text" name="challenge" placeholder="CHALLENGE" required />
-    <input type="text" name="modelId" placeholder="LICENSE ID" required />
     <input type="text" name="partyId" placeholder="LICENSE HOLDER ID" required />
+    <input type="text" name="modelId" placeholder="LICENSE ID" required />
     <input type="text" name="signature" placeholder="SIGNATURE" required />
     <input type="submit" value="VERIFY" />
 </form>

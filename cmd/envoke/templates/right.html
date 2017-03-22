@@ -5,11 +5,7 @@
 {{define "body"}}
 <form id="right-form" name="right-form">
     <header>RIGHT</header>
-    <select form="right-form" name="type" required>
-        <option value="" disabled selected>--TYPE--</option>
-        <option value="composition_right">COMPOSITION</option>
-        <option value="recording_right">RECORDING</option>
-    </select><br><br>
+    <input type="text" name="type" value="right" hidden />
     <input type="text" name="modelId" placeholder="COMPOSITION/RECORDING ID" required />
     <input type="number" name="outputIdx" placeholder="OUTPUT INDEX" min=0 max=1 required />
     <input type="number" name="percentageShares" placeholder="PERCENTAGE SHARES" min=1 max=100 required />
@@ -19,36 +15,24 @@
 </form>
 <form id="search-form" name="search-form">
     <header>SEARCH RIGHT</header>
-    <select form="search-form" name="type" required>
-        <option value="" disabled selected>--TYPE--</option>
-        <option value="composition_right">COMPOSITION</option>
-        <option value="recording_right">RECORDING</option>
-    </select><br><br>
+    <input type="text" name="type" value="right" hidden />
     <input type="text" name="modelId" placeholder="RIGHT ID" required />
     <input type="submit" value="SEARCH" />
 </form>
-<form id="prove-form" name="prove-form" style="margin-top: -240px">
+<form id="prove-form" name="prove-form">
     <header>PROVE RIGHT-HOLDER</header>
-    <select form="prove-form" name="type" required>
-        <option value="" disabled selected>--TYPE--</option>
-        <option value="composition_right">COMPOSITION</option>
-        <option value="recording_right">RECORDING</option>
-    </select><br><br>
+    <input type="text" name="type" value="right" hidden />
     <input type="text" name="challenge" placeholder="CHALLENGE" required />
-    <input type="text" name="modelId" placeholder="RIGHT ID" required />
     <input type="text" name="partyId" placeholder="RIGHT HOLDER ID" required />
+    <input type="text" name="modelId" placeholder="RIGHT ID" required />
     <input type="submit" value="PROVE" />
 </form>
-<form id="verify-form" name="verify-form" style="margin-top: -240px">
+<form id="verify-form" name="verify-form">
     <header>VERIFY RIGHT-HOLDER</header>
-    <select form="verify-form" name="type" required>
-        <option value="" disabled selected>--TYPE--</option>
-        <option value="composition_right">COMPOSITION</option>
-        <option value="recording_right">RECORDING</option>
-    </select><br><br>
+    <input type="text" name="type" value="right" hidden />
     <input type="text" name="challenge" placeholder="CHALLENGE" required />
-    <input type="text" name="modelId" placeholder="RIGHT ID" required />
     <input type="text" name="partyId" placeholder="RIGHT HOLDER ID" required />
+    <input type="text" name="modelId" placeholder="RIGHT ID" required />
     <input type="text" name="signature" placeholder="SIGNATURE" required />
     <input type="submit" value="VERIFY" />
 </form>

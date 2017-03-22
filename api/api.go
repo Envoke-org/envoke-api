@@ -192,6 +192,7 @@ func (api *Api) ComposeHandler(w http.ResponseWriter, req *http.Request) {
 	iswc := values.Get("iswc")
 	lang := values.Get("lang")
 	name := values.Get("name")
+	publisherId := values.Get("publisherId")
 	roles := SplitStr(values.Get("roles"), ",")
 	sameAs := values.Get("sameAs")
 	shares := SplitStr(values.Get("splits"), ",")
@@ -204,7 +205,7 @@ func (api *Api) ComposeHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	uri := values.Get("uri")
 	composition, err := api.Compose(
-		spec.NewComposition(composerIds, hfa, iswc, lang, name, roles, sameAs, uri),
+		spec.NewComposition(composerIds, hfa, iswc, lang, name, publisherId, roles, sameAs, uri),
 		percentageShares,
 	)
 	if err != nil {
@@ -261,35 +262,6 @@ func (api *Api) RecordHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	WriteJSON(w, recording)
 }
-
-/*
-func (api *Api) PublishHandler(w http.ResponseWriter, req *http.Request) {
-	if !api.LoggedIn() {
-		http.Error(w, "Not logged in", http.StatusUnauthorized)
-		return
-	}
-	if req.Method != http.MethodPost {
-		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
-		return
-	}
-	values, err := UrlValues(req)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	compositionsId := SplitStr(values.Get("compositionId"), ",")
-	name := values.Get("name")
-	publisherId := values.Get("publisherId")
-	rightIds := SplitStr(values.Get("rightIds"), ",")
-	sameAs := values.Get("sameAs")
-	publication, err := api.DefaultSendIndividualCreateTx(spec.NewPublication(compositionsId, name, publisherId, rightIds, sameAs))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	WriteJSON(w, publication)
-}
-*/
 
 func (api *Api) ReleaseHandler(w http.ResponseWriter, req *http.Request) {
 	if !api.LoggedIn() {

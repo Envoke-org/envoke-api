@@ -105,7 +105,7 @@ func GetSameAs(data Data) string {
 	return data.GetStr("sameAs")
 }
 
-func NewComposition(composerIds []string, hfa, iswc, lang, name string, roles []string, sameAs, uri string) Data {
+func NewComposition(composerIds []string, hfa, iswc, lang, name, publisherId string, roles []string, sameAs, uri string) Data {
 	composition := Data{
 		"@context": CONTEXT,
 		"@type":    "MusicComposition",
@@ -138,6 +138,9 @@ func NewComposition(composerIds []string, hfa, iswc, lang, name string, roles []
 	}
 	if MatchStr(regex.LANGUAGE, lang) {
 		composition.Set("inLanguage", lang)
+	}
+	if MatchId(publisherId) {
+		composition.Set("publisher", NewLink(publisherId))
 	}
 	if MatchUrlRelaxed(sameAs) {
 		composition.Set("sameAs", sameAs)

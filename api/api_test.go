@@ -98,7 +98,7 @@ func TestApi(t *testing.T) {
 	if err := api.Login(composerId, composerPriv.String()); err != nil {
 		t.Fatal(err)
 	}
-	composition, err := api.Compose(spec.NewComposition([]string{composerId}, "B3107S", "T-034.524.680-1", "EN", "composition_title", nil, "www.url_to_composition.com", ""), nil)
+	composition, err := api.Compose(spec.NewComposition([]string{composerId}, "B3107S", "T-034.524.680-1", "EN", "composition_title", publisherId, nil, "www.url_to_composition.com", ""), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
