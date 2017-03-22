@@ -4,28 +4,51 @@
 
 {{define "body"}}
 <form id="right-form" name="right-form">
-    <header>COMPOSITION RIGHT</header>
-    <input type="text" name="compositionId" placeholder="COMPOSITION ID" required />
+    <header>RIGHT</header>
+    <select form="right-form" name="type" required>
+        <option value="" disabled selected>--TYPE--</option>
+        <option value="composition_right">COMPOSITION</option>
+        <option value="recording_right">RECORDING</option>
+    </select><br><br>
+    <input type="text" name="modelId" placeholder="COMPOSITION/RECORDING ID" required />
     <input type="number" name="outputIdx" placeholder="OUTPUT INDEX" min=0 max=1 required />
     <input type="number" name="percentageShares" placeholder="PERCENTAGE SHARES" min=1 max=100 required />
     <input type="text" name="rightHolderId" placeholder="RIGHT HOLDER ID" required />
     <input type="text" name="txId" placeholder="TX ID" required />
     <input type="submit" value="ISSUE" />
 </form>
+<form id="search-form" name="search-form">
+    <header>SEARCH RIGHT</header>
+    <select form="search-form" name="type" required>
+        <option value="" disabled selected>--TYPE--</option>
+        <option value="composition_right">COMPOSITION</option>
+        <option value="recording_right">RECORDING</option>
+    </select><br><br>
+    <input type="text" name="modelId" placeholder="RIGHT ID" required />
+    <input type="submit" value="SEARCH" />
+</form>
 <form id="prove-form" name="prove-form" style="margin-top: -240px">
     <header>PROVE RIGHT-HOLDER</header>
-    <input type="text" name="type" value="composition_right" hidden />
+    <select form="prove-form" name="type" required>
+        <option value="" disabled selected>--TYPE--</option>
+        <option value="composition_right">COMPOSITION</option>
+        <option value="recording_right">RECORDING</option>
+    </select><br><br>
     <input type="text" name="challenge" placeholder="CHALLENGE" required />
-    <input type="text" name="rightHolderId" placeholder="RIGHT HOLDER ID" required />
-    <input type="text" name="rightId" placeholder="RIGHT ID" required />
+    <input type="text" name="modelId" placeholder="RIGHT ID" required />
+    <input type="text" name="partyId" placeholder="RIGHT HOLDER ID" required />
     <input type="submit" value="PROVE" />
 </form>
 <form id="verify-form" name="verify-form" style="margin-top: -240px">
     <header>VERIFY RIGHT-HOLDER</header>
-    <input type="text" name="type" value="composition_right" hidden />
+    <select form="verify-form" name="type" required>
+        <option value="" disabled selected>--TYPE--</option>
+        <option value="composition_right">COMPOSITION</option>
+        <option value="recording_right">RECORDING</option>
+    </select><br><br>
     <input type="text" name="challenge" placeholder="CHALLENGE" required />
-    <input type="text" name="rightHolderId" placeholder="RIGHT HOLDER ID" required />
-    <input type="text" name="rightId" placeholder="RIGHT ID" required />
+    <input type="text" name="modelId" placeholder="RIGHT ID" required />
+    <input type="text" name="partyId" placeholder="RIGHT HOLDER ID" required />
     <input type="text" name="signature" placeholder="SIGNATURE" required />
     <input type="submit" value="VERIFY" />
 </form>
@@ -63,6 +86,13 @@ window.onload = function() {
         event.preventDefault();
         var formData = rightForm.serialize();
         httpPostAsync("http://localhost:8888/right_handler", formData, callback);
+    });
+
+    var searchForm = $("#search-form");
+    searchForm.submit(function(event){
+        event.preventDefault();
+        var formData = searchForm.serialize();
+        httpPostAsync("http://localhost:8888/search_handler", formData, callback);
     });
 
     var proveForm = $("#prove-form");

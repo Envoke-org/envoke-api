@@ -27,17 +27,16 @@ func NewApi() *Api {
 }
 
 func (api *Api) AddRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/login_handler", api.LoginHandler)
-	mux.HandleFunc("/register_handler", api.RegisterHandler)
 	mux.HandleFunc("/compose_handler", api.ComposeHandler)
-	mux.HandleFunc("/record_handler", api.RecordHandler)
-	mux.HandleFunc("/composition_right_handler", api.CompositionRightHandler)
-	mux.HandleFunc("/recording_right_handler", api.CompositionRightHandler)
-	mux.HandleFunc("/publish_handler", api.PublishHandler)
-	mux.HandleFunc("/release_handler", api.ReleaseHandler)
-	mux.HandleFunc("/mechanical_license_handler", api.MechanicalLicenseHandler)
-	mux.HandleFunc("/master_license_handler", api.MasterLicenseHandler)
+	mux.HandleFunc("/license_handler", api.LicenseHandler)
+	mux.HandleFunc("/login_handler", api.LoginHandler)
 	mux.HandleFunc("/prove_handler", api.ProveHandler)
+	mux.HandleFunc("/publish_handler", api.PublishHandler)
+	mux.HandleFunc("/record_handler", api.RecordHandler)
+	mux.HandleFunc("/register_handler", api.RegisterHandler)
+	mux.HandleFunc("/release_handler", api.ReleaseHandler)
+	mux.HandleFunc("/right_handler", api.RightHandler)
+	mux.HandleFunc("/search_handler", api.SearchHandler)
 	mux.HandleFunc("/verify_handler", api.VerifyHandler)
 }
 
@@ -100,7 +99,7 @@ func (api *Api) RegisterHandler(w http.ResponseWriter, req *http.Request) {
 	w.Write([]byte("Registration successful!"))
 }
 
-func (api *Api) CompositionRightHandler(w http.ResponseWriter, req *http.Request) {
+func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 	if !api.LoggedIn() {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
@@ -114,7 +113,7 @@ func (api *Api) CompositionRightHandler(w http.ResponseWriter, req *http.Request
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	compositionId := values.Get("compositionId")
+	modelId := values.Get("modelId")
 	outputIdx := MustAtoi(values.Get("outputIdx"))
 	percentageShares := MustAtoi(values.Get("percentageShares"))
 	rightHolderIds := []string{values.Get("rightHolderId")}
@@ -125,50 +124,21 @@ func (api *Api) CompositionRightHandler(w http.ResponseWriter, req *http.Request
 	}
 	rightHolderKey := bigchain.DefaultGetTxSender(tx)
 	txId := values.Get("txId")
-	transferId, err := api.Transfer(compositionId, txId, outputIdx, rightHolderKey, percentageShares)
+	transferId, err := api.Transfer(modelId, txId, outputIdx, rightHolderKey, percentageShares)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	right, err := api.DefaultSendIndividualCreateTx(spec.NewCompositionRight(compositionId, rightHolderIds, transferId))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	var right Data
+	switch _type := values.Get("type"); _type {
+	case "composition_right":
+		right, err = api.DefaultSendIndividualCreateTx(spec.NewCompositionRight(modelId, rightHolderIds, transferId))
+	case "recording_right":
+		right, err = api.DefaultSendIndividualCreateTx(spec.NewRecordingRight(modelId, rightHolderIds, transferId))
+	default:
+		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
 		return
 	}
-	WriteJSON(w, right)
-}
-
-func (api *Api) RecordingRightHandler(w http.ResponseWriter, req *http.Request) {
-	if !api.LoggedIn() {
-		http.Error(w, "Not logged in", http.StatusUnauthorized)
-		return
-	}
-	if req.Method != http.MethodPost {
-		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
-		return
-	}
-	values, err := UrlValues(req)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	outputIdx := MustAtoi(values.Get("outputIdx"))
-	percentageShares := MustAtoi(values.Get("percentageShares"))
-	recordingId := values.Get("recordingId")
-	rightHolderIds := []string{values.Get("rightHolderId")}
-	tx, err := ld.QueryAndValidateSchema(rightHolderIds[0], "party")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	rightHolderKey := bigchain.DefaultGetTxSender(tx)
-	txId := values.Get("txId")
-	transferId, err := api.Transfer(recordingId, txId, outputIdx, rightHolderKey, percentageShares)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	right, err := api.DefaultSendIndividualCreateTx(spec.NewCompositionRight(recordingId, rightHolderIds, transferId))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -274,10 +244,10 @@ func (api *Api) RecordHandler(w http.ResponseWriter, req *http.Request) {
 	sameAs := form.Value["sameAs"][0]
 	splits := SplitStr(form.Value["splits"][0], ",")
 	var percentageShares []int = nil
-	if len(shares) > 1 {
-		percentageShares = make([]int, len(shares))
-		for i, share := range shares {
-			percentageShares[i] = MustAtoi(share)
+	if len(splits) > 1 {
+		percentageShares = make([]int, len(splits))
+		for i, split := range splits {
+			percentageShares[i] = MustAtoi(split)
 		}
 	}
 	uri := form.Value["uri"][0]
@@ -347,7 +317,7 @@ func (api *Api) ReleaseHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, release)
 }
 
-func (api *Api) MechanicalLicenseHandler(w http.ResponseWriter, req *http.Request) {
+func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 	if !api.LoggedIn() {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
@@ -361,12 +331,22 @@ func (api *Api) MechanicalLicenseHandler(w http.ResponseWriter, req *http.Reques
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	compositionIds := SplitStr(values.Get("compositionIds"), ",")
 	licenseHolderId := values.Get("licenseHolderId")
+	modelIds := SplitStr(values.Get("modelIds"), ",")
 	rightIds := SplitStr(values.Get("rightId"), ",")
+	_type := values.Get("type")
 	validFrom := values.Get("validFrom")
 	validThrough := values.Get("validThrough")
-	license, err := api.DefaultSendIndividualCreateTx(spec.NewMechanicalLicense(compositionIds, licenseHolderId, api.id, rightIds, validFrom, validThrough))
+	var license Data
+	switch _type {
+	case "master_license":
+		license, err = api.DefaultSendIndividualCreateTx(spec.NewMasterLicense(licenseHolderId, api.id, modelIds, rightIds, validFrom, validThrough))
+	case "mechanical_license":
+		license, err = api.DefaultSendIndividualCreateTx(spec.NewMechanicalLicense(modelIds, licenseHolderId, api.id, rightIds, validFrom, validThrough))
+	default:
+		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
+		return
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -374,7 +354,7 @@ func (api *Api) MechanicalLicenseHandler(w http.ResponseWriter, req *http.Reques
 	WriteJSON(w, license)
 }
 
-func (api *Api) MasterLicenseHandler(w http.ResponseWriter, req *http.Request) {
+func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 	if !api.LoggedIn() {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
@@ -388,17 +368,35 @@ func (api *Api) MasterLicenseHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	licenseHolderId := values.Get("licenseHolderId")
-	recordingIds := SplitStr(values.Get("recordingIds"), ",")
-	rightIds := SplitStr(values.Get("rightId"), ",")
-	validFrom := values.Get("validFrom")
-	validThrough := values.Get("validThrough")
-	license, err := api.DefaultSendIndividualCreateTx(spec.NewMasterLicense(licenseHolderId, api.id, recordingIds, rightIds, validFrom, validThrough))
+	var model Data
+	modelId := values.Get("modelId")
+	_type := values.Get("type")
+	switch _type {
+	case "composition":
+		model, err = ld.ValidateComposition(modelId)
+	case "composition_right":
+		model, err = ld.ValidateCompositionRight(modelId)
+	case "master_license":
+		model, err = ld.ValidateMasterLicense(modelId)
+	case "mechanical_license":
+		model, err = ld.ValidateMechanicalLicense(modelId)
+	case "publication":
+		model, err = ld.ValidatePublication(modelId)
+	case "recording":
+		model, err = ld.ValidateRecording(modelId)
+	case "recording_right":
+		model, err = ld.ValidateRecordingRight(modelId)
+	case "release":
+		model, err = ld.ValidateRelease(modelId)
+	default:
+		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
+		return
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	WriteJSON(w, license)
+	WriteJSON(w, model)
 }
 
 func (api *Api) ProveHandler(w http.ResponseWriter, req *http.Request) {
@@ -417,36 +415,26 @@ func (api *Api) ProveHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	var sig crypto.Signature
 	challenge := values.Get("challenge")
+	modelId := values.Get("modelId")
+	partyId := values.Get("partyId")
 	_type := values.Get("type")
 	switch _type {
 	case "composition":
-		composerId := values.Get("composerId")
-		compositionId := values.Get("compositionId")
-		sig, err = ld.ProveComposer(challenge, composerId, compositionId, api.priv)
+		sig, err = ld.ProveComposer(challenge, partyId, modelId, api.priv)
 	case "composition_right":
-		rightId := values.Get("rightId")
-		rightHolderId := values.Get("rightHolderId")
-		sig, err = ld.ProveCompositionRightHolder(challenge, rightId, api.priv, rightHolderId)
+		sig, err = ld.ProveCompositionRightHolder(challenge, modelId, api.priv, partyId)
 	case "master_license":
-		licenseId := values.Get("licenseId")
-		sig, err = ld.ProveMasterLicenseHolder(challenge, licenseId, api.priv)
+		sig, err = ld.ProveMasterLicenseHolder(challenge, modelId, api.priv)
 	case "mechanical_license":
-		licenseId := values.Get("licenseId")
-		sig, err = ld.ProveMechanicalLicenseHolder(challenge, licenseId, api.priv)
+		sig, err = ld.ProveMechanicalLicenseHolder(challenge, modelId, api.priv)
 	case "publication":
-		publicationId := values.Get("publicationId")
-		sig, err = ld.ProvePublisher(challenge, api.priv, publicationId)
+		sig, err = ld.ProvePublisher(challenge, api.priv, modelId)
 	case "recording":
-		artistId := values.Get("artistId")
-		recordingId := values.Get("recordingId")
-		sig, err = ld.ProveArtist(artistId, challenge, api.priv, recordingId)
+		sig, err = ld.ProveArtist(partyId, challenge, api.priv, modelId)
 	case "recording_right":
-		rightId := values.Get("rightId")
-		rightHolderId := values.Get("rightHolderId")
-		sig, err = ld.ProveRecordingRightHolder(challenge, api.priv, rightId, rightHolderId)
+		sig, err = ld.ProveRecordingRightHolder(challenge, api.priv, modelId, partyId)
 	case "release":
-		releaseId := values.Get("releaseId")
-		sig, err = ld.ProveRecordLabel(challenge, api.priv, releaseId)
+		sig, err = ld.ProveRecordLabel(challenge, api.priv, modelId)
 	default:
 		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
 		return
@@ -473,6 +461,8 @@ func (api *Api) VerifyHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	challenge := values.Get("challenge")
+	modelId := values.Get("modelId")
+	partyId := values.Get("partyId")
 	sig := new(ed25519.Signature)
 	signature := values.Get("signature")
 	if err := sig.FromString(signature); err != nil {
@@ -482,33 +472,21 @@ func (api *Api) VerifyHandler(w http.ResponseWriter, req *http.Request) {
 	_type := values.Get("type")
 	switch _type {
 	case "composition":
-		composerId := values.Get("composerId")
-		compositionId := values.Get("compositionId")
-		err = ld.VerifyComposer(challenge, composerId, compositionId, sig)
+		err = ld.VerifyComposer(challenge, partyId, modelId, sig)
 	case "composition_right":
-		rightId := values.Get("rightId")
-		rightHolderId := values.Get("rightHolderId")
-		err = ld.VerifyCompositionRightHolder(challenge, rightId, rightHolderId, sig)
+		err = ld.VerifyCompositionRightHolder(challenge, modelId, partyId, sig)
 	case "master_license":
-		licenseId := values.Get("licenseId")
-		err = ld.VerifyMasterLicenseHolder(challenge, licenseId, sig)
+		err = ld.VerifyMasterLicenseHolder(challenge, modelId, sig)
 	case "mechanical_license":
-		licenseId := values.Get("licenseId")
-		err = ld.VerifyMechanicalLicenseHolder(challenge, licenseId, sig)
+		err = ld.VerifyMechanicalLicenseHolder(challenge, modelId, sig)
 	case "publication":
-		publicationId := values.Get("publicationId")
-		err = ld.VerifyPublisher(challenge, publicationId, sig)
+		err = ld.VerifyPublisher(challenge, modelId, sig)
 	case "recording":
-		artistId := values.Get("artistId")
-		recordingId := values.Get("recordingId")
-		err = ld.VerifyArtist(artistId, challenge, recordingId, sig)
+		err = ld.VerifyArtist(partyId, challenge, modelId, sig)
 	case "recording_right":
-		rightId := values.Get("rightId")
-		rightHolderId := values.Get("rightHolderId")
-		err = ld.VerifyRecordingRightHolder(challenge, rightId, rightHolderId, sig)
+		err = ld.VerifyRecordingRightHolder(challenge, modelId, partyId, sig)
 	case "release":
-		releaseId := values.Get("releaseId")
-		err = ld.VerifyRecordLabel(challenge, releaseId, sig)
+		err = ld.VerifyRecordLabel(challenge, modelId, sig)
 	default:
 		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
 		return

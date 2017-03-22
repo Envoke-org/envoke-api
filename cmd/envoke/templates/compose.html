@@ -16,20 +16,26 @@
     <input type="text" name="uri" placeholder="THRESHOLD SIGNATURE" />
     <input type="submit" value="COMPOSE" />
 </form>
-<form id="prove-form" name="prove-form" style="margin-top: -240px">
+<form id="search-form" name="search-form">
+    <header>SEARCH COMPOSITION</header>
+    <input type="text" name="type" value="composition" hidden />
+    <input type="text" name="modelId" placeholder="COMPOSITION ID" required />
+    <input type="submit" value="SEARCH" />
+</form>
+<form id="prove-form" name="prove-form">
     <header>PROVE COMPOSER</header>
     <input type="text" name="type" value="composition" hidden />
     <input type="text" name="challenge" placeholder="CHALLENGE" required /> 
-    <input type="text" name="composerId" placeholder="COMPOSER ID" required />
-    <input type="text" name="compositionId" placeholder="COMPOSITION ID" required />
+    <input type="text" name="modelId" placeholder="COMPOSITION ID" required />
+    <input type="text" name="partyId" placeholder="COMPOSER ID" required />
     <input type="submit" value="PROVE" />
 </form>
 <form id="verify-form" name="verify-form">
     <header>VERIFY COMPOSER</header>
     <input type="text" name="type" value="composition" hidden />
     <input type="text" name="challenge" placeholder="CHALLENGE" required />
-    <input type="text" name="composerId" placeholder="COMPOSER ID" required />
-    <input type="text" name="compositionId" placeholder="COMPOSITION ID" required />
+    <input type="text" name="modelId" placeholder="COMPOSITION ID" required />
+    <input type="text" name="partyId" placeholder="COMPOSER ID" required />
     <input type="text" name="signature" placeholder="SIGNATURE" required />
     <input type="submit" value="VERIFY" />
 </form>
@@ -60,26 +66,33 @@ var callback = function(responseText) {
 
 window.onload = function() {
 
-  var composeForm = $("#compose-form");
-  composeForm.submit(function(event) {
+    var composeForm = $("#compose-form");
+    composeForm.submit(function(event) {
     event.preventDefault();
     var formData = composeForm.serialize();
     httpPostAsync("http://localhost:8888/compose_handler", formData, callback);
-  });
+    });
 
-  var proveForm = $("#prove-form");
-  proveForm.submit(function(event){
+    var searchForm = $("#search-form");
+    searchForm.submit(function(event){
+        event.preventDefault();
+        var formData = searchForm.serialize();
+        httpPostAsync("http://localhost:8888/search_handler", formData, callback);
+    });
+
+    var proveForm = $("#prove-form");
+    proveForm.submit(function(event){
     event.preventDefault();
     var formData = proveForm.serialize();
     httpPostAsync("http://localhost:8888/prove_handler", formData, callback);
-  });
+    });
 
-  var verifyForm = $("#verify-form");
-  verifyForm.submit(function(event){
+    var verifyForm = $("#verify-form");
+    verifyForm.submit(function(event){
     event.preventDefault();
     var formData = verifyForm.serialize();
     httpPostAsync("http://localhost:8888/verify_handler", formData, callback);
-  });
+    });
 }
 </script>
 {{end}}

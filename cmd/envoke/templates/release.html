@@ -12,23 +12,29 @@
     <input type="text" name="sameAs" placeholder="URL" />
     <input type="submit" value="RELEASE" />
 </form>
-<form id="prove-form" name="prove-form" style="margin-top: -240px">
+<form id="search-form" name="search-form">
+    <header>SEARCH RELEASE</header>
+    <input type="text" name="type" value="release" hidden />
+    <input type="text" name="modelId" placeholder="RELEASE ID" required />
+    <input type="submit" value="SEARCH" />
+</form>
+<form id="prove-form" name="prove-form">
     <header>PROVE RECORD LABEL</header>
     <input type="text" name="type" value="release" hidden />
     <input type="text" name="challenge" placeholder="CHALLENGE" required />
-    <input type="text" name="releaseId" placeholder="RELEASE ID" required />
+    <input type="text" name="modelId" placeholder="RELEASE ID" required />
     <input type="submit" value="PROVE" />
 </form>
-<form id="verify-form" name="verify-form" style="margin-top: -240px">
+<form id="verify-form" name="verify-form">
     <header>VERIFY RECORD LABEL</header>
     <input type="text" name="type" value="release" hidden />
     <input type="text" name="challenge" placeholder="CHALLENGE" required />
-    <input type="text" name="releaseId" placeholder="RELEASE ID" required />
+    <input type="text" name="modelId" placeholder="RELEASE ID" required />
     <input type="text" name="signature" placeholder="SIGNATURE" required />
     <input type="submit" value="VERIFY" />
 </form>
 <br><br>
-<pre id="message" style="color:#97cc5f; font-size: 1.2em; margin-top: -200px"></pre>
+<pre id="message" style="color:#97cc5f; font-size: 1.2em"></pre>
 <script type="text/javascript">
 
 function httpPostAsync(addr, data, callback) {
@@ -62,6 +68,13 @@ window.onload = function() {
 		var formData = releaseForm.serialize();
 		httpPostAsync("http://localhost:8888/release_handler", formData, callback);
 	});
+
+    var searchForm = $("#search-form");
+    searchForm.submit(function(event){
+        event.preventDefault();
+        var formData = searchForm.serialize();
+        httpPostAsync("http://localhost:8888/search_handler", formData, callback);
+    });
 
     var proveForm = $("#prove-form");
     proveForm.submit(function(event){

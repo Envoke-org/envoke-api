@@ -12,23 +12,29 @@
     <input type="text" name="sameAs" placeholder="URL" />
     <input type="submit" value="PUBLISH" />
 </form>
-<form id="prove-form" name="prove-form" style="margin-top: -240px">
+<form id="search-form" name="search-form">
+    <header>SEARCH PUBLICATION</header>
+    <input type="text" name="type" value="publication" hidden />
+    <input type="text" name="modelId" placeholder="PUBLICATION ID" required />
+    <input type="submit" value="SEARCH" />
+</form>
+<form id="prove-form" name="prove-form">
     <header>PROVE PUBLISHER</header>
     <input type="text" name="type" value="publication" hidden />
     <input type="text" name="challenge" placeholder="CHALLENGE" required />
-    <input type="text" name="publicationId" placeholder="PUBLICATION ID" required />
+    <input type="text" name="modelId" placeholder="PUBLICATION ID" required />
     <input type="submit" value="PROVE" />
 </form>
-<form id="verify-form" name="verify-form" style="margin-top: -240px">
+<form id="verify-form" name="verify-form">
     <header>VERIFY PUBLISHER</header>
     <input type="text" name="type" value="publication" hidden />
     <input type="text" name="challenge" placeholder="CHALLENGE" required />
-    <input type="text" name="publicationId" placeholder="PUBLICATION ID" required />
+    <input type="text" name="modelId" placeholder="PUBLICATION ID" required />
     <input type="text" name="signature" placeholder="SIGNATURE" required />
     <input type="submit" value="VERIFY" />
 </form>
 <br><br>
-<pre id="message" style="color:#97cc5f; font-size: 1.2em; margin-top: -200px"></pre>
+<pre id="message" style="color:#97cc5f; font-size: 1.2em;"></pre>
 <script type="text/javascript">
 
 function httpPostAsync(addr, data, callback) {
@@ -54,26 +60,33 @@ var callback = function(responseText) {
 
 window.onload = function() {
 
-  var publishForm = $("#publish-form");
-  publishForm.submit(function(event){
+    var publishForm = $("#publish-form");
+    publishForm.submit(function(event){
     event.preventDefault();
     var formData = publishForm.serialize();
     httpPostAsync("http://localhost:8888/publish_handler", formData, callback);
-  });
+    });
 
-  var proveForm = $("#prove-form");
-  proveForm.submit(function(event){
+    var searchForm = $("#search-form");
+    searchForm.submit(function(event){
+        event.preventDefault();
+        var formData = searchForm.serialize();
+        httpPostAsync("http://localhost:8888/search_handler", formData, callback);
+    });
+
+    var proveForm = $("#prove-form");
+    proveForm.submit(function(event){
     event.preventDefault();
     var formData = proveForm.serialize();
     httpPostAsync("http://localhost:8888/prove_handler", formData, callback);
-  });
+    });
 
-  var verifyForm = $("#verify-form");
-  verifyForm.submit(function(event){
+    var verifyForm = $("#verify-form");
+    verifyForm.submit(function(event){
     event.preventDefault();
     var formData = verifyForm.serialize();
     httpPostAsync("http://localhost:8888/verify_handler", formData, callback);
-  });
+    });
 }
 </script>
 {{end}}
