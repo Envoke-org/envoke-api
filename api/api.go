@@ -331,7 +331,7 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	licenseHolderId := values.Get("licenseHolderId")
+	licenseHolderIds := SplitStr(values.Get("licenseHolderIds"), ",")
 	modelIds := SplitStr(values.Get("modelIds"), ",")
 	rightIds := SplitStr(values.Get("rightId"), ",")
 	_type := values.Get("type")
@@ -340,9 +340,9 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 	var license Data
 	switch _type {
 	case "master_license":
-		license, err = api.DefaultSendIndividualCreateTx(spec.NewMasterLicense(licenseHolderId, api.id, modelIds, rightIds, validFrom, validThrough))
+		license, err = api.DefaultSendIndividualCreateTx(spec.NewMasterLicense(licenseHolderIds, api.id, modelIds, rightIds, validFrom, validThrough))
 	case "mechanical_license":
-		license, err = api.DefaultSendIndividualCreateTx(spec.NewMechanicalLicense(modelIds, licenseHolderId, api.id, rightIds, validFrom, validThrough))
+		license, err = api.DefaultSendIndividualCreateTx(spec.NewMechanicalLicense(modelIds, licenseHolderIds, api.id, rightIds, validFrom, validThrough))
 	default:
 		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
 		return
@@ -424,9 +424,9 @@ func (api *Api) ProveHandler(w http.ResponseWriter, req *http.Request) {
 	case "composition_right":
 		sig, err = ld.ProveCompositionRightHolder(challenge, modelId, api.priv, partyId)
 	case "master_license":
-		sig, err = ld.ProveMasterLicenseHolder(challenge, modelId, api.priv)
+		sig, err = ld.ProveMasterLicenseHolder(challenge, partyId, modelId, api.priv)
 	case "mechanical_license":
-		sig, err = ld.ProveMechanicalLicenseHolder(challenge, modelId, api.priv)
+		sig, err = ld.ProveMechanicalLicenseHolder(challenge, partyId, modelId, api.priv)
 	case "publication":
 		sig, err = ld.ProvePublisher(challenge, api.priv, modelId)
 	case "recording":
@@ -476,9 +476,9 @@ func (api *Api) VerifyHandler(w http.ResponseWriter, req *http.Request) {
 	case "composition_right":
 		err = ld.VerifyCompositionRightHolder(challenge, modelId, partyId, sig)
 	case "master_license":
-		err = ld.VerifyMasterLicenseHolder(challenge, modelId, sig)
+		err = ld.VerifyMasterLicenseHolder(challenge, partyId, modelId, sig)
 	case "mechanical_license":
-		err = ld.VerifyMechanicalLicenseHolder(challenge, modelId, sig)
+		err = ld.VerifyMechanicalLicenseHolder(challenge, partyId, modelId, sig)
 	case "publication":
 		err = ld.VerifyPublisher(challenge, modelId, sig)
 	case "recording":

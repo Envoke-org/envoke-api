@@ -365,12 +365,18 @@ func ValidateMechanicalLicense(mechanicalLicenseId string) (Data, error) {
 		return nil, err
 	}
 	mechanicalLicense := bigchain.GetTxData(tx)
-	licenseHolderId := spec.GetLicenseHolderId(mechanicalLicense)
+	licenseHolderIds := spec.GetLicenseHolderIds(mechanicalLicense)
 	licenserId := spec.GetLicenserId(mechanicalLicense)
 	licenserKey := bigchain.DefaultGetTxSender(tx)
-	tx, err = QueryAndValidateSchema(licenseHolderId, "party")
-	if err != nil {
-		return nil, err
+	for _, licenseHolderId := range licenseHolderIds {
+		// TODO: check pubkeys
+		if licenserId == licenseHolderId {
+			return nil, ErrorAppend(ErrCriteriaNotMet, "licenser cannot be licenseHolder")
+		}
+		tx, err = QueryAndValidateSchema(licenseHolderId, "party")
+		if err != nil {
+			return nil, err
+		}
 	}
 	tx, err = QueryAndValidateSchema(licenserId, "party")
 	if err != nil {
@@ -415,46 +421,56 @@ OUTER:
 	return mechanicalLicense, nil
 }
 
-func ProveMechanicalLicenseHolder(challenge, mechanicalLicenseId string, priv crypto.PrivateKey) (crypto.Signature, error) {
+func ProveMechanicalLicenseHolder(challenge, licenseHolderId, mechanicalLicenseId string, priv crypto.PrivateKey) (crypto.Signature, error) {
 	mechanicalLicense, err := ValidateMechanicalLicense(mechanicalLicenseId)
 	if err != nil {
 		return nil, err
 	}
-	licenseHolderId := spec.GetLicenseHolderId(mechanicalLicense)
-	tx, err := bigchain.GetTx(licenseHolderId)
-	if err != nil {
-		return nil, err
+	licenseHolderIds := spec.GetLicenseHolderIds(mechanicalLicense)
+	for i := range licenseHolderIds {
+		if licenseHolderId == licenseHolderIds[i] {
+			tx, err := bigchain.GetTx(licenseHolderId)
+			if err != nil {
+				return nil, err
+			}
+			licenseHolderKey := bigchain.DefaultGetTxSender(tx)
+			if pub := priv.Public(); !licenseHolderKey.Equals(pub) {
+				return nil, ErrorAppend(ErrInvalidKey, pub.String())
+			}
+			hash, err := DefaultBalloonHash(challenge)
+			if err != nil {
+				return nil, err
+			}
+			return priv.Sign(hash), nil
+		}
 	}
-	licenseHolderKey := bigchain.DefaultGetTxSender(tx)
-	if pub := priv.Public(); !licenseHolderKey.Equals(pub) {
-		return nil, ErrorAppend(ErrInvalidKey, pub.String())
-	}
-	hash, err := DefaultBalloonHash(challenge)
-	if err != nil {
-		return nil, err
-	}
-	return priv.Sign(hash), nil
+	return nil, ErrorAppend(ErrInvalidId, licenseHolderId)
 }
 
-func VerifyMechanicalLicenseHolder(challenge, mechanicalLicenseId string, sig crypto.Signature) error {
+func VerifyMechanicalLicenseHolder(challenge, licenseHolderId, mechanicalLicenseId string, sig crypto.Signature) error {
 	mechanicalLicense, err := ValidateMechanicalLicense(mechanicalLicenseId)
 	if err != nil {
 		return err
 	}
-	licenseHolderId := spec.GetLicenseHolderId(mechanicalLicense)
-	tx, err := bigchain.GetTx(licenseHolderId)
-	if err != nil {
-		return err
+	licenseHolderIds := spec.GetLicenseHolderIds(mechanicalLicense)
+	for i := range licenseHolderIds {
+		if licenseHolderId == licenseHolderIds[i] {
+			tx, err := bigchain.GetTx(licenseHolderId)
+			if err != nil {
+				return err
+			}
+			licenseHolderKey := bigchain.DefaultGetTxSender(tx)
+			hash, err := DefaultBalloonHash(challenge)
+			if err != nil {
+				return err
+			}
+			if !licenseHolderKey.Verify(hash, sig) {
+				return ErrorAppend(ErrInvalidSignature, sig.String())
+			}
+			return nil
+		}
 	}
-	licenseHolderKey := bigchain.DefaultGetTxSender(tx)
-	hash, err := DefaultBalloonHash(challenge)
-	if err != nil {
-		return err
-	}
-	if !licenseHolderKey.Verify(hash, sig) {
-		return ErrorAppend(ErrInvalidSignature, sig.String())
-	}
-	return nil
+	return ErrorAppend(ErrInvalidId, licenseHolderId)
 }
 
 // RECORDING & RELEASING
@@ -503,10 +519,13 @@ OUTER:
 					compositions := spec.GetCompositions(mechanicalLicense)
 					for _, composition := range compositions {
 						if compositionId == spec.GetId(composition) {
-							if artistId != spec.GetLicenseHolderId(mechanicalLicense) {
-								return nil, ErrorAppend(ErrInvalidId, "wrong licenseHolderId")
+							licenseHolderIds := spec.GetLicenseHolderIds(mechanicalLicense)
+							for _, licenseHolderId := range licenseHolderIds {
+								if artistId == licenseHolderId {
+									continue OUTER
+								}
 							}
-							continue OUTER
+							return nil, ErrorAppend(ErrInvalidId, "wrong licenseHolderId")
 						}
 					}
 					return nil, ErrorAppend(ErrInvalidId, "mechanical license does not have compositionId")
@@ -812,12 +831,18 @@ func ValidateMasterLicense(masterLicenseId string) (Data, error) {
 		return nil, err
 	}
 	masterLicense := bigchain.GetTxData(tx)
-	licenseHolderId := spec.GetLicenseHolderId(masterLicense)
+	licenseHolderIds := spec.GetLicenseHolderIds(masterLicense)
 	licenserId := spec.GetLicenserId(masterLicense)
 	licenserKey := bigchain.DefaultGetTxSender(tx)
-	tx, err = QueryAndValidateSchema(licenseHolderId, "party")
-	if err != nil {
-		return nil, err
+	for _, licenseHolderId := range licenseHolderIds {
+		// TODO: check pubkeys
+		if licenserId == licenseHolderId {
+			return nil, ErrorAppend(ErrCriteriaNotMet, "licenser cannot be licenseHolder")
+		}
+		tx, err = QueryAndValidateSchema(licenseHolderId, "party")
+		if err != nil {
+			return nil, err
+		}
 	}
 	tx, err = QueryAndValidateSchema(licenserId, "party")
 	if err != nil {
@@ -862,44 +887,54 @@ OUTER:
 	return masterLicense, nil
 }
 
-func ProveMasterLicenseHolder(challenge, masterLicenseId string, priv crypto.PrivateKey) (crypto.Signature, error) {
+func ProveMasterLicenseHolder(challenge, licenseHolderId, masterLicenseId string, priv crypto.PrivateKey) (crypto.Signature, error) {
 	masterLicense, err := ValidateMasterLicense(masterLicenseId)
 	if err != nil {
 		return nil, err
 	}
-	licenseHolderId := spec.GetLicenseHolderId(masterLicense)
-	tx, err := bigchain.GetTx(licenseHolderId)
-	if err != nil {
-		return nil, err
+	licenseHolderIds := spec.GetLicenseHolderIds(masterLicense)
+	for i := range licenseHolderIds {
+		if licenseHolderId == licenseHolderIds[i] {
+			tx, err := bigchain.GetTx(licenseHolderId)
+			if err != nil {
+				return nil, err
+			}
+			licenseHolderKey := bigchain.DefaultGetTxSender(tx)
+			if pub := priv.Public(); !licenseHolderKey.Equals(pub) {
+				return nil, ErrorAppend(ErrInvalidKey, pub.String())
+			}
+			hash, err := DefaultBalloonHash(challenge)
+			if err != nil {
+				return nil, err
+			}
+			return priv.Sign(hash), nil
+		}
 	}
-	licenseHolderKey := bigchain.DefaultGetTxSender(tx)
-	if pub := priv.Public(); !licenseHolderKey.Equals(pub) {
-		return nil, ErrorAppend(ErrInvalidKey, pub.String())
-	}
-	hash, err := DefaultBalloonHash(challenge)
-	if err != nil {
-		return nil, err
-	}
-	return priv.Sign(hash), nil
+	return nil, ErrorAppend(ErrInvalidId, licenseHolderId)
 }
 
-func VerifyMasterLicenseHolder(challenge, masterLicenseId string, sig crypto.Signature) error {
+func VerifyMasterLicenseHolder(challenge, licenseHolderId, masterLicenseId string, sig crypto.Signature) error {
 	masterLicense, err := ValidateMasterLicense(masterLicenseId)
 	if err != nil {
 		return err
 	}
-	licenseHolderId := spec.GetLicenseHolderId(masterLicense)
-	tx, err := bigchain.GetTx(licenseHolderId)
-	if err != nil {
-		return err
+	licenseHolderIds := spec.GetLicenseHolderIds(masterLicense)
+	for i := range licenseHolderIds {
+		if licenseHolderId == licenseHolderIds[i] {
+			tx, err := bigchain.GetTx(licenseHolderId)
+			if err != nil {
+				return err
+			}
+			licenseHolderKey := bigchain.DefaultGetTxSender(tx)
+			hash, err := DefaultBalloonHash(challenge)
+			if err != nil {
+				return err
+			}
+			if !licenseHolderKey.Verify(hash, sig) {
+				return ErrorAppend(ErrInvalidSignature, sig.String())
+			}
+			return nil
+		}
 	}
-	licenseHolderKey := bigchain.DefaultGetTxSender(tx)
-	hash, err := DefaultBalloonHash(challenge)
-	if err != nil {
-		return err
-	}
-	if !licenseHolderKey.Verify(hash, sig) {
-		return ErrorAppend(ErrInvalidSignature, sig.String())
-	}
-	return nil
+	return ErrorAppend(ErrInvalidId, licenseHolderId)
 }

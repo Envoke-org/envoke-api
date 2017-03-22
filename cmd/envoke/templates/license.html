@@ -11,7 +11,7 @@
         <option value="master_license">MASTER</option>
         <option value="mechanical_license">MECHANICAL</option>
     </select><br><br>
-    <input type="text" name="licenseHolderId" placeholder="LICENSE HOLDER ID" required />
+    <input type="text" name="licenseHolderIds" placeholder="LICENSE HOLDER IDs" required />
     <input type="text" name="modelIds" placeholder="COMPOSITION/RECORDING IDs" required />  
     <input type="text" name="rightIds" placeholder="RIGHT IDs" required /><br><br>
     <label>VALID FROM</label>
@@ -39,6 +39,7 @@
     </select><br><br>
     <input type="text" name="challenge" placeholder="CHALLENGE" required /> 
     <input type="text" name="modelId" placeholder="LICENSE ID" required />
+    <input type="text" name="partyId" placeholder="LICENSE HOLDER ID" required />
     <input type="submit" value="PROVE" />
 </form>
 <form id="verify-form" name="verify-form">
@@ -50,6 +51,7 @@
     </select><br><br>
     <input type="text" name="challenge" placeholder="CHALLENGE" required />
     <input type="text" name="modelId" placeholder="LICENSE ID" required />
+    <input type="text" name="partyId" placeholder="LICENSE HOLDER ID" required />
     <input type="text" name="signature" placeholder="SIGNATURE" required />
     <input type="submit" value="VERIFY" />
 </form>

@@ -516,7 +516,12 @@ var MechanicalLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"uniqueItems": true
 		},
 		"licenseHolder": {
-			"$ref": "#/definitions/link"
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/link"
+			},
+			"minItems": 1,
+			"uniqueItems": true
 		},
 		"licenser": {
 			"$ref": "#/definitions/link"
@@ -564,7 +569,12 @@ var MasterLicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"pattern": "^MasterLicense$"
 		},
 		"licenseHolder": {
-			"$ref": "#/definitions/link"
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/link"
+			},
+			"minItems": 1,
+			"uniqueItems": true
 		},
 		"licenser": {
 			"$ref": "#/definitions/link"

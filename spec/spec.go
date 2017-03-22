@@ -402,11 +402,19 @@ func GetRecordingId(data Data) string {
 	return GetId(recording)
 }
 
-func NewMechanicalLicense(compositionIds []string, licenseHolderId, licenserId string, rightIds []string, validFrom, validThrough string) Data {
+func NewMechanicalLicense(compositionIds, licenseHolderIds []string, licenserId string, rightIds []string, validFrom, validThrough string) Data {
+	n := len(licenseHolderIds)
+	if n == 0 {
+		panic("No licenseHolderIds")
+	}
+	licenseHolders := make([]Data, n)
+	for i, licenseHolderId := range licenseHolderIds {
+		licenseHolders[i] = NewLink(licenseHolderId)
+	}
 	mechanicalLicense := Data{
 		"@context":      CONTEXT,
 		"@type":         "MechanicalLicense",
-		"licenseHolder": NewLink(licenseHolderId),
+		"licenseHolder": licenseHolders,
 		"licenser":      NewLink(licenserId),
 		"validFrom":     validFrom,
 		"validThrough":  validThrough,
@@ -433,9 +441,13 @@ func NewMechanicalLicense(compositionIds []string, licenseHolderId, licenserId s
 	return mechanicalLicense
 }
 
-func GetLicenseHolderId(data Data) string {
-	licenseHolder := data.GetData("licenseHolder")
-	return GetId(licenseHolder)
+func GetLicenseHolderIds(data Data) []string {
+	licenseHolders := data.GetDataSlice("licenseHolder")
+	licenseHolderIds := make([]string, len(licenseHolders))
+	for i, licenseHolder := range licenseHolders {
+		licenseHolderIds[i] = GetId(licenseHolder)
+	}
+	return licenseHolderIds
 }
 
 func GetLicenserId(data Data) string {
@@ -451,11 +463,19 @@ func GetValidTo(data Data) string {
 	return data.GetStr("validTo")
 }
 
-func NewMasterLicense(licenseHolderId, licenserId string, recordingIds, rightIds []string, validFrom, validThrough string) Data {
+func NewMasterLicense(licenseHolderIds []string, licenserId string, recordingIds, rightIds []string, validFrom, validThrough string) Data {
+	n := len(licenseHolderIds)
+	if n == 0 {
+		panic("No licenseHolderIds")
+	}
+	licenseHolders := make([]Data, n)
+	for i, licenseHolderId := range licenseHolderIds {
+		licenseHolders[i] = NewLink(licenseHolderId)
+	}
 	masterLicense := Data{
 		"@context":      CONTEXT,
 		"@type":         "MasterLicense",
-		"licenseHolder": NewLink(licenseHolderId),
+		"licenseHolder": licenseHolders,
 		"licenser":      NewLink(licenserId),
 		"validFrom":     validFrom,
 		"validThrough":  validThrough,

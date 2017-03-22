@@ -19,23 +19,28 @@
 <form id="search-form" name="search-form">
     <header>SEARCH COMPOSITION</header>
     <input type="text" name="type" value="composition" hidden />
-    <input type="text" name="modelId" placeholder="COMPOSITION ID" required />
+    <input type="text" id="search-modelId" name="modelId" placeholder="COMPOSITION ID" required />
+    <button type="button" class="btn" data-clipboard-target="#search-modelId">copy</button>
     <input type="submit" value="SEARCH" />
 </form>
 <form id="prove-form" name="prove-form">
     <header>PROVE COMPOSER</header>
     <input type="text" name="type" value="composition" hidden />
-    <input type="text" name="challenge" placeholder="CHALLENGE" required /> 
-    <input type="text" name="modelId" placeholder="COMPOSITION ID" required />
-    <input type="text" name="partyId" placeholder="COMPOSER ID" required />
+    <input type="text" name="challenge" placeholder="CHALLENGE" required />
+    <input type="text" id="prove-modelId" name="modelId" placeholder="COMPOSITION ID" required />
+    <button type="button" class="btn" data-clipboard-target="#prove-modelId">copy</button>
+    <input type="text" id="prove-partyId" name="partyId" placeholder="COMPOSER ID" required />
+    <button type="button" class="btn" data-clipboard-target="#prove-partyId">copy</button>
     <input type="submit" value="PROVE" />
 </form>
 <form id="verify-form" name="verify-form">
     <header>VERIFY COMPOSER</header>
     <input type="text" name="type" value="composition" hidden />
     <input type="text" name="challenge" placeholder="CHALLENGE" required />
-    <input type="text" name="modelId" placeholder="COMPOSITION ID" required />
-    <input type="text" name="partyId" placeholder="COMPOSER ID" required />
+    <input type="text" id="verify-modelId" name="modelId" placeholder="COMPOSITION ID" required />
+    <button type="button" class="btn" data-clipboard-target="#verify-modelId">copy</button>
+    <input type="text" id="verify-partyId" name="partyId" placeholder="COMPOSER ID" required />
+    <button type="button" class="btn" data-clipboard-target="#verify-partyId">copy</button>
     <input type="text" name="signature" placeholder="SIGNATURE" required />
     <input type="submit" value="VERIFY" />
 </form>
@@ -64,13 +69,23 @@ var callback = function(responseText) {
     $("#message").text(str);
 };
 
+var clipboard = new Clipboard('.btn');
+
+clipboard.on('success', function(e){
+    console.log(e);
+});
+
+clipboard.on('error', function(e){
+    console.log(e);
+});
+
 window.onload = function() {
 
     var composeForm = $("#compose-form");
     composeForm.submit(function(event) {
-    event.preventDefault();
-    var formData = composeForm.serialize();
-    httpPostAsync("http://localhost:8888/compose_handler", formData, callback);
+        event.preventDefault();
+        var formData = composeForm.serialize();
+        httpPostAsync("http://localhost:8888/compose_handler", formData, callback);
     });
 
     var searchForm = $("#search-form");
@@ -82,16 +97,16 @@ window.onload = function() {
 
     var proveForm = $("#prove-form");
     proveForm.submit(function(event){
-    event.preventDefault();
-    var formData = proveForm.serialize();
-    httpPostAsync("http://localhost:8888/prove_handler", formData, callback);
+        event.preventDefault();
+        var formData = proveForm.serialize();
+        httpPostAsync("http://localhost:8888/prove_handler", formData, callback);
     });
 
     var verifyForm = $("#verify-form");
     verifyForm.submit(function(event){
-    event.preventDefault();
-    var formData = verifyForm.serialize();
-    httpPostAsync("http://localhost:8888/verify_handler", formData, callback);
+        event.preventDefault();
+        var formData = verifyForm.serialize();
+        httpPostAsync("http://localhost:8888/verify_handler", formData, callback);
     });
 }
 </script>
