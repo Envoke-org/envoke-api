@@ -174,7 +174,7 @@ func TestApi(t *testing.T) {
 	if err = api.Login(performerId, performerPriv.String()); err != nil {
 		t.Fatal(err)
 	}
-	signRecording := spec.NewRecording([]string{performerId, producerId}, compositionId, "PT2M43S", "US-S1Z-99-00001", []string{mechanicalLicenseId, mechanicalLicenseId}, recordLabelId, []string{"performer", "producer"}, "www.url_to_recording.com", "")
+	signRecording := spec.NewRecording([]string{performerId, producerId}, compositionId, "PT2M43S", "US-S1Z-99-00001", mechanicalLicenseId, []string{mechanicalLicenseId, mechanicalLicenseId}, recordLabelId, []string{"performer", "producer"}, "www.url_to_recording.com", "")
 	checksum := Checksum256(MustMarshalJSON(signRecording))
 	ful := cc.DefaultFulfillmentThresholdFromPrivKeys(checksum, performerPriv, producerPriv)
 	signRecording.Set("uri", ful.String())

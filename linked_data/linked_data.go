@@ -607,8 +607,16 @@ func ValidateRelease(releaseId string) (Data, error) {
 OUTER:
 	for _, recording := range recordings {
 		recordingId := spec.GetId(recording)
-		if _, err := ValidateRecording(recordingId); err != nil {
+		recording, err := ValidateRecording(recordingId) //checks for record label's mechanical
+		if err != nil {
 			return nil, err
+		}
+		recordLabel := spec.GetRecordLabel(recording)
+		if recordLabel == nil {
+			return nil, ErrorAppend(ErrCriteriaNotMet, "no record label")
+		}
+		if recordLabelId != spec.GetId(recordLabel) {
+			return nil, ErrorAppend(ErrInvalidId, recordLabelId)
 		}
 		rightId := spec.GetRightId(recording)
 		right, err := ValidateRight(rightId)

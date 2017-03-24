@@ -180,13 +180,14 @@ func GetPublisherId(data Data) string {
 	return GetId(publisher)
 }
 
-func NewRecording(artistIds []string, compositionId, duration, isrc string, licenseIds []string, recordLabelId string, roles []string, sameAs, uri string) Data {
+func NewRecording(artistIds []string, compositionId, duration, isrc, licenseId string, licenseIds []string, recordLabelId string, roles []string, sameAs, uri string) Data {
 	recording := Data{
 		"@context":    CONTEXT,
 		"@type":       "MusicRecording",
 		"recordingOf": NewLink(compositionId),
 	}
-	if n := len(artistIds); n == 0 {
+	n := len(artistIds)
+	if n == 0 {
 		panic("No artists")
 	} else if n == 1 {
 		recording.Set("byArtist", NewLink(artistIds[0]))
@@ -216,6 +217,15 @@ func NewRecording(artistIds []string, compositionId, duration, isrc string, lice
 	}
 	if MatchStr(regex.ISRC, isrc) {
 		recording.Set("isrcCode", isrc)
+	}
+	if MatchId(recordLabelId) {
+		if !MatchId(licenseId) {
+			panic("Invalid record label licenseId")
+		}
+		recording.Set("recordLabel", Data{
+			"@id":        recordLabelId,
+			"hasLicense": NewLink(licenseId),
+		})
 	}
 	if MatchUrlRelaxed(sameAs) {
 		recording.Set("sameAs", sameAs)

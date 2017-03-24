@@ -239,7 +239,8 @@ func (api *Api) RecordHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	isrc := form.Value["isrc"][0]
-	mechanicalLicenseIds := SplitStr(form.Value["mechanicalLicenseIds"][0], ",")
+	licenseId := form.Value["licenseId"][0]
+	licenseIds := SplitStr(form.Value["licenseIds"][0], ",")
 	recordLabelId := form.Value["recordLabelId"][0]
 	roles := SplitStr(form.Value["roles"][0], ",")
 	sameAs := form.Value["sameAs"][0]
@@ -255,7 +256,7 @@ func (api *Api) RecordHandler(w http.ResponseWriter, req *http.Request) {
 	recording, err = api.Record(
 		file,
 		percentageShares,
-		spec.NewRecording(artistIds, compositionId, duration, isrc, mechanicalLicenseIds, recordLabelId, roles, sameAs, uri),
+		spec.NewRecording(artistIds, compositionId, duration, isrc, licenseId, licenseIds, recordLabelId, roles, sameAs, uri),
 	)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
