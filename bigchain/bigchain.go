@@ -11,8 +11,8 @@ import (
 
 // GET
 
-func GetTx(txId string) (Data, error) {
-	url := Getenv("IPDB_ENDPOINT") + "transactions/" + txId
+func HttpGetTx(txId string) (Data, error) {
+	url := Getenv("ENDPOINT") + "transactions/" + txId
 	response, err := HttpGet(url)
 	if err != nil {
 		return nil, err
@@ -27,13 +27,60 @@ func GetTx(txId string) (Data, error) {
 	return tx, nil
 }
 
+func HttpGetTransfers(assetId string) ([]Data, error) {
+	url := Getenv("ENDPOINT") + "transactions?operation=TRANSFER&asset_id=" + assetId
+	response, err := HttpGet(url)
+	if err != nil {
+		return nil, err
+	}
+	var txs []Data
+	if err = ReadJSON(response.Body, &txs); err != nil {
+		return nil, err
+	}
+	for _, tx := range txs {
+		if !FulfilledTx(tx) {
+			return nil, ErrInvalidFulfillment
+		}
+	}
+	return txs, nil
+}
+
+func HttpGetOutputs(pub crypto.PublicKey) ([]string, error) {
+	url := Getenv("ENDPOINT") + Sprintf("outputs?public_key=%v", pub)
+	response, err := HttpGet(url)
+	if err != nil {
+		return nil, err
+	}
+	var links []string
+	if err = ReadJSON(response.Body, &links); err != nil {
+		return nil, err
+	}
+	return links, nil
+}
+
+func HttpGetFilter(fn func(string) (Data, error), pub crypto.PublicKey) ([]Data, error) {
+	links, err := HttpGetOutputs(pub)
+	if err != nil {
+		return nil, err
+	}
+	var meetsCriteria []Data
+	for _, link := range links {
+		txId := SubmatchStr(`transactions/(.*?)/outputs`, link)[1]
+		model, err := fn(txId)
+		if err == nil {
+			meetsCriteria = append(meetsCriteria, model)
+		}
+	}
+	return meetsCriteria, nil
+}
+
 // POST
 
 // BigchainDB transaction type
 // docs.bigchaindb.com/projects/py-driver/en/latest/handcraft.html
 
-func PostTx(tx Data) (string, error) {
-	url := Getenv("IPDB_ENDPOINT") + "transactions/"
+func HttpPostTx(tx Data) (string, error) {
+	url := Getenv("ENDPOINT") + "transactions/"
 	buf := new(bytes.Buffer)
 	buf.Write(MustMarshalJSON(tx))
 	response, err := HttpPost(url, "application/json", buf)
@@ -180,6 +227,8 @@ func FulfilledTx(tx Data) bool {
 	}
 	return fulfilled
 }
+
+// TODO: cleanup
 
 // for convenience
 func GetId(data Data) string {

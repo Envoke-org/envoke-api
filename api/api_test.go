@@ -3,6 +3,7 @@ package api
 import (
 	"testing"
 
+	"github.com/zbo14/envoke/bigchain"
 	. "github.com/zbo14/envoke/common"
 	cc "github.com/zbo14/envoke/crypto/conditions"
 	"github.com/zbo14/envoke/crypto/crypto"
@@ -244,4 +245,11 @@ func TestApi(t *testing.T) {
 	if err = ld.VerifyLicenseHolder(CHALLENGE, radioId, masterLicenseId, sig); err != nil {
 		t.Fatal(err)
 	}
+	txs, err := bigchain.HttpGetFilter(func(txId string) (Data, error) {
+		return ld.ValidateComposition(txId)
+	}, composerPriv.Public())
+	if err != nil {
+		t.Fatal(err)
+	}
+	PrintJSON(txs)
 }

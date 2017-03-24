@@ -13,7 +13,7 @@ import (
 )
 
 func QueryAndValidateSchema(id string, _type string) (Data, error) {
-	tx, err := bigchain.GetTx(id)
+	tx, err := bigchain.HttpGetTx(id)
 	if err != nil {
 		return nil, err
 	}
@@ -103,7 +103,7 @@ func ProveComposer(challenge, composerId, compositionId string, priv crypto.Priv
 	composers := spec.GetComposers(composition)
 	for _, composer := range composers {
 		if composerId == spec.GetId(composer) {
-			tx, err := bigchain.GetTx(composerId)
+			tx, err := bigchain.HttpGetTx(composerId)
 			if err != nil {
 				return nil, err
 			}
@@ -136,7 +136,7 @@ func VerifyComposer(challenge, composerId, compositionId string, sig crypto.Sign
 	if !found {
 		return Error("composer not found")
 	}
-	tx, err := bigchain.GetTx(composerId)
+	tx, err := bigchain.HttpGetTx(composerId)
 	if err != nil {
 		return err
 	}
@@ -193,7 +193,7 @@ func ValidateRight(rightId string) (Data, error) {
 		return nil, err
 	}
 	transferId := spec.GetTransferId(right)
-	tx, err = bigchain.GetTx(transferId)
+	tx, err = bigchain.HttpGetTx(transferId)
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +238,7 @@ func ProveRightHolder(challenge string, priv crypto.PrivateKey, rightHolderId, r
 	rightHolderIds := spec.GetRightHolderIds(right)
 	for i := range rightHolderIds {
 		if rightHolderId == rightHolderIds[i] {
-			tx, err := bigchain.GetTx(rightHolderId)
+			tx, err := bigchain.HttpGetTx(rightHolderId)
 			if err != nil {
 				return nil, err
 			}
@@ -263,7 +263,7 @@ func VerifyRightHolder(challenge, rightHolderId, rightId string, sig crypto.Sign
 	rightHolderIds := spec.GetRightHolderIds(right)
 	for i := range rightHolderIds {
 		if rightHolderId == rightHolderIds[i] {
-			tx, err := bigchain.GetTx(rightHolderId)
+			tx, err := bigchain.HttpGetTx(rightHolderId)
 			if err != nil {
 				return err
 			}
@@ -371,7 +371,7 @@ func ProveLicenseHolder(challenge, licenseHolderId, licenseId string, priv crypt
 	licenseHolderIds := spec.GetLicenseHolderIds(license)
 	for i := range licenseHolderIds {
 		if licenseHolderId == licenseHolderIds[i] {
-			tx, err := bigchain.GetTx(licenseHolderId)
+			tx, err := bigchain.HttpGetTx(licenseHolderId)
 			if err != nil {
 				return nil, err
 			}
@@ -397,7 +397,7 @@ func VerifyLicenseHolder(challenge, licenseHolderId, licenseId string, sig crypt
 	licenseHolderIds := spec.GetLicenseHolderIds(license)
 	for i := range licenseHolderIds {
 		if licenseHolderId == licenseHolderIds[i] {
-			tx, err := bigchain.GetTx(licenseHolderId)
+			tx, err := bigchain.HttpGetTx(licenseHolderId)
 			if err != nil {
 				return err
 			}
@@ -516,7 +516,7 @@ func ProveArtist(artistId, challenge string, priv crypto.PrivateKey, recordingId
 	artists := spec.GetArtists(recording)
 	for _, artist := range artists {
 		if artistId == spec.GetId(artist) {
-			tx, err := bigchain.GetTx(artistId)
+			tx, err := bigchain.HttpGetTx(artistId)
 			if err != nil {
 				return nil, err
 			}
@@ -541,7 +541,7 @@ func VerifyArtist(artistId, challenge, recordingId string, sig crypto.Signature)
 	artists := spec.GetArtists(recording)
 	for _, artist := range artists {
 		if artistId == spec.GetId(artist) {
-			tx, err := bigchain.GetTx(artistId)
+			tx, err := bigchain.HttpGetTx(artistId)
 			if err != nil {
 				return err
 			}
@@ -606,7 +606,7 @@ func ProveRecordLabel(challenge string, priv crypto.PrivateKey, releaseId string
 		return nil, err
 	}
 	recordLabelId := spec.GetRecordLabelId(release)
-	tx, err := bigchain.GetTx(recordLabelId)
+	tx, err := bigchain.HttpGetTx(recordLabelId)
 	if err != nil {
 		return nil, err
 	}
@@ -627,7 +627,7 @@ func VerifyRecordLabel(challenge, releaseId string, sig crypto.Signature) error 
 		return err
 	}
 	recordLabelId := spec.GetRecordLabelId(release)
-	tx, err := bigchain.GetTx(recordLabelId)
+	tx, err := bigchain.HttpGetTx(recordLabelId)
 	if err != nil {
 		return err
 	}

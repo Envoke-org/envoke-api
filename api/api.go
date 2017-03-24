@@ -146,7 +146,7 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func (api *Api) Transfer(assetId, consumeId string, outputIdx int, owner crypto.PublicKey, percentageShares int) (string, error) {
-	tx, err := bigchain.GetTx(consumeId)
+	tx, err := bigchain.HttpGetTx(consumeId)
 	if err != nil {
 		return "", err
 	}
@@ -476,7 +476,7 @@ func (api *Api) SendIndividualCreateTx(amount int, data Data, owner crypto.Publi
 	_type := spec.GetType(data)
 	tx := bigchain.IndividualCreateTx(amount, data, owner, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
-	id, err := bigchain.PostTx(tx)
+	id, err := bigchain.HttpPostTx(tx)
 	if err != nil {
 		return nil, err
 	}
@@ -495,7 +495,7 @@ func (api *Api) SendMultipleOwnersCreateTx(amounts []int, data Data, owners []cr
 	_type := spec.GetType(data)
 	tx := bigchain.MultipleOwnersCreateTx(amounts, data, owners, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
-	id, err := bigchain.PostTx(tx)
+	id, err := bigchain.HttpPostTx(tx)
 	if err != nil {
 		return nil, err
 	}
@@ -509,7 +509,7 @@ func (api *Api) SendMultipleOwnersCreateTx(amounts []int, data Data, owners []cr
 func (api *Api) SendIndividualTransferTx(amount int, assetId, consumeId string, outputIdx int, owner crypto.PublicKey) (string, error) {
 	tx := bigchain.IndividualTransferTx(amount, assetId, consumeId, outputIdx, owner, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
-	id, err := bigchain.PostTx(tx)
+	id, err := bigchain.HttpPostTx(tx)
 	if err != nil {
 		return "", err
 	}
@@ -520,7 +520,7 @@ func (api *Api) SendIndividualTransferTx(amount int, assetId, consumeId string, 
 func (api *Api) SendDivisibleTransferTx(amounts []int, assetId, consumeId string, outputIdx int, owner crypto.PublicKey) (string, error) {
 	tx := bigchain.DivisibleTransferTx(amounts, assetId, consumeId, outputIdx, []crypto.PublicKey{api.pub, owner}, api.pub)
 	bigchain.FulfillTx(tx, api.priv)
-	id, err := bigchain.PostTx(tx)
+	id, err := bigchain.HttpPostTx(tx)
 	if err != nil {
 		return "", err
 	}
