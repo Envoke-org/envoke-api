@@ -94,6 +94,10 @@ type fulfillmentEd25519 struct {
 	sig *ed25519.Signature
 }
 
+func DefaultFulfillmentEd25519(pub *ed25519.PublicKey, sig *ed25519.Signature) *fulfillmentEd25519 {
+	return NewFulfillmentEd25519(pub, sig, 1)
+}
+
 func NewFulfillmentEd25519(pub *ed25519.PublicKey, sig *ed25519.Signature, weight int) *fulfillmentEd25519 {
 	f := new(fulfillmentEd25519)
 	payload := append(pub.Bytes(), sig.Bytes()...)
@@ -233,8 +237,8 @@ type fulfillmentThreshold struct {
 	threshold int
 }
 
-func DefaultFullfillmentThreshold(subs Fulfillments, threshold int) *fulfillmentThreshold {
-	return NewFulfillmentThreshold(subs, threshold, 1)
+func DefaultFulfillmentThreshold(subs Fulfillments) *fulfillmentThreshold {
+	return NewFulfillmentThreshold(subs, len(subs), 1)
 }
 
 func NewFulfillmentThreshold(subs Fulfillments, threshold, weight int) *fulfillmentThreshold {

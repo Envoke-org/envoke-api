@@ -7,6 +7,7 @@ import (
 	// "github.com/dhowden/tag"
 	"github.com/zbo14/envoke/bigchain"
 	. "github.com/zbo14/envoke/common"
+	cc "github.com/zbo14/envoke/crypto/conditions"
 	"github.com/zbo14/envoke/crypto/crypto"
 	"github.com/zbo14/envoke/crypto/ed25519"
 	ld "github.com/zbo14/envoke/linked_data"
@@ -36,6 +37,8 @@ func (api *Api) AddRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/release_handler", api.ReleaseHandler)
 	mux.HandleFunc("/right_handler", api.RightHandler)
 	mux.HandleFunc("/search_handler", api.SearchHandler)
+	mux.HandleFunc("/sign_handler", api.SignHandler)
+	mux.HandleFunc("/threshold_handler", api.ThresholdHandler)
 	mux.HandleFunc("/verify_handler", api.VerifyHandler)
 }
 
@@ -46,7 +49,6 @@ func (api *Api) LoginHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	form, err := MultipartForm(req)
 	if err != nil {
-
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -329,6 +331,47 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, license)
 }
 
+func (api *Api) ProveHandler(w http.ResponseWriter, req *http.Request) {
+	if !api.LoggedIn() {
+		http.Error(w, "Not logged in", http.StatusUnauthorized)
+		return
+	}
+	if req.Method != http.MethodPost {
+		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
+		return
+	}
+	values, err := UrlValues(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	var sig crypto.Signature
+	challenge := values.Get("challenge")
+	modelId := values.Get("modelId")
+	partyId := values.Get("partyId")
+	_type := values.Get("type")
+	switch _type {
+	case "composition":
+		sig, err = ld.ProveComposer(challenge, partyId, modelId, api.priv)
+	case "license":
+		sig, err = ld.ProveLicenseHolder(challenge, partyId, modelId, api.priv)
+	case "recording":
+		sig, err = ld.ProveArtist(partyId, challenge, api.priv, modelId)
+	case "release":
+		sig, err = ld.ProveRecordLabel(challenge, api.priv, modelId)
+	case "right":
+		sig, err = ld.ProveRightHolder(challenge, api.priv, partyId, modelId)
+	default:
+		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
+		return
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	WriteJSON(w, sig)
+}
+
 func CompositionFilter(compositionId, name string) (Data, error) {
 	composition, err := ld.ValidateComposition(compositionId)
 	if err != nil {
@@ -410,7 +453,20 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, models)
 }
 
-func (api *Api) ProveHandler(w http.ResponseWriter, req *http.Request) {
+func (api *Api) Sign(txId string) (cc.Fulfillment, error) {
+	tx, err := bigchain.HttpGetTx(txId)
+	if err != nil {
+		return nil, err
+	}
+	model := bigchain.GetTxData(tx)
+	sig := api.priv.Sign(Checksum256(MustMarshalJSON(model)))
+	return cc.DefaultFulfillmentEd25519(
+		api.pub.(*ed25519.PublicKey),
+		sig.(*ed25519.Signature),
+	), nil
+}
+
+func (api *Api) SignHandler(w http.ResponseWriter, req *http.Request) {
 	if !api.LoggedIn() {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
@@ -424,31 +480,48 @@ func (api *Api) ProveHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	var sig crypto.Signature
-	challenge := values.Get("challenge")
-	modelId := values.Get("modelId")
-	partyId := values.Get("partyId")
-	_type := values.Get("type")
-	switch _type {
-	case "composition":
-		sig, err = ld.ProveComposer(challenge, partyId, modelId, api.priv)
-	case "license":
-		sig, err = ld.ProveLicenseHolder(challenge, partyId, modelId, api.priv)
-	case "recording":
-		sig, err = ld.ProveArtist(partyId, challenge, api.priv, modelId)
-	case "release":
-		sig, err = ld.ProveRecordLabel(challenge, api.priv, modelId)
-	case "right":
-		sig, err = ld.ProveRightHolder(challenge, api.priv, partyId, modelId)
-	default:
-		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
-		return
-	}
+	txId := values.Get("txId")
+	ful, err := api.Sign(txId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	WriteJSON(w, sig)
+	w.Write([]byte(ful.String()))
+}
+
+func Threshold(uris []string) (cc.Fulfillment, error) {
+	var err error
+	subs := make(cc.Fulfillments, len(uris))
+	for i, uri := range uris {
+		subs[i], err = cc.DefaultUnmarshalURI(uri)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return cc.DefaultFulfillmentThreshold(subs), nil
+}
+
+func (api *Api) ThresholdHandler(w http.ResponseWriter, req *http.Request) {
+	if !api.LoggedIn() {
+		http.Error(w, "Not logged in", http.StatusUnauthorized)
+		return
+	}
+	if req.Method != http.MethodPost {
+		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
+		return
+	}
+	values, err := UrlValues(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	uris := SplitStr(values.Get("uris"), ",")
+	ful, err := Threshold(uris)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.Write([]byte(ful.String()))
 }
 
 func (api *Api) VerifyHandler(w http.ResponseWriter, req *http.Request) {
@@ -494,7 +567,7 @@ func (api *Api) VerifyHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	WriteJSON(w, "Verified signature!")
+	WriteJSON(w, "Verified proof!")
 }
 
 func (api *Api) LoggedIn() bool {
