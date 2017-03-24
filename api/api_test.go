@@ -140,7 +140,7 @@ func TestApi(t *testing.T) {
 	if err = api.Login(publisherId, publisherPriv.String()); err != nil {
 		t.Fatal(err)
 	}
-	mechanicalLicense, err := api.DefaultSendIndividualCreateTx(spec.NewMechanicalLicense([]string{compositionId}, []string{performerId, producerId}, publisherId, []string{compositionRightId}, "2020-01-01", "2024-01-01"))
+	mechanicalLicense, err := api.DefaultSendIndividualCreateTx(spec.NewMechanicalLicense([]string{compositionId}, []string{performerId, producerId, recordLabelId}, publisherId, []string{compositionRightId}, "2020-01-01", "2024-01-01"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,6 +160,13 @@ func TestApi(t *testing.T) {
 	if err = ld.VerifyLicenseHolder(CHALLENGE, producerId, mechanicalLicenseId, sig); err != nil {
 		t.Fatal(err)
 	}
+	sig, err = ld.ProveLicenseHolder(CHALLENGE, recordLabelId, mechanicalLicenseId, recordLabelPriv)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = ld.VerifyLicenseHolder(CHALLENGE, recordLabelId, mechanicalLicenseId, sig); err != nil {
+		t.Fatal(err)
+	}
 	file, err := OpenFile(Getenv("PATH_TO_AUDIO_FILE"))
 	if err != nil {
 		t.Fatal(err)
@@ -167,7 +174,7 @@ func TestApi(t *testing.T) {
 	if err = api.Login(performerId, performerPriv.String()); err != nil {
 		t.Fatal(err)
 	}
-	signRecording := spec.NewRecording([]string{performerId, producerId}, compositionId, "PT2M43S", "US-S1Z-99-00001", []string{mechanicalLicenseId, mechanicalLicenseId}, []string{"performer", "producer"}, "www.url_to_recording.com", "")
+	signRecording := spec.NewRecording([]string{performerId, producerId}, compositionId, "PT2M43S", "US-S1Z-99-00001", []string{mechanicalLicenseId, mechanicalLicenseId}, recordLabelId, []string{"performer", "producer"}, "www.url_to_recording.com", "")
 	checksum := Checksum256(MustMarshalJSON(signRecording))
 	ful := cc.DefaultFulfillmentThresholdFromPrivKeys(checksum, performerPriv, producerPriv)
 	signRecording.Set("uri", ful.String())

@@ -175,54 +175,12 @@ func GetURI(data Data) string {
 	return data.GetStr("uri")
 }
 
-/*
-func NewPublication(compositionIds []string, name, publisherId string, rightIds []string, sameAs string) Data {
-	publication := Data{
-		"@context":  CONTEXT,
-		"@type":     "MusicPublication",
-		"name":      name,
-		"publisher": NewLink(publisherId),
-	}
-	if n, m := len(compositionIds), len(rightIds); n == 0 {
-		panic("No compositionIds")
-	} else if n == 1 && m == 1 {
-		publication.Set("composition", Data{
-			"@id":      compositionIds[0],
-			"hasRight": NewLink(rightIds[0]),
-		})
-	} else if n == m {
-		compositions := make([]Data, n)
-		for i := range compositions {
-			compositions[i] = Data{
-				"@id":      compositionIds[i],
-				"hasRight": NewLink(rightIds[i]),
-			}
-		}
-		publication.Set("composition", compositions)
-	} else {
-		panic("Invalid number of compositionIds/rightIds")
-	}
-	if MatchUrlRelaxed(sameAs) {
-		publication.Set("sameAs", sameAs)
-	}
-	return publication
-}
-
-func GetCompositions(data Data) []Data {
-	v := data.Get("composition")
-	if composition := AssertData(v); composition != nil {
-		return []Data{composition}
-	}
-	return AssertDataSlice(v)
-}
-
 func GetPublisherId(data Data) string {
 	publisher := data.GetData("publisher")
 	return GetId(publisher)
 }
-*/
 
-func NewRecording(artistIds []string, compositionId, duration, isrc string, licenseIds, roles []string, sameAs, uri string) Data {
+func NewRecording(artistIds []string, compositionId, duration, isrc string, licenseIds []string, recordLabelId string, roles []string, sameAs, uri string) Data {
 	recording := Data{
 		"@context":    CONTEXT,
 		"@type":       "MusicRecording",
@@ -294,6 +252,10 @@ func GetRecordingOfId(data Data) string {
 	return GetId(composition)
 }
 
+func GetRecordLabel(data Data) Data {
+	return data.GetData("recordLabel")
+}
+
 // TODO: addition release fields
 
 func NewRelease(name string, recordingIds []string, recordLabelId string, rightIds []string, sameAs string) Data {
@@ -339,11 +301,6 @@ func GetRecordings(data Data) []Data {
 		return []Data{recording}
 	}
 	return AssertDataSlice(v)
-}
-
-func GetRecordLabelId(data Data) string {
-	recordLabel := data.GetData("recordLabel")
-	return GetId(recordLabel)
 }
 
 // Note: transferId is the hex id of a TRANSFER tx in BigchainDB/IPDB

@@ -107,7 +107,7 @@
         },
         "recordLabel": 
         {
-            "@id": "schema:recordLabel",
+            "@id": "envoke:recordLabel",
             "@type": "@id"
         },
         "rightHolder":
@@ -251,6 +251,9 @@
         },
         {
             "@id": "MusicRecording"
+        },
+        {
+            "@id": "MusicRelease"
         }],
         "rdfs:label": "licenseFor"
     },
@@ -309,13 +312,35 @@
         {
             "@id": "schema:track"
         },
-        "schema:domainIncludes": {
+        "schema:domainIncludes": 
+        {
             "@id": "MusicRelease"
         },
-        "schema:rangeIncludes": {
+        "schema:rangeIncludes": 
+        {
             "@id": "MusicRecording"
         },
         "rdfs:label": "recording"
+    },
+    {
+        "@id": "recordLabel",
+        "@type": "rdf:Property",
+        "owl:equivalentProperty": 
+        {
+            "@id": "schema:recordLabel"
+        },
+        "schema:domainIncludes": [
+        {
+            "@id": "MusicRecording"
+        },
+        {
+            "@id": "MusicRelease"
+        }],
+        "schema:rangeIncludes": 
+        {
+            "@id": "Organization"
+        },
+        "rdfs:label": "recordLabel"
     },
     {
         "@id": "rightHolder",

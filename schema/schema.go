@@ -207,7 +207,7 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 				},
 				{
 					"properties": {
-						"mechanicalLicense": {
+						"hasLicense": {
 							"$ref": "#/definitions/link"
 						},
 						"role": {
@@ -217,7 +217,22 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 				}
 			]
 		},	
-		"link": %s
+		"link": %s,
+		"recordLabel": {
+			"allOf": [
+				{
+					"$ref": "#/definitions/link"
+				},
+				{
+					"properties": {
+						"hasLicense": {
+							"$ref": "#/definitions/link"
+						}
+					},
+					"required": ["hasLicense"]
+				}
+			]
+		}
 	},
 	"properties": {
 		"@context": {
@@ -252,6 +267,9 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 		},
 		"recordingOf": {
 			"$ref": "#/definitions/link"
+		},
+		"recordLabel": {
+			"$ref": "#/definitions/recordLabel"
 		},
 		"sameAs": {
 			"type": "string"
