@@ -22,7 +22,6 @@ func main() {
 		"compose.html",
 		"license.html",
 		"login_register.html",
-		"publish.html",
 		"record.html",
 		"release.html",
 		"right.html",

@@ -341,20 +341,37 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	var model Data
-	modelId := values.Get("modelId")
+	var models []Data
+	// TODO: add more fields for filtering
+	partyId := values.Get("partyId")
+	tx, err := ld.QueryAndValidateSchema(partyId, "party")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	pub := bigchain.DefaultGetTxSender(tx)
 	_type := values.Get("type")
 	switch _type {
 	case "composition":
-		model, err = ld.ValidateComposition(modelId)
+		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
+			return ld.ValidateComposition(txId)
+		}, pub)
 	case "license":
-		model, err = ld.ValidateLicense(modelId)
+		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
+			return ld.ValidateLicense(txId)
+		}, pub)
 	case "recording":
-		model, err = ld.ValidateRecording(modelId)
+		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
+			return ld.ValidateRecording(txId)
+		}, pub)
 	case "release":
-		model, err = ld.ValidateRelease(modelId)
+		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
+			return ld.ValidateRelease(txId)
+		}, pub)
 	case "right":
-		model, err = ld.ValidateRight(modelId)
+		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
+			return ld.ValidateRight(txId)
+		}, pub)
 	default:
 		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
 		return
@@ -363,7 +380,7 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	WriteJSON(w, model)
+	WriteJSON(w, models)
 }
 
 func (api *Api) ProveHandler(w http.ResponseWriter, req *http.Request) {

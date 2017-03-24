@@ -18,8 +18,9 @@
 </form>
 <form id="search-form" name="search-form">
     <header>SEARCH LICENSE</header>
-    <input type="text" name="type" value="license" hidden />
-    <input type="text" name="modelId" placeholder="LICENSE ID" required />
+     <input type="text" name="type" value="license" hidden />
+    <input type="text" id="search-partyId" name="partyId" placeholder="LICENSE HOLDER ID">
+    <button type="button" class="btn" data-clipboard-target="#search-partyId">copy</button>
     <input type="submit" value="SEARCH" />
 </form>
 <form id="prove-form" name="prove-form">
