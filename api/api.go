@@ -327,6 +327,31 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, license)
 }
 
+func CompositionFilter(compositionId, name string) (Data, error) {
+	composition, err := ld.ValidateComposition(compositionId)
+	if err != nil {
+		return nil, err
+	}
+	if !EmptyStr(name) && !MatchStr(name, spec.GetName(composition)) {
+		return nil, Error("name does not match")
+	}
+	return composition, nil
+}
+
+func RecordingFilter(recordingId, name string) (Data, error) {
+	recording, err := ld.ValidateRecording(recordingId)
+	if err != nil {
+		return nil, err
+	}
+	if !EmptyStr(name) {
+		compositionId := spec.GetRecordingOfId(recording)
+		if _, err = CompositionFilter(compositionId, name); err != nil {
+			return nil, err
+		}
+	}
+	return recording, nil
+}
+
 func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 	if !api.LoggedIn() {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
@@ -342,7 +367,7 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	var models []Data
-	// TODO: add more fields for filtering
+	name := values.Get("name")
 	partyId := values.Get("partyId")
 	tx, err := ld.QueryAndValidateSchema(partyId, "party")
 	if err != nil {
@@ -354,7 +379,7 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 	switch _type {
 	case "composition":
 		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
-			return ld.ValidateComposition(txId)
+			return CompositionFilter(txId, name)
 		}, pub)
 	case "license":
 		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
@@ -362,7 +387,7 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 		}, pub)
 	case "recording":
 		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
-			return ld.ValidateRecording(txId)
+			return RecordingFilter(txId, name)
 		}, pub)
 	case "release":
 		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {

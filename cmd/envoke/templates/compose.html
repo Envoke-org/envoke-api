@@ -18,9 +18,10 @@
     <input type="submit" value="COMPOSE" />
 </form>
 <form id="search-form" name="search-form">
-    <header>SEARCH COMPOSITION</header>
+    <header>SEARCH COMPOSITIONS</header>
     <input type="text" name="type" value="composition" hidden />
-    <input type="text" id="search-partyId" name="partyId" placeholder="COMPOSER ID">
+    <input type="text" name="name" placeholder="TITLE">
+    <input type="text" id="search-partyId" name="partyId" placeholder="COMPOSER ID" required>
     <button type="button" class="btn" data-clipboard-target="#search-partyId">copy</button>
     <input type="submit" value="SEARCH" />
 </form>
