@@ -157,7 +157,7 @@ func (api *Api) Transfer(assetId, consumeId string, outputIdx int, owner crypto.
 			return "", Error("Expected TRANSFER tx")
 		}
 		if assetId != bigchain.GetTxAssetId(tx) {
-			return "", Error("consume tx does not have assetId")
+			return "", ErrorAppend(ErrInvalidId, assetId+"!="+bigchain.GetTxAssetId(tx))
 		}
 	}
 	output := bigchain.GetTxOutput(tx, outputIdx)
@@ -440,7 +440,7 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 		}, pub)
 	case "right":
 		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
-			return ld.ValidateRight(txId)
+			return ld.ValidateRight(partyId, txId)
 		}, pub)
 	default:
 		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)

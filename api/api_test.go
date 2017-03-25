@@ -31,7 +31,7 @@ func TestApi(t *testing.T) {
 	output := MustOpenWriteFile("output.json")
 	composer, err := api.Register(
 		spec.NewParty("composer@email.com", "", "", nil, "composer", "", "www.composer.com", "Person"),
-		"itsasecret",
+		"itisasecret",
 		DIR+"composer",
 	)
 	if err != nil {
@@ -166,6 +166,22 @@ func TestApi(t *testing.T) {
 	if err = ld.VerifyLicenseHolder(CHALLENGE, recordLabelId, mechanicalLicenseId, sig); err != nil {
 		t.Fatal(err)
 	}
+	/*
+		transferId, err = api.Transfer(compositionId, transferId, 1, composerPriv.Public(), 10)
+		if err != nil {
+			t.Fatal(err)
+		}
+		compositionRight, err = api.DefaultSendIndividualCreateTx(spec.NewCompositionRight([]string{publisherId, composerId}, compositionId, transferId))
+		if err != nil {
+			t.Fatal(err)
+		}
+		WriteJSON(output, compositionRight)
+		if _, err = ld.ValidateRight(publisherId, compositionRightId); err == nil {
+			t.Error("TRANSFER tx output should be spent")
+		} else {
+			t.Log(err.Error())
+		}
+	*/
 	file, err := OpenFile(Getenv("PATH_TO_AUDIO_FILE"))
 	if err != nil {
 		t.Fatal(err)

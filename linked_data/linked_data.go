@@ -93,8 +93,10 @@ OUTER:
 		composition.Set("uri", uri)
 	}
 	publisherId := spec.GetPublisherId(composition)
-	if _, err = QueryAndValidateSchema(publisherId, "party"); err != nil {
-		return nil, err
+	if !EmptyStr(publisherId) {
+		if _, err = QueryAndValidateSchema(publisherId, "party"); err != nil {
+			return nil, err
+		}
 	}
 	return composition, nil
 }
@@ -155,7 +157,7 @@ func VerifyComposer(challenge, composerId, compositionId string, sig crypto.Sign
 	return nil
 }
 
-func ValidateRight(rightId string) (Data, error) {
+func ValidateRight(rightHolderId, rightId string) (Data, error) {
 	tx, err := QueryAndValidateSchema(rightId, "right")
 	if err != nil {
 		return nil, err
@@ -166,10 +168,11 @@ func ValidateRight(rightId string) (Data, error) {
 	if n != 1 && n != 2 {
 		return nil, ErrorAppend(ErrInvalidSize, "rightHolderIds must have size 1 or 2")
 	}
+	outputIdx := 0
 	var recipientKey crypto.PublicKey = nil
 	senderKey := bigchain.DefaultGetTxSender(tx)
-	for _, rightHolderId := range rightHolderIds {
-		tx, err = QueryAndValidateSchema(rightHolderId, "party")
+	for i := range rightHolderIds {
+		tx, err = QueryAndValidateSchema(rightHolderIds[i], "party")
 		if err != nil {
 			return nil, err
 		}
@@ -181,6 +184,9 @@ func ValidateRight(rightId string) (Data, error) {
 		} else {
 			if recipientKey != nil {
 				return nil, ErrorAppend(ErrCriteriaNotMet, "sender is not second right-holder")
+			}
+			if rightHolderId == rightHolderIds[i] {
+				outputIdx = 1
 			}
 			recipientKey = rightHolderKey
 		}
@@ -231,11 +237,22 @@ func ValidateRight(rightId string) (Data, error) {
 	if rightToId != bigchain.GetTxAssetId(tx) {
 		return nil, ErrorAppend(ErrCriteriaNotMet, "TRANSFER tx does not link to composition")
 	}
+	txs, err := bigchain.HttpGetTransfers(rightToId)
+	if err != nil {
+		return nil, err
+	}
+	for _, tx = range txs {
+		if transferId == bigchain.GetTxConsumeId(tx, 0) {
+			if outputIdx == bigchain.GetTxConsumeOutput(tx, 0) {
+				return nil, ErrorAppend(ErrCriteriaNotMet, "TRANSFER tx output has been spent")
+			}
+		}
+	}
 	return right, nil
 }
 
 func ProveRightHolder(challenge string, priv crypto.PrivateKey, rightHolderId, rightId string) (crypto.Signature, error) {
-	right, err := ValidateRight(rightId)
+	right, err := ValidateRight(rightHolderId, rightId)
 	if err != nil {
 		return nil, err
 	}
@@ -259,8 +276,8 @@ func ProveRightHolder(challenge string, priv crypto.PrivateKey, rightHolderId, r
 	return nil, ErrorAppend(ErrInvalidId, "could not match rightHolderId")
 }
 
-func VerifyRightHolder(challenge, rightHolderId, rightId string, sig crypto.Signature) error {
-	right, err := ValidateRight(rightId)
+func VerifyRightHolder(challenge string, rightHolderId, rightId string, sig crypto.Signature) error {
+	right, err := ValidateRight(rightHolderId, rightId)
 	if err != nil {
 		return err
 	}
@@ -331,7 +348,7 @@ OUTER:
 		}
 		rightId := spec.GetRightId(licenseFor[i])
 		if !EmptyStr(rightId) {
-			right, err := ValidateRight(rightId)
+			right, err := ValidateRight(licenserId, rightId)
 			if err != nil {
 				return nil, err
 			}
@@ -619,7 +636,7 @@ OUTER:
 			return nil, ErrorAppend(ErrInvalidId, recordLabelId)
 		}
 		rightId := spec.GetRightId(recording)
-		right, err := ValidateRight(rightId)
+		right, err := ValidateRight(recordLabelId, rightId)
 		if err != nil {
 			return nil, err
 		}

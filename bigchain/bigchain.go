@@ -245,6 +245,18 @@ func GetTxAsset(tx Data) Data {
 	return tx.GetData("asset")
 }
 
+func GetTxConsume(tx Data, n int) Data {
+	return GetTxInputs(tx)[n].GetData("fulfills")
+}
+
+func GetTxConsumeId(tx Data, n int) string {
+	return GetTxConsume(tx, n).GetStr("txid")
+}
+
+func GetTxConsumeOutput(tx Data, n int) int {
+	return GetTxConsume(tx, n).GetInt("output")
+}
+
 func GetTxAssetId(tx Data) string {
 	return GetId(GetTxAsset(tx))
 }
