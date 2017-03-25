@@ -486,7 +486,7 @@ func (api *Api) SignHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	w.Write([]byte(ful.String()))
+	WriteJSON(w, ful.String())
 }
 
 func Threshold(uris []string) (cc.Fulfillment, error) {
@@ -521,7 +521,7 @@ func (api *Api) ThresholdHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	w.Write([]byte(ful.String()))
+	WriteJSON(w, ful.String())
 }
 
 func (api *Api) VerifyHandler(w http.ResponseWriter, req *http.Request) {

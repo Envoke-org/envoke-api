@@ -17,6 +17,12 @@
     <input type="text" name="uri" placeholder="THRESHOLD SIGNATURE" />
     <input type="submit" value="COMPOSE" />
 </form>
+<form id="sign-form" name="sign-form">
+    <header>SIGN COMPOSITION</header>
+    <input type="text" name="type" value="composition" hidden />
+    <input type="text" name="txId" placeholder="COMPOSITION ID" required />
+    <input type="submit" value="SIGN" />
+</form>
 <form id="search-form" name="search-form">
     <header>SEARCH COMPOSITIONS</header>
     <input type="text" name="type" value="composition" hidden />
@@ -95,6 +101,13 @@ window.onload = function() {
         event.preventDefault();
         var formData = searchForm.serialize();
         httpPostAsync("http://localhost:8888/search_handler", formData, callback);
+    });
+
+    var signForm = $("#sign-form");
+    signForm.submit(function(event){
+        event.preventDefault();
+        var formData = signForm.serialize();
+         httpPostAsync("http://localhost:8888/sign_handler", formData, callback);
     });
 
     var proveForm = $("#prove-form");

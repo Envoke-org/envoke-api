@@ -5,7 +5,6 @@ import (
 
 	"github.com/zbo14/envoke/bigchain"
 	. "github.com/zbo14/envoke/common"
-	cc "github.com/zbo14/envoke/crypto/conditions"
 	"github.com/zbo14/envoke/crypto/crypto"
 	"github.com/zbo14/envoke/crypto/ed25519"
 	ld "github.com/zbo14/envoke/linked_data"
@@ -175,14 +174,35 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	signRecording := spec.NewRecording([]string{performerId, producerId}, compositionId, "PT2M43S", "US-S1Z-99-00001", mechanicalLicenseId, []string{mechanicalLicenseId, mechanicalLicenseId}, recordLabelId, []string{"performer", "producer"}, "www.url_to_recording.com", "")
-	checksum := Checksum256(MustMarshalJSON(signRecording))
-	ful := cc.DefaultFulfillmentThresholdFromPrivKeys(checksum, performerPriv, producerPriv)
-	signRecording.Set("uri", ful.String())
 	recording, err := api.Record(file, []int{80, 20}, signRecording)
 	if err != nil {
 		t.Fatal(err)
 	}
 	recordingId := GetId(recording)
+	performerFul, err := api.Sign(recordingId)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = api.Login(producerId, producerPriv.String()); err != nil {
+		t.Fatal(err)
+	}
+	producerFul, err := api.Sign(recordingId)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = api.Login(performerId, performerPriv.String()); err != nil {
+		t.Fatal(err)
+	}
+	thresh, err := Threshold([]string{performerFul.String(), producerFul.String()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	signRecording.Set("uri", thresh.String())
+	recording, err = api.Record(file, []int{80, 20}, signRecording)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recordingId = GetId(recording)
 	WriteJSON(output, recording)
 	SleepSeconds(2)
 	sig, err = ld.ProveArtist(performerId, CHALLENGE, performerPriv, recordingId)
