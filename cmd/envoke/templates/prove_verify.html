@@ -1,0 +1,123 @@
+{{define "head"}}
+  <title>{{ .Title}}</title>
+{{end}}
+
+{{define "body"}}
+<form id="prove-form" name="prove-form">
+    <header>PROVE</header>
+    <select form="prove-form" id="prove-type" name="type">
+        <option value="" selected disabled>--TYPE--</option>
+        <option value="composition">COMPOSITION</option>
+        <option value="license">LICENSE</option>
+        <option value="recording">RECORDING</option> 
+    </select><br><br>
+    <input type="text" name="challenge" placeholder="CHALLENGE" required />
+    <input type="text" id="prove-modelId" name="modelId" required />
+    <button type="button" class="btn" data-clipboard-target="#prove-modelId">copy</button>
+    <input type="text" id="prove-partyId" name="partyId" required />
+    <button type="button" class="btn" data-clipboard-target="#prove-partyId">copy</button>
+    <input type="submit" value="PROVE" />
+</form>
+<form id="verify-form" name="verify-form">
+    <header>VERIFY</header>
+    <select form="verify-form" id="verify-type" name="type">
+        <option value="" selected disabled>--TYPE--</option>
+        <option value="composition">COMPOSITION</option>
+        <option value="license">LICENSE</option>
+        <option value="recording">RECORDING</option> 
+    </select><br><br>
+    <input type="text" name="challenge" placeholder="CHALLENGE" required />
+    <input type="text" id="verify-modelId" name="modelId" required />
+    <button type="button" class="btn" data-clipboard-target="#verify-modelId">copy</button>
+    <input type="text" id="verify-partyId" name="partyId" required />
+    <button type="button" class="btn" data-clipboard-target="#verify-partyId">copy</button>
+    <input type="text" name="signature" placeholder="SIGNATURE" required />
+    <input type="submit" value="VERIFY" />
+</form>
+<br><br>
+<pre id="message" style="color:#97cc5f; font-size: 1.2em;"></pre>
+<script type="text/javascript">
+
+function httpPostAsync(addr, data, callback) {
+    var xhr = new XMLHttpRequest ();
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState == 4) {
+            if (xhr.status == 200) {
+                callback(xhr.responseText);
+            } else {
+                alert(xhr.responseText);
+            };
+        };
+    };
+    xhr.open("POST", addr, true); 
+    xhr.send(data);
+};
+
+var callback = function(responseText) {
+    if (responseText != null) {
+        var json = JSON.parse(responseText);
+        var str = JSON.stringify(json,null,2);
+        $("#message").text(str);
+    };
+};
+
+var clipboard = new Clipboard('.btn');
+
+clipboard.on('success', function(e){
+    console.log(e);
+});
+
+clipboard.on('error', function(e){
+    console.log(e);
+});
+
+window.onload = function() {
+
+    var proveType = $("#prove-type");
+    proveType.change(function() {
+        if (proveType.val() == "composition") {
+            $("#prove-modelId").attr("placeholder", "COMPOSITION ID");
+            $("#prove-partyId").attr("placeholder", "COMPOSER ID");
+        } else if (proveType.val() == "license") {
+            $("#prove-modelId").attr("placeholder", "LICENSE ID");
+            $("#prove-partyId").attr("placeholder", "LICENSE-HOLDER ID");
+        } else if (proveType.val() == "recording") {
+            $("#prove-modelId").attr("placeholder", "RECORDING ID");
+            $("#prove-partyId").attr("placeholder", "ARTIST ID");
+        } else {
+            //..
+        }
+    });
+
+    var verifyType = $("#verify-type");
+    verifyType.change(function() {
+        if (verifyType.val() == "composition") {
+            $("#verify-modelId").attr("placeholder", "COMPOSITION ID");
+            $("#verify-partyId").attr("placeholder", "COMPOSER ID");
+        } else if (verifyType.val() == "license") {
+            $("#verify-modelId").attr("placeholder", "LICENSE ID");
+            $("#verify-partyId").attr("placeholder", "LICENSE-HOLDER ID");
+        } else if (verifyType.val() == "recording") {
+            $("#verify-modelId").attr("placeholder", "RECORDING ID");
+            $("#verify-partyId").attr("placeholder", "ARTIST ID");
+        } else {
+            //..
+        }
+    });
+
+    var proveForm = $("#prove-form");
+    proveForm.submit(function(event){
+        event.preventDefault();
+        var formData = proveForm.serialize();
+        httpPostAsync("http://localhost:8888/prove_handler", formData, callback);
+    });
+
+    var verifyForm = $("#verify-form");
+    verifyForm.submit(function(event){
+        event.preventDefault();
+        var formData = proveForm.serialize();
+        httpPostAsync("http://localhost:8888/verify_handler", formData, callback);
+    });
+}
+</script>
+{{end}}

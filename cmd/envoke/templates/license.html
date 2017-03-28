@@ -6,41 +6,16 @@
 <br><br>
 <form id="license-form" name="license-form">
     <header>LICENSE</header>
-    <input type="text" name="type" value="license" hidden />
-    <input type="text" name="licenseHolderIds" placeholder="LICENSE HOLDER IDs" required />
-    <input type="text" name="modelIds" placeholder="COMPOSITION/RECORDING IDs" required />  
-    <input type="text" name="rightIds" placeholder="RIGHT IDs" required /><br><br>
+    <input type="text" id="licenseHolderIds" name="licenseHolderIds" placeholder="LICENSE-HOLDER IDs" required />
+    <button type="button" class="btn" data-clipboard-target="#licenseHolderIds">copy</button>
+    <input type="text" id="modelIds" name="modelIds" placeholder="COMPOSITION/RECORDING IDs" required /> 
+    <button type="button" class="btn" data-clipboard-target="#modelIds">copy</button>
     <label>VALID FROM</label>
     <input type="date" name="validFrom" style="border-bottom: solid 1px #025768;" required /><br><br>
     <label>VALID TO</label>
     <input type="date" name="validTo" style="border-bottom: solid 1px #025768;" required /><br><br>
     <input type="submit" value="LICENSE" />
 </form>
-<form id="search-form" name="search-form">
-    <header>SEARCH LICENSE</header>
-     <input type="text" name="type" value="license" hidden />
-    <input type="text" id="search-partyId" name="partyId" placeholder="LICENSE HOLDER ID">
-    <button type="button" class="btn" data-clipboard-target="#search-partyId">copy</button>
-    <input type="submit" value="SEARCH" />
-</form>
-<form id="prove-form" name="prove-form">
-    <header>PROVE LICENSE-HOLDER</header>
-    <input type="text" name="type" value="license" hidden />
-    <input type="text" name="challenge" placeholder="CHALLENGE" required /> 
-    <input type="text" name="partyId" placeholder="LICENSE HOLDER ID" required />
-    <input type="text" name="modelId" placeholder="LICENSE ID" required />
-    <input type="submit" value="PROVE" />
-</form>
-<form id="verify-form" name="verify-form">
-    <header>VERIFY LICENSE-HOLDER</header>
-    <input type="text" name="type" value="license" hidden />
-    <input type="text" name="challenge" placeholder="CHALLENGE" required />
-    <input type="text" name="partyId" placeholder="LICENSE HOLDER ID" required />
-    <input type="text" name="modelId" placeholder="LICENSE ID" required />
-    <input type="text" name="signature" placeholder="SIGNATURE" required />
-    <input type="submit" value="VERIFY" />
-</form>
-<br><br>
 <br><br>
 <pre id="message" style="color:#97cc5f; font-size: 1.2em; margin-top: -200px"></pre>
 <script type="text/javascript">
@@ -68,34 +43,23 @@ var callback = function(responseText) {
     };
 };
 
+var clipboard = new Clipboard('.btn');
+
+clipboard.on('success', function(e){
+    console.log(e);
+});
+
+clipboard.on('error', function(e){
+    console.log(e);
+});
+
 window.onload = function() {
 
     var licenseForm = $("#license-form");
     licenseForm.submit(function(event) {
         event.preventDefault();
         var formData = licenseForm.serialize();
-        httpPostAsync("http://localhost:8888/mechanical_license_handler", formData, callback);
-    });
-
-    var searchForm = $("#search-form");
-    searchForm.submit(function(event){
-        event.preventDefault();
-        var formData = searchForm.serialize();
-        httpPostAsync("http://localhost:8888/search_handler", formData, callback);
-    });
-
-    var proveForm = $("#prove-form");
-    proveForm.submit(function(event){
-        event.preventDefault();
-        var formData = proveForm.serialize();
-        httpPostAsync("http://localhost:8888/prove_handler", formData, callback);
-    });
-
-    var verifyForm = $("#verify-form");
-    verifyForm.submit(function(event){
-        event.preventDefault();
-        var formData = verifyForm.serialize();
-        httpPostAsync("http://localhost:8888/verify_handler", formData, callback);
+        httpPostAsync("http://localhost:8888/license_handler", formData, callback);
     });
 }
 </script>

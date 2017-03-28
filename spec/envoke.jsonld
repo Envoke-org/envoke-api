@@ -131,6 +131,11 @@
             "@id": "envoke:transfer",
             "@type": "@id"
         },
+        "url": 
+        {
+            "@id": "schema:url",
+            "@type": "@id"
+        },
         "validFrom": "envoke:validFrom",
         "validThrough": "envoke:validThrough"
     },
@@ -161,6 +166,22 @@
             "@id": "schema:Intangible"
         },
         "rdfs:label": "Transfer"
+    },
+    {
+        "@id": "hasLicense",
+        "@type": "rdf:Property",
+        "schema:domainIncludes":[
+        {
+            "@id": "MusicComposition"
+        },
+        {
+            "@id": "MusicRecording"
+        }],
+        "schema:rangeIncludes":
+        {
+            "@id": "License"
+        },
+        "rdfs:label": "hasLicense"
     },
     {
         "@id": "hasRight",
@@ -269,22 +290,6 @@
             "@id": "Person"
         }],
          "rdfs:label": "licenser"
-    },
-    {
-        "@id": "hasLicense",
-        "@type": "rdf:Property",
-        "schema:domainIncludes": [
-        {
-            "@id": "Organization"
-        },
-        {
-            "@id": "Person"
-        }],
-        "schema:rangeIncludes":
-        {
-            "@id": "License"
-        },
-        "rdfs:label": "hasLicense"
     },
     {
         "@id": "pro",

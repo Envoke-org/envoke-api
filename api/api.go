@@ -130,16 +130,7 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	var right Data
-	switch _type := values.Get("type"); _type {
-	case "composition_right":
-		right, err = api.DefaultSendIndividualCreateTx(spec.NewCompositionRight(rightHolderIds, rightToId, transferId))
-	case "recording_right":
-		right, err = api.DefaultSendIndividualCreateTx(spec.NewRecordingRight(rightHolderIds, rightToId, transferId))
-	default:
-		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
-		return
-	}
+	right, err := api.DefaultSendIndividualCreateTx(spec.NewRight(rightHolderIds, rightToId, transferId))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -195,8 +186,6 @@ func (api *Api) ComposeHandler(w http.ResponseWriter, req *http.Request) {
 	lang := values.Get("lang")
 	name := values.Get("name")
 	publisherId := values.Get("publisherId")
-	roles := SplitStr(values.Get("roles"), ",")
-	sameAs := values.Get("sameAs")
 	shares := SplitStr(values.Get("splits"), ",")
 	var percentageShares []int = nil
 	if len(shares) > 1 {
@@ -206,8 +195,9 @@ func (api *Api) ComposeHandler(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 	uri := values.Get("uri")
+	url := values.Get("url")
 	composition, err := api.Compose(
-		spec.NewComposition(composerIds, hfa, iswc, lang, name, publisherId, roles, sameAs, uri),
+		spec.NewComposition(composerIds, hfa, iswc, lang, name, publisherId, uri, url),
 		percentageShares,
 	)
 	if err != nil {
@@ -242,10 +232,7 @@ func (api *Api) RecordHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	isrc := form.Value["isrc"][0]
 	licenseId := form.Value["licenseId"][0]
-	licenseIds := SplitStr(form.Value["licenseIds"][0], ",")
 	recordLabelId := form.Value["recordLabelId"][0]
-	roles := SplitStr(form.Value["roles"][0], ",")
-	sameAs := form.Value["sameAs"][0]
 	splits := SplitStr(form.Value["splits"][0], ",")
 	var percentageShares []int = nil
 	if len(splits) > 1 {
@@ -255,10 +242,11 @@ func (api *Api) RecordHandler(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 	uri := form.Value["uri"][0]
+	url := form.Value["url"][0]
 	recording, err = api.Record(
 		file,
 		percentageShares,
-		spec.NewRecording(artistIds, compositionId, duration, isrc, licenseId, licenseIds, recordLabelId, roles, sameAs, uri),
+		spec.NewRecording(artistIds, compositionId, duration, isrc, licenseId, recordLabelId, uri, url),
 	)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -285,8 +273,8 @@ func (api *Api) ReleaseHandler(w http.ResponseWriter, req *http.Request) {
 	recordingIds := SplitStr(values.Get("recordingIds"), ",")
 	recordLabelId := values.Get("recordLabelId")
 	rightIds := SplitStr(values.Get("rightIds"), ",")
-	sameAs := values.Get("sameAs")
-	release, err := api.DefaultSendIndividualCreateTx(spec.NewRelease(name, recordingIds, recordLabelId, rightIds, sameAs))
+	url := values.Get("url")
+	release, err := api.DefaultSendIndividualCreateTx(spec.NewRelease(name, recordingIds, recordLabelId, rightIds, url))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -311,19 +299,9 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 	licenseForIds := SplitStr(values.Get("licenseForIds"), ",")
 	licenseHolderIds := SplitStr(values.Get("licenseHolderIds"), ",")
 	rightIds := SplitStr(values.Get("rightId"), ",")
-	_type := values.Get("type")
 	validFrom := values.Get("validFrom")
 	validThrough := values.Get("validThrough")
-	var license Data
-	switch _type {
-	case "master_license":
-		license, err = api.DefaultSendIndividualCreateTx(spec.NewMasterLicense(licenseForIds, licenseHolderIds, api.id, rightIds, validFrom, validThrough))
-	case "mechanical_license":
-		license, err = api.DefaultSendIndividualCreateTx(spec.NewMechanicalLicense(licenseForIds, licenseHolderIds, api.id, rightIds, validFrom, validThrough))
-	default:
-		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
-		return
-	}
+	license, err := api.DefaultSendIndividualCreateTx(spec.NewLicense(licenseForIds, licenseHolderIds, api.id, rightIds, validFrom, validThrough))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -373,7 +351,7 @@ func (api *Api) ProveHandler(w http.ResponseWriter, req *http.Request) {
 }
 
 func CompositionFilter(compositionId, name string) (Data, error) {
-	composition, err := ld.ValidateComposition(compositionId)
+	composition, err := ld.ValidateCompositionId(compositionId)
 	if err != nil {
 		return nil, err
 	}
@@ -384,12 +362,12 @@ func CompositionFilter(compositionId, name string) (Data, error) {
 }
 
 func RecordingFilter(recordingId, name string) (Data, error) {
-	recording, err := ld.ValidateRecording(recordingId)
+	recording, err := ld.ValidateRecordingId(recordingId)
 	if err != nil {
 		return nil, err
 	}
 	if !EmptyStr(name) {
-		compositionId := spec.GetRecordingOfId(recording)
+		compositionId := spec.GetId(spec.GetRecordingOf(recording))
 		if _, err = CompositionFilter(compositionId, name); err != nil {
 			return nil, err
 		}
@@ -428,7 +406,7 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 		}, pub)
 	case "license":
 		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
-			return ld.ValidateLicense(txId)
+			return ld.ValidateLicenseId(txId)
 		}, pub)
 	case "recording":
 		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
@@ -436,11 +414,11 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 		}, pub)
 	case "release":
 		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
-			return ld.ValidateRelease(txId)
+			return ld.ValidateReleaseId(txId)
 		}, pub)
 	case "right":
 		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
-			return ld.ValidateRight(partyId, txId)
+			return ld.ValidateRightId(partyId, txId)
 		}, pub)
 	default:
 		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)

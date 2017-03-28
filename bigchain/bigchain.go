@@ -369,13 +369,14 @@ func GetDetailsSubfulfillments(details Data) []Data {
 	return details.GetDataSlice("subfulfillments")
 }
 
+func GetOutputPublicKey(output Data) crypto.PublicKey {
+	details := output.GetInnerData("condition", "details")
+	return GetPublicKey(details)
+}
+
 func GetOutputPublicKeys(output Data) []crypto.PublicKey {
 	details := output.GetInnerData("condition", "details")
 	subs := GetDetailsSubfulfillments(details)
-	if subs == nil {
-		pub := GetPublicKey(details)
-		return []crypto.PublicKey{pub}
-	}
 	pubs := make([]crypto.PublicKey, len(subs))
 	for i, sub := range subs {
 		pubs[i] = GetPublicKey(sub)

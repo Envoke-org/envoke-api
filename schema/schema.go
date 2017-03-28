@@ -106,20 +106,6 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"title": "MusicComposition",
 	"type": "object",
 	"definitions": {
-		"composer": {
-			"allOf": [
-				{
-					"$ref": "#/definitions/link"
-				},
-				{
-					"properties": {
-						"role": {
-							"type": "string" 
-						}
-					}
-				}
-			]
-		},
 		"link": %s
 	},
 	"properties": {
@@ -134,12 +120,12 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 		"composer": {
 			"oneOf": [
 				{
-					"$ref": "#/definitions/composer"
+					"$ref": "#/definitions/link"
 				},
 				{
 					"type": "array",
 					"items": {
-						"$ref": "#/definitions/composer"
+						"$ref": "#/definitions/link"
 					},	
 					"minItems": 2,
 					"uniqueItems": true
@@ -164,12 +150,12 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 		"publisher": {
 			"$ref": "#/definitions/link"
 		},
-		"sameAs": {
-			"type": "string"
-		},
 		"uri": {
 			"type": "string",
 			"pattern": "%s"
+		},
+		"url": {
+			"type": "string"
 		}
 	},
 	"oneOf": [
@@ -200,7 +186,7 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"title": "MusicRecording",
 	"type": "object",
 	"definitions": {
-		"artist": {
+		"composition": {
 			"allOf": [
 				{
 					"$ref": "#/definitions/link"
@@ -209,30 +195,12 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 					"properties": {
 						"hasLicense": {
 							"$ref": "#/definitions/link"
-						},
-						"role": {
-							"type": "string" 
 						}
 					}
 				}
 			]
-		},	
-		"link": %s,
-		"recordLabel": {
-			"allOf": [
-				{
-					"$ref": "#/definitions/link"
-				},
-				{
-					"properties": {
-						"hasLicense": {
-							"$ref": "#/definitions/link"
-						}
-					},
-					"required": ["hasLicense"]
-				}
-			]
 		}
+		"link": %s
 	},
 	"properties": {
 		"@context": {
@@ -246,12 +214,12 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 		"byArtist": {
 			"oneOf": [
 				{
-					"$ref": "#/definitions/artist"
+					"$ref": "#/definitions/link"
 				},
 				{
 					"type": "array",
 					"items": {
-						"$ref": "#/definitions/artist"
+						"$ref": "#/definitions/link"
 					},
 					"minItems": 2,
 					"uniqueItems": true
@@ -261,6 +229,9 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 		"duration": {
 			"type": "string"			
 		},
+		"hasLicense": {
+			"$ref": "#/defintiions/link"
+		},
 		"isrcCode": {
 			"type": "string",
 			"pattern": "%s"
@@ -269,14 +240,14 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"$ref": "#/definitions/link"
 		},
 		"recordLabel": {
-			"$ref": "#/definitions/recordLabel"
-		},
-		"sameAs": {
-			"type": "string"
+			"$ref": "#/definitions/link"
 		},
 		"uri": {
 			"type": "string",
 			"pattern": "%s"
+		},
+		"url": {
+			"type": "string"
 		}
 	},
 	"oneOf": [
@@ -375,7 +346,7 @@ var RightLoader = jsonschema.NewStringLoader(Sprintf(`{
 		},
 		"@type": {
 			"type": "string",
-			"pattern": "^CompositionRight|RecordingRight$"
+			"pattern": "^Right$"
 		},
 		"rightHolder": {
 			"type": "array",
@@ -424,7 +395,7 @@ var LicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 		},
 		"@type": {
 			"type": "string",
-			"pattern": "^MasterLicense|MechanicalLicense$"
+			"pattern": "^License$"
 		},
 		"licenseFor": {
 			"type": "array",
