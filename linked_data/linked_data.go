@@ -183,7 +183,7 @@ func ValidateRightId(rightHolderId, rightId string) (Data, error) {
 		rightHolderKey := bigchain.DefaultGetTxSender(tx)
 		if senderKey.Equals(rightHolderKey) {
 			if n == 1 {
-				return nil, ErrorAppend(ErrCriteriaNotMet, "only right-holder key equals sender key")
+				return nil, ErrorAppend(ErrCriteriaNotMet, "only right-holder is sender")
 			}
 		} else {
 			if recipientKey != nil {
@@ -225,23 +225,33 @@ func ValidateRightId(rightHolderId, rightId string) (Data, error) {
 		return nil, ErrorAppend(ErrCriteriaNotMet, "right sender is not sender of TRANSFER tx")
 	}
 	if n != len(bigchain.GetTxOutputs(tx)) {
-		return nil, ErrorAppend(ErrInvalidSize, "TRANSFER tx outputs must have same size as rightHolderIds")
+		return nil, ErrorAppend(ErrInvalidSize, "TRANSFER tx outputs must have same size as right-holder ids")
 	}
-	if !recipientKey.Equals(bigchain.GetTxRecipient(tx, 1)) {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "recipient does not hold secondary output of TRANSFER tx")
+	if n == 1 {
+		if !recipientKey.Equals(bigchain.GetTxRecipient(tx, 0)) {
+			return nil, ErrorAppend(ErrCriteriaNotMet, "recipient does not hold TRANSFER tx output")
+		}
+		recipientShares := bigchain.GetTxOutputAmount(tx, 0)
+		if recipientShares <= 0 || recipientShares > 100 {
+			return nil, ErrorAppend(ErrCriteriaNotMet, "recipient shares must be greater than 0 and less than/equal to 100")
+		}
+		right.Set("recipientShares", recipientShares)
 	}
-	recipientShares := bigchain.GetTxOutputAmount(tx, 1)
-	if recipientShares <= 0 || recipientShares > 100 {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "recipient shares must be greater than 0 and less than/equal to 100")
-	}
-	right.Set("recipientShares", recipientShares)
 	if n == 2 {
+		if !recipientKey.Equals(bigchain.GetTxRecipient(tx, 1)) {
+			return nil, ErrorAppend(ErrCriteriaNotMet, "recipient does not hold TRANSFER tx output")
+		}
+		recipientShares := bigchain.GetTxOutputAmount(tx, 1)
+		if recipientShares <= 0 || recipientShares > 100 {
+			return nil, ErrorAppend(ErrCriteriaNotMet, "recipient shares must be greater than 0 and less than/equal to 100")
+		}
+		right.Set("recipientShares", recipientShares)
 		if !senderKey.Equals(bigchain.GetTxRecipient(tx, 0)) {
-			return nil, ErrorAppend(ErrCriteriaNotMet, "sender does not hold primary output of TRANSFER tx")
+			return nil, ErrorAppend(ErrCriteriaNotMet, "sender does not hold TRANSFER tx output")
 		}
 		senderShares := bigchain.GetTxOutputAmount(tx, 0)
-		if senderShares < 0 || senderShares >= 100 {
-			return nil, ErrorAppend(ErrCriteriaNotMet, "sender shares cannot be less than 0 or equal to/greater than 100")
+		if senderShares <= 0 || senderShares >= 100 {
+			return nil, ErrorAppend(ErrCriteriaNotMet, "sender shares must be greater than 0 and less than 100")
 		}
 		right.Set("senderShares", senderShares)
 	}
@@ -515,10 +525,12 @@ OUTER:
 						continue OUTER
 					}
 				}
-				for k, licenseHolderId := range licenseHolderIds {
-					if artistId == licenseHolderId {
-						licenseHolderIds = append(licenseHolderIds[:k], licenseHolderIds[k+1:]...)
-						continue OUTER
+				if len(licenseHolderIds) > 0 {
+					for k, licenseHolderId := range licenseHolderIds {
+						if artistId == licenseHolderId {
+							licenseHolderIds = append(licenseHolderIds[:k], licenseHolderIds[k+1:]...)
+							continue OUTER
+						}
 					}
 				}
 				return nil, ErrorAppend(ErrCriteriaNotMet, "artist is not composer/does not have mechanical license")

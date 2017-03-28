@@ -196,7 +196,7 @@ func NewRecording(artistIds []string, compositionId, duration, isrc, licenseId s
 		recording.Set("isrcCode", isrc)
 	}
 	if MatchId(licenseId) {
-		GetRecordingOf(recording).Set("hasLicense", NewLink(licenseId))
+		recording.SetInnerValue(NewLink(licenseId), "recordingOf", "hasLicense")
 	}
 	if MatchId(recordLabelId) {
 		recording.Set("recordLabel", NewLink(recordLabelId))

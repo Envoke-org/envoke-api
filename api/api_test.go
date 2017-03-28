@@ -98,7 +98,7 @@ func TestApi(t *testing.T) {
 	if err := api.Login(composerId, composerPriv.String()); err != nil {
 		t.Fatal(err)
 	}
-	composition, err := api.Compose(spec.NewComposition([]string{composerId}, "B3107S", "T-034.524.680-1", "EN", "composition_title", publisherId, nil, "www.url_to_composition.com", ""), nil)
+	composition, err := api.Compose(spec.NewComposition([]string{composerId}, "B3107S", "T-034.524.680-1", "EN", "composition_title", publisherId, "", "www.composition_url"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -116,7 +116,7 @@ func TestApi(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	compositionRight, err := api.DefaultSendIndividualCreateTx(spec.NewCompositionRight([]string{composerId, publisherId}, compositionId, transferId))
+	compositionRight, err := api.DefaultSendIndividualCreateTx(spec.NewRight([]string{composerId, publisherId}, compositionId, transferId))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +139,7 @@ func TestApi(t *testing.T) {
 	if err = api.Login(publisherId, publisherPriv.String()); err != nil {
 		t.Fatal(err)
 	}
-	mechanicalLicense, err := api.DefaultSendIndividualCreateTx(spec.NewMechanicalLicense([]string{compositionId}, []string{performerId, producerId, recordLabelId}, publisherId, []string{compositionRightId}, "2020-01-01", "2024-01-01"))
+	mechanicalLicense, err := api.DefaultSendIndividualCreateTx(spec.NewLicense([]string{compositionId}, []string{performerId, producerId, recordLabelId}, publisherId, []string{compositionRightId}, "2020-01-01", "2024-01-01"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -189,7 +189,7 @@ func TestApi(t *testing.T) {
 	if err = api.Login(performerId, performerPriv.String()); err != nil {
 		t.Fatal(err)
 	}
-	signRecording := spec.NewRecording([]string{performerId, producerId}, compositionId, "PT2M43S", "US-S1Z-99-00001", mechanicalLicenseId, []string{mechanicalLicenseId, mechanicalLicenseId}, recordLabelId, []string{"performer", "producer"}, "www.url_to_recording.com", "")
+	signRecording := spec.NewRecording([]string{performerId, producerId}, compositionId, "PT2M43S", "US-S1Z-99-00001", mechanicalLicenseId, recordLabelId, "", "www.recording_url.com")
 	recording, err := api.Record(file, []int{80, 20}, signRecording)
 	if err != nil {
 		t.Fatal(err)
@@ -239,7 +239,7 @@ func TestApi(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	recordingRight, err := api.DefaultSendIndividualCreateTx(spec.NewRecordingRight([]string{performerId, recordLabelId}, recordingId, transferId))
+	recordingRight, err := api.DefaultSendIndividualCreateTx(spec.NewRight([]string{performerId, recordLabelId}, recordingId, transferId))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -262,7 +262,7 @@ func TestApi(t *testing.T) {
 	if err = api.Login(recordLabelId, recordLabelPriv.String()); err != nil {
 		t.Fatal(err)
 	}
-	release, err := api.DefaultSendIndividualCreateTx(spec.NewRelease("release_title", []string{recordingId}, recordLabelId, []string{recordingRightId}, "www.url_to_release.com"))
+	release, err := api.DefaultSendIndividualCreateTx(spec.NewRelease("release_title", []string{recordingId}, recordLabelId, []string{recordingRightId}, "www.release_url.com"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -275,7 +275,7 @@ func TestApi(t *testing.T) {
 	if err = ld.VerifyRecordLabel(CHALLENGE, releaseId, sig); err != nil {
 		t.Fatal(err)
 	}
-	masterLicense, err := api.DefaultSendIndividualCreateTx(spec.NewMasterLicense([]string{recordingId}, []string{radioId}, recordLabelId, []string{recordingRightId}, "2020-01-01", "2022-01-01"))
+	masterLicense, err := api.DefaultSendIndividualCreateTx(spec.NewLicense([]string{recordingId}, []string{radioId}, recordLabelId, []string{recordingRightId}, "2020-01-01", "2022-01-01"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -289,7 +289,7 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	txs, err := bigchain.HttpGetFilter(func(txId string) (Data, error) {
-		return ld.ValidateComposition(txId)
+		return ld.ValidateCompositionId(txId)
 	}, composerPriv.Public())
 	if err != nil {
 		t.Fatal(err)

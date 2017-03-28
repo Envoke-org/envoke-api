@@ -152,7 +152,7 @@ func (api *Api) Transfer(assetId, consumeId string, outputIdx int, owner crypto.
 		}
 	}
 	output := bigchain.GetTxOutput(tx, outputIdx)
-	if !api.pub.Equals(bigchain.GetOutputPublicKeys(output)[0]) {
+	if !api.pub.Equals(bigchain.GetOutputPublicKey(output)) {
 		return "", ErrorAppend(ErrInvalidKey, api.pub.String())
 	}
 	totalShares := bigchain.GetOutputAmount(output)

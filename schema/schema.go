@@ -170,7 +170,7 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 		{
 			"properties": {
 				"composer": {
-					"$ref": "#/definitions/composer"
+					"$ref": "#/definitions/link"
 				}
 			},
 			"not": {
@@ -199,7 +199,7 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 					}
 				}
 			]
-		}
+		},
 		"link": %s
 	},
 	"properties": {
@@ -230,14 +230,14 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "string"			
 		},
 		"hasLicense": {
-			"$ref": "#/defintiions/link"
+			"$ref": "#/definitions/link"
 		},
 		"isrcCode": {
 			"type": "string",
 			"pattern": "%s"
 		},
 		"recordingOf": {
-			"$ref": "#/definitions/link"
+			"$ref": "#/definitions/composition"
 		},
 		"recordLabel": {
 			"$ref": "#/definitions/link"
@@ -262,7 +262,7 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 		{
 			"properties": {
 				"byArtist": {
-					"$ref": "#/definitions/artist"
+					"$ref": "#/definitions/link"
 				}
 			},
 			"not": {

@@ -377,6 +377,9 @@ func GetOutputPublicKey(output Data) crypto.PublicKey {
 func GetOutputPublicKeys(output Data) []crypto.PublicKey {
 	details := output.GetInnerData("condition", "details")
 	subs := GetDetailsSubfulfillments(details)
+	if subs == nil {
+		return []crypto.PublicKey{GetOutputPublicKey(output)}
+	}
 	pubs := make([]crypto.PublicKey, len(subs))
 	for i, sub := range subs {
 		pubs[i] = GetPublicKey(sub)

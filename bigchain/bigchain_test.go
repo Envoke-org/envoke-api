@@ -28,7 +28,7 @@ func TestBigchain(t *testing.T) {
 		t.Fatal(ErrInvalidFulfillment)
 	}
 	WriteJSON(output, Data{"createTx": tx})
-	createTxId, err := PostTx(tx)
+	createTxId, err := HttpPostTx(tx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -38,7 +38,7 @@ func TestBigchain(t *testing.T) {
 	if !FulfilledTx(tx) {
 		t.Fatal(ErrInvalidFulfillment)
 	}
-	transferTxId, err := PostTx(tx)
+	transferTxId, err := HttpPostTx(tx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +49,7 @@ func TestBigchain(t *testing.T) {
 	if !FulfilledTx(tx) {
 		t.Fatal(ErrInvalidFulfillment)
 	}
-	if _, err = PostTx(tx); err != nil {
+	if _, err = HttpPostTx(tx); err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, Data{"transfer2Tx": tx})
@@ -59,12 +59,12 @@ func TestBigchain(t *testing.T) {
 	if !FulfilledTx(tx) {
 		t.Fatal(ErrInvalidFulfillment)
 	}
-	multipleOwnersTxId, err := PostTx(tx)
+	multipleOwnersTxId, err := HttpPostTx(tx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, Data{"multipleOwnersTx": tx})
-	tx, err = GetTx(multipleOwnersTxId)
+	tx, err = HttpGetTx(multipleOwnersTxId)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,12 +75,12 @@ func TestBigchain(t *testing.T) {
 	if !FulfilledTx(tx) {
 		t.Fatal(ErrInvalidFulfillment)
 	}
-	sharedTxId, err := PostTx(tx)
+	sharedTxId, err := HttpPostTx(tx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, Data{"sharedTx": tx})
-	tx, err = GetTx(sharedTxId)
+	tx, err = HttpGetTx(sharedTxId)
 	if err != nil {
 		t.Fatal(err)
 	}

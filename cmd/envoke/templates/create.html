@@ -10,8 +10,6 @@
     <input type="text" name="iswc" placeholder="ISWC CODE" />
     <input type="text" name="lang" placeholder="LANGUAGE" />
     <input type="text" name="name" placeholder="TITLE" required />
-    <input type="text" id="publisherId" name="publisherId" placeholder="PUBLISHER ID" />
-    <button type="button" class="btn" data-clipboard-target="#publisherId">copy</button>
     <input type="text" name="url" placeholder="URL" />
     <input type="submit" value="COMPOSE" />
 </form>
@@ -25,8 +23,6 @@
     <input type="text" name="isrc" placeholder="ISRC CODE" />
     <input type="text" id="licenseId" name="licenseId" placeholder="COMPOSITION LICENSE ID" />
     <button type="button" class="btn" data-clipboard-target="#licenseId">copy</button>
-    <input type="text" id="recordLabelId" name="recordLabelId" placeholder="RECORD LABEL ID">
-    <button type="button" class="btn" data-clipboard-target="#recordLabelId">copy</button>
     <input type="text" name="url" placeholder="URL" />
     <input accept="audio" type="file" name="recording" required />
     <input type="submit" value="RECORD" />
@@ -55,13 +51,13 @@ var callback = function(responseText) {
     $("#message").text(str);
 };
 
-var clipboard = new Clipboard('.btn');
+var clipboard = new Clipboard(".btn");
 
-clipboard.on('success', function(e){
+clipboard.on("success", function(e){
     console.log(e);
 });
 
-clipboard.on('error', function(e){
+clipboard.on("error", function(e){
     console.log(e);
 });
 
