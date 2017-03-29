@@ -124,14 +124,14 @@ func MultipleOwnersCreateTx(amounts []int, data Data, ownersAfter []crypto.Publi
 	ownersBefore := []crypto.PublicKey{ownerBefore}
 	n := len(amounts)
 	if n == 0 {
-		panic(ErrorAppend(ErrCriteriaNotMet, "must have at least one amount"))
+		panic(Error("no amounts"))
 	}
 	owners := make([][]crypto.PublicKey, n)
 	if n == 1 {
 		owners[0] = ownersAfter
 	} else {
 		if n != len(ownersAfter) {
-			panic(ErrorAppend(ErrCriteriaNotMet, "must have same number of amounts as owners if number > 1"))
+			panic(Error("must have same number of amounts as owners if number > 1"))
 		}
 		for i, owner := range ownersAfter {
 			owners[i] = []crypto.PublicKey{owner}

@@ -49,7 +49,7 @@ func ValidateComposition(composition Data, outputs []Data) (Data, error) {
 	composers := spec.GetComposers(composition)
 	n := len(composers)
 	if n != len(outputs) {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "number of outputs doesn't equal number of composers")
+		return nil, Error("number of outputs doesn't equal number of composers")
 	}
 	composerKeys := make([]crypto.PublicKey, n)
 	totalShares := 0
@@ -65,15 +65,15 @@ OUTER:
 			if composerKeys[i].Equals(bigchain.GetOutputPublicKey(output)) {
 				outputs = append(outputs[:j], outputs[i+j:]...)
 				if totalShares += bigchain.GetOutputAmount(output); totalShares > 100 {
-					return nil, ErrorAppend(ErrCriteriaNotMet, "total shares exceed 100")
+					return nil, Error("total shares exceed 100")
 				}
 				continue OUTER
 			}
 		}
-		return nil, ErrorAppend(ErrCriteriaNotMet, "could not find output with composer pubkey")
+		return nil, Error("could not find output with composer pubkey")
 	}
 	if totalShares != 100 {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "total shares do not equal 100")
+		return nil, Error("total shares do not equal 100")
 	}
 	if n > 1 {
 		thresholdSignature := spec.GetURI(composition)
@@ -173,6 +173,10 @@ func ValidateRightId(rightHolderId, rightId string) (Data, error) {
 		return nil, ErrorAppend(ErrInvalidSize, "right-holder ids must have size 1 or 2")
 	}
 	outputIdx := 0
+	outputs := bigchain.GetTxOutputs(tx)
+	if n != len(outputs) {
+		return nil, ErrorAppend(ErrInvalidSize, "right must have outputs with same size as right-holder ids")
+	}
 	var recipientKey crypto.PublicKey = nil
 	senderKey := bigchain.DefaultGetTxSender(tx)
 	for i := range rightHolderIds {
@@ -181,13 +185,21 @@ func ValidateRightId(rightHolderId, rightId string) (Data, error) {
 			return nil, err
 		}
 		rightHolderKey := bigchain.DefaultGetTxSender(tx)
+		for j, output := range outputs {
+			if rightHolderKey.Equals(bigchain.GetOutputPublicKey(output)) {
+				outputs = append(outputs[:j], outputs[j+1:]...)
+				goto NEXT
+			}
+		}
+		return nil, Error("right-holder does not have right output")
+	NEXT:
 		if senderKey.Equals(rightHolderKey) {
 			if n == 1 {
-				return nil, ErrorAppend(ErrCriteriaNotMet, "only right-holder is sender")
+				return nil, Error("only right-holder is sender")
 			}
 		} else {
 			if recipientKey != nil {
-				return nil, ErrorAppend(ErrCriteriaNotMet, "sender is not second right-holder")
+				return nil, Error("sender is not second right-holder")
 			}
 			if rightHolderId == rightHolderIds[i] {
 				outputIdx = 1
@@ -200,7 +212,7 @@ func ValidateRightId(rightHolderId, rightId string) (Data, error) {
 	if err != nil {
 		return nil, err
 	}
-	outputs := bigchain.GetTxOutputs(tx)
+	outputs = bigchain.GetTxOutputs(tx)
 	rightTo := bigchain.GetTxData(tx)
 	rightToType := spec.GetType(rightTo)
 	if rightToType == "MusicComposition" {
@@ -219,44 +231,44 @@ func ValidateRightId(rightHolderId, rightId string) (Data, error) {
 		return nil, err
 	}
 	if bigchain.TRANSFER != bigchain.GetTxOperation(tx) {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "expected TRANSFER tx")
+		return nil, Error("expected TRANSFER tx")
 	}
 	if !senderKey.Equals(bigchain.DefaultGetTxSender(tx)) {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "right sender is not sender of TRANSFER tx")
+		return nil, Error("right sender is not sender of TRANSFER tx")
 	}
 	if n != len(bigchain.GetTxOutputs(tx)) {
 		return nil, ErrorAppend(ErrInvalidSize, "TRANSFER tx outputs must have same size as right-holder ids")
 	}
 	if n == 1 {
 		if !recipientKey.Equals(bigchain.GetTxRecipient(tx, 0)) {
-			return nil, ErrorAppend(ErrCriteriaNotMet, "recipient does not hold TRANSFER tx output")
+			return nil, Error("recipient does not hold TRANSFER tx output")
 		}
 		recipientShares := bigchain.GetTxOutputAmount(tx, 0)
 		if recipientShares <= 0 || recipientShares > 100 {
-			return nil, ErrorAppend(ErrCriteriaNotMet, "recipient shares must be greater than 0 and less than/equal to 100")
+			return nil, Error("recipient shares must be greater than 0 and less than/equal to 100")
 		}
 		right.Set("recipientShares", recipientShares)
 	}
 	if n == 2 {
 		if !recipientKey.Equals(bigchain.GetTxRecipient(tx, 1)) {
-			return nil, ErrorAppend(ErrCriteriaNotMet, "recipient does not hold TRANSFER tx output")
+			return nil, Error("recipient does not hold TRANSFER tx output")
 		}
 		recipientShares := bigchain.GetTxOutputAmount(tx, 1)
 		if recipientShares <= 0 || recipientShares > 100 {
-			return nil, ErrorAppend(ErrCriteriaNotMet, "recipient shares must be greater than 0 and less than/equal to 100")
+			return nil, Error("recipient shares must be greater than 0 and less than/equal to 100")
 		}
 		right.Set("recipientShares", recipientShares)
 		if !senderKey.Equals(bigchain.GetTxRecipient(tx, 0)) {
-			return nil, ErrorAppend(ErrCriteriaNotMet, "sender does not hold TRANSFER tx output")
+			return nil, Error("sender does not hold TRANSFER tx output")
 		}
 		senderShares := bigchain.GetTxOutputAmount(tx, 0)
 		if senderShares <= 0 || senderShares >= 100 {
-			return nil, ErrorAppend(ErrCriteriaNotMet, "sender shares must be greater than 0 and less than 100")
+			return nil, Error("sender shares must be greater than 0 and less than 100")
 		}
 		right.Set("senderShares", senderShares)
 	}
 	if rightToId != bigchain.GetTxAssetId(tx) {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "TRANSFER tx does not link to "+rightToType)
+		return nil, Error("TRANSFER tx does not link to " + rightToType)
 	}
 	txs, err := bigchain.HttpGetTransfers(rightToId)
 	if err != nil {
@@ -265,7 +277,7 @@ func ValidateRightId(rightHolderId, rightId string) (Data, error) {
 	for _, tx = range txs {
 		if transferId == bigchain.GetTxConsumeId(tx, 0) {
 			if outputIdx == bigchain.GetTxConsumeOutput(tx, 0) {
-				return nil, ErrorAppend(ErrCriteriaNotMet, "TRANSFER tx output has been spent")
+				return nil, Error("TRANSFER tx output has been spent")
 			}
 		}
 	}
@@ -332,14 +344,24 @@ func ValidateLicenseId(licenseId string) (Data, error) {
 	licenseHolderIds := spec.GetLicenseHolderIds(license)
 	licenserId := spec.GetLicenserId(license)
 	licenserKey := bigchain.DefaultGetTxSender(tx)
+	outputs := bigchain.GetTxOutputs(tx)
+OUTER_1:
 	for _, licenseHolderId := range licenseHolderIds {
-		// TODO: check for repeat pubkeys
 		if licenserId == licenseHolderId {
-			return nil, ErrorAppend(ErrCriteriaNotMet, "licenser cannot be licenseHolder")
+			return nil, Error("licenser cannot be license-holder")
 		}
-		if _, err = QueryAndValidateSchema(licenseHolderId, "user"); err != nil {
+		tx, err := QueryAndValidateSchema(licenseHolderId, "user")
+		if err != nil {
 			return nil, err
 		}
+		licenseHolderKey := bigchain.DefaultGetTxSender(tx)
+		for i, output := range outputs {
+			if licenseHolderKey.Equals(bigchain.GetOutputPublicKey(output)) {
+				outputs = append(outputs[:i], outputs[i+1:]...)
+				continue OUTER_1
+			}
+		}
+		return nil, Error("license-holder does not have output")
 	}
 	tx, err = QueryAndValidateSchema(licenserId, "user")
 	if err != nil {
@@ -349,7 +371,7 @@ func ValidateLicenseId(licenseId string) (Data, error) {
 		return nil, ErrorAppend(ErrInvalidKey, licenserKey.String())
 	}
 	licenseFor := spec.GetLicenseFor(license)
-OUTER:
+OUTER_2:
 	for i := range licenseFor {
 		licenseForId := spec.GetId(licenseFor[i])
 		tx, err = bigchain.HttpGetTx(licenseForId)
@@ -381,7 +403,7 @@ OUTER:
 			rightHolderIds := spec.GetRightHolderIds(right)
 			for _, rightHolderId := range rightHolderIds {
 				if licenserId == rightHolderId {
-					continue OUTER
+					continue OUTER_2
 				}
 			}
 		} else {
@@ -389,7 +411,7 @@ OUTER:
 				composers := spec.GetComposers(licensed)
 				for _, composer := range composers {
 					if licenserId != spec.GetId(composer) {
-						continue OUTER
+						continue OUTER_2
 					}
 				}
 			}
@@ -397,12 +419,12 @@ OUTER:
 				artists := spec.GetArtists(licensed)
 				for _, artist := range artists {
 					if licenserId != spec.GetId(artist) {
-						continue OUTER
+						continue OUTER_2
 					}
 				}
 			}
 		}
-		return nil, ErrorAppend(ErrCriteriaNotMet, "licenser is not artist/composer or right-holder")
+		return nil, Error("licenser is not artist/composer or right-holder")
 	}
 	return license, nil
 }
@@ -476,7 +498,7 @@ func ValidateRecording(outputs []Data, recording Data) (Data, error) {
 	artists := spec.GetArtists(recording)
 	n := len(artists)
 	if n != len(outputs) {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "number of outputs doesn't equal number of artists")
+		return nil, Error("number of outputs doesn't equal number of artists")
 	}
 	recordingOf := spec.GetRecordingOf(recording)
 	compositionId := spec.GetId(recordingOf)
@@ -517,7 +539,7 @@ OUTER:
 			if artistKeys[i].Equals(bigchain.GetOutputPublicKey(output)) {
 				outputs = append(outputs[:j], outputs[j+1:]...)
 				if totalShares += bigchain.GetOutputAmount(output); totalShares > 100 {
-					return nil, ErrorAppend(ErrCriteriaNotMet, "total shares exceed 100")
+					return nil, Error("total shares exceed 100")
 				}
 				for k, composer := range composers {
 					if artistId == spec.GetId(composer) {
@@ -533,13 +555,13 @@ OUTER:
 						}
 					}
 				}
-				return nil, ErrorAppend(ErrCriteriaNotMet, "artist is not composer/does not have mechanical license")
+				return nil, Error("artist is not composer/does not have mechanical license")
 			}
 		}
-		return nil, ErrorAppend(ErrCriteriaNotMet, "could not find output with artist pubkey")
+		return nil, Error("could not find output with artist pubkey")
 	}
 	if totalShares != 100 {
-		return nil, ErrorAppend(ErrCriteriaNotMet, "total shares do not equal 100")
+		return nil, Error("total shares do not equal 100")
 	}
 	if n > 1 {
 		thresholdSignature := spec.GetURI(recording)
@@ -670,7 +692,7 @@ OUTER:
 				continue OUTER
 			}
 		}
-		return nil, ErrorAppend(ErrCriteriaNotMet, "recordLabel is not recording right-holder")
+		return nil, Error("record label is not recording right-holder")
 	}
 	return release, nil
 }

@@ -8,7 +8,7 @@ import (
 	// "github.com/dhowden/tag"
 	"github.com/zbo14/envoke/bigchain"
 	. "github.com/zbo14/envoke/common"
-	// cc "github.com/zbo14/envoke/crypto/conditions"
+	cc "github.com/zbo14/envoke/crypto/conditions"
 	"github.com/zbo14/envoke/crypto/crypto"
 	"github.com/zbo14/envoke/crypto/ed25519"
 	ld "github.com/zbo14/envoke/linked_data"
@@ -115,6 +115,7 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	var right Data
 	rightHolderId := req.PostFormValue("rightHolderId")
 	rightToId := req.PostFormValue("rightToId")
 	tx, err := ld.QueryAndValidateSchema(rightHolderId, "user")
@@ -132,7 +133,11 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	right, err := api.DefaultSendIndividualCreateTx(spec.NewRight(rightHolderIds, rightToId, transferId))
+	if n := len(rightHolderIds); n == 1 {
+		right, err = api.SendIndividualCreateTx(1, spec.NewRight(rightHolderIds, rightToId, transferId), rightHolderKey)
+	} else if n == 2 {
+		right, err = api.SendMultipleOwnersCreateTx([]int{1, 1}, spec.NewRight(rightHolderIds, rightToId, transferId), []crypto.PublicKey{api.pub, rightHolderKey})
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -293,12 +298,37 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
 	}
+	var err error
+	var license Data
 	licenseForIds := SplitStr(req.PostFormValue("licenseForIds"), ",")
 	licenseHolderIds := SplitStr(req.PostFormValue("licenseHolderIds"), ",")
 	rightIds := SplitStr(req.PostFormValue("rightId"), ",")
 	validFrom := req.PostFormValue("validFrom")
 	validThrough := req.PostFormValue("validThrough")
-	license, err := api.DefaultSendIndividualCreateTx(spec.NewLicense(licenseForIds, licenseHolderIds, api.id, rightIds, validFrom, validThrough))
+	if n := len(licenseHolderIds); n == 1 {
+		tx, err := ld.QueryAndValidateSchema(licenseHolderIds[0], "user")
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		owner := bigchain.DefaultGetTxSender(tx)
+		license, err = api.SendIndividualCreateTx(1, spec.NewLicense(licenseForIds, licenseHolderIds, api.id, rightIds, validFrom, validThrough), owner)
+	} else if n > 1 {
+		amounts := make([]int, n)
+		owners := make([]crypto.PublicKey, n)
+		for i, licenseHolderId := range licenseHolderIds {
+			amounts[i] = 1
+			tx, err := ld.QueryAndValidateSchema(licenseHolderId, "user")
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			owners[i] = bigchain.DefaultGetTxSender(tx)
+		}
+		license, err = api.SendMultipleOwnersCreateTx(amounts, spec.NewLicense(licenseForIds, licenseHolderIds, api.id, rightIds, validFrom, validThrough), owners)
+	} else {
+		http.Error(w, ErrorAppend(ErrInvalidSize, "zero license-holder ids").Error(), http.StatusBadRequest)
+	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -466,7 +496,6 @@ func (api *Api) Verify(params url.Values) error {
 	}
 }
 
-/*
 func (api *Api) Sign(txId string) (cc.Fulfillment, error) {
 	tx, err := bigchain.HttpGetTx(txId)
 	if err != nil {
@@ -479,6 +508,20 @@ func (api *Api) Sign(txId string) (cc.Fulfillment, error) {
 		sig.(*ed25519.Signature),
 	), nil
 }
+
+func Threshold(thresholdSignatures []string) (cc.Fulfillment, error) {
+	var err error
+	subs := make(cc.Fulfillments, len(thresholdSignatures))
+	for i, thresholdSignature := range thresholdSignatures {
+		subs[i], err = cc.DefaultUnmarshalURI(thresholdSignature)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return cc.DefaultFulfillmentThreshold(subs), nil
+}
+
+/*
 
 func (api *Api) SignHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
@@ -501,18 +544,6 @@ func (api *Api) SignHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, ful.String())
 }
 
-func Threshold(thresholdSignatures []string) (cc.Fulfillment, error) {
-	var err error
-	subs := make(cc.Fulfillments, len(thresholdSignatures))
-	for i, thresholdSignature := range thresholdSignatures {
-		subs[i], err = cc.DefaultUnmarshalURI(thresholdSignature)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return cc.DefaultFulfillmentThreshold(subs), nil
-}
-
 func (api *Api) ThresholdHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
 		http.Error(w, ErrExpectedGet.Error(), http.StatusBadRequest)
@@ -532,6 +563,7 @@ func (api *Api) ThresholdHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	WriteJSON(w, ful.String())
 }
+
 */
 
 func (api *Api) LoggedIn() bool {

@@ -116,7 +116,7 @@ func TestApi(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	compositionRight, err := api.DefaultSendIndividualCreateTx(spec.NewRight(rightHolderIds, compositionId, transferId))
+	compositionRight, err := api.SendMultipleOwnersCreateTx([]int{1, 1}, spec.NewRight(rightHolderIds, compositionId, transferId), []crypto.PublicKey{composerPriv.Public(), publisherPriv.Public()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -139,7 +139,7 @@ func TestApi(t *testing.T) {
 	if err = api.Login(publisherId, publisherPriv.String()); err != nil {
 		t.Fatal(err)
 	}
-	mechanicalLicense, err := api.DefaultSendIndividualCreateTx(spec.NewLicense([]string{compositionId}, []string{performerId, producerId, recordLabelId}, publisherId, []string{compositionRightId}, "2020-01-01", "2024-01-01"))
+	mechanicalLicense, err := api.SendMultipleOwnersCreateTx([]int{1, 1, 1}, spec.NewLicense([]string{compositionId}, []string{performerId, producerId, recordLabelId}, publisherId, []string{compositionRightId}, "2020-01-01", "2024-01-01"), []crypto.PublicKey{performerPriv.Public(), producerPriv.Public(), recordLabelPriv.Public()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -239,7 +239,7 @@ func TestApi(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	recordingRight, err := api.DefaultSendIndividualCreateTx(spec.NewRight(rightHolderIds, recordingId, transferId))
+	recordingRight, err := api.SendMultipleOwnersCreateTx([]int{1, 1}, spec.NewRight(rightHolderIds, recordingId, transferId), []crypto.PublicKey{performerPriv.Public(), recordLabelPriv.Public()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -275,7 +275,7 @@ func TestApi(t *testing.T) {
 	if err = ld.VerifyRecordLabel(CHALLENGE, releaseId, sig); err != nil {
 		t.Fatal(err)
 	}
-	masterLicense, err := api.DefaultSendIndividualCreateTx(spec.NewLicense([]string{recordingId}, []string{radioId}, recordLabelId, []string{recordingRightId}, "2020-01-01", "2022-01-01"))
+	masterLicense, err := api.SendIndividualCreateTx(1, spec.NewLicense([]string{recordingId}, []string{radioId}, recordLabelId, []string{recordingRightId}, "2020-01-01", "2022-01-01"), radioPriv.Public())
 	if err != nil {
 		t.Fatal(err)
 	}

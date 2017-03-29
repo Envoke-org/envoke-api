@@ -25,6 +25,7 @@ In a terminal window, `cd ~/go/src/github.com/Envoke-org/envoke-cli`...
 	`sh run_tests.sh`
 
 	You will be prompted to enter...
+	
 		- a path to a directory for user credentials
 		- an endpoint to the BigchainDB/IPDB http-api
 		- a path to an audio file
