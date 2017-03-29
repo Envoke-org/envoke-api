@@ -58,8 +58,8 @@ window.onload = function() {
     var licenseForm = $("#license-form");
     licenseForm.submit(function(event) {
         event.preventDefault();
-        var formData = licenseForm.serialize();
-        httpPostAsync("http://localhost:8888/license_handler", formData, callback);
+        var formData = new FormData(event.target);
+        httpPostAsync("http://localhost:8888/license", formData, callback);
     });
 }
 </script>

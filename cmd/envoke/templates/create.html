@@ -66,15 +66,16 @@ window.onload = function() {
     var composeForm = $("#compose-form");
     composeForm.submit(function(event) {
         event.preventDefault();
-        var formData = composeForm.serialize();
-        httpPostAsync("http://localhost:8888/compose_handler", formData, callback);
+        var formData = new FormData(event.target);
+        console.log(formData);
+        httpPostAsync("http://localhost:8888/compose", formData, callback);
     });
 
     var recordForm = $("#record-form");
     recordForm.submit(function(event) {
         event.preventDefault();
         var formData = new FormData(event.target);
-        httpPostAsync("http://localhost:8888/record_handler", formData, callback);
+        httpPostAsync("http://localhost:8888/record", formData, callback);
     });
 }
 </script>

@@ -56,7 +56,7 @@ func ValidateComposition(composition Data, outputs []Data) (Data, error) {
 OUTER:
 	for i, composer := range composers {
 		// TODO: check for repeat pubkeys
-		tx, err := QueryAndValidateSchema(spec.GetId(composer), "party")
+		tx, err := QueryAndValidateSchema(spec.GetId(composer), "user")
 		if err != nil {
 			return nil, err
 		}
@@ -76,16 +76,16 @@ OUTER:
 		return nil, ErrorAppend(ErrCriteriaNotMet, "total shares do not equal 100")
 	}
 	if n > 1 {
-		uri := spec.GetURI(composition)
-		ful, err := cc.DefaultUnmarshalURI(uri)
+		thresholdSignature := spec.GetURI(composition)
+		ful, err := cc.DefaultUnmarshalURI(thresholdSignature)
 		if err != nil {
 			return nil, err
 		}
-		thresh := cc.DefaultFulfillmentThresholdFromPubKeys(composerKeys)
-		if cc.GetCondition(ful).String() != cc.GetCondition(thresh).String() {
+		thresholdFulfillment := cc.DefaultFulfillmentThresholdFromPubKeys(composerKeys)
+		if cc.GetCondition(ful).String() != cc.GetCondition(thresholdFulfillment).String() {
 			return nil, ErrInvalidCondition
 		}
-		composition.Delete("uri")
+		composition.Delete("thresholdSignature")
 		buf := new(bytes.Buffer)
 		checksum := Checksum256(MustMarshalJSON(composition))
 		for i := 0; i < n; i++ {
@@ -94,11 +94,11 @@ OUTER:
 		if !ful.Validate(buf.Bytes()) {
 			return nil, ErrorAppend(ErrInvalidFulfillment, ful.String())
 		}
-		composition.Set("uri", uri)
+		composition.Set("thresholdSignature", thresholdSignature)
 	}
 	publisherId := spec.GetPublisherId(composition)
 	if !EmptyStr(publisherId) {
-		if _, err := QueryAndValidateSchema(publisherId, "party"); err != nil {
+		if _, err := QueryAndValidateSchema(publisherId, "user"); err != nil {
 			return nil, err
 		}
 	}
@@ -176,7 +176,7 @@ func ValidateRightId(rightHolderId, rightId string) (Data, error) {
 	var recipientKey crypto.PublicKey = nil
 	senderKey := bigchain.DefaultGetTxSender(tx)
 	for i := range rightHolderIds {
-		tx, err = QueryAndValidateSchema(rightHolderIds[i], "party")
+		tx, err = QueryAndValidateSchema(rightHolderIds[i], "user")
 		if err != nil {
 			return nil, err
 		}
@@ -337,11 +337,11 @@ func ValidateLicenseId(licenseId string) (Data, error) {
 		if licenserId == licenseHolderId {
 			return nil, ErrorAppend(ErrCriteriaNotMet, "licenser cannot be licenseHolder")
 		}
-		if _, err = QueryAndValidateSchema(licenseHolderId, "party"); err != nil {
+		if _, err = QueryAndValidateSchema(licenseHolderId, "user"); err != nil {
 			return nil, err
 		}
 	}
-	tx, err = QueryAndValidateSchema(licenserId, "party")
+	tx, err = QueryAndValidateSchema(licenserId, "user")
 	if err != nil {
 		return nil, err
 	}
@@ -508,7 +508,7 @@ OUTER:
 	for i, artist := range artists {
 		// TODO: check for repeat pubkeys
 		artistId := spec.GetId(artist)
-		tx, err := QueryAndValidateSchema(artistId, "party")
+		tx, err := QueryAndValidateSchema(artistId, "user")
 		if err != nil {
 			return nil, err
 		}
@@ -542,16 +542,16 @@ OUTER:
 		return nil, ErrorAppend(ErrCriteriaNotMet, "total shares do not equal 100")
 	}
 	if n > 1 {
-		uri := spec.GetURI(recording)
-		ful, err := cc.DefaultUnmarshalURI(uri)
+		thresholdSignature := spec.GetURI(recording)
+		ful, err := cc.DefaultUnmarshalURI(thresholdSignature)
 		if err != nil {
 			return nil, err
 		}
-		thresh := cc.DefaultFulfillmentThresholdFromPubKeys(artistKeys)
-		if cc.GetCondition(ful).String() != cc.GetCondition(thresh).String() {
+		thresholdFulfillment := cc.DefaultFulfillmentThresholdFromPubKeys(artistKeys)
+		if cc.GetCondition(ful).String() != cc.GetCondition(thresholdFulfillment).String() {
 			return nil, ErrInvalidCondition
 		}
-		recording.Delete("uri")
+		recording.Delete("thresholdSignature")
 		buf := new(bytes.Buffer)
 		checksum := Checksum256(MustMarshalJSON(recording))
 		for i := 0; i < n; i++ {
@@ -560,11 +560,11 @@ OUTER:
 		if !ful.Validate(buf.Bytes()) {
 			return nil, ErrorAppend(ErrInvalidFulfillment, ful.String())
 		}
-		recording.Set("uri", uri)
+		recording.Set("thresholdSignature", thresholdSignature)
 	}
 	recordLabelId := spec.GetRecordLabelId(recording)
 	if !EmptyStr(recordLabelId) {
-		if _, err = QueryAndValidateSchema(recordLabelId, "party"); err != nil {
+		if _, err = QueryAndValidateSchema(recordLabelId, "user"); err != nil {
 			return nil, err
 		}
 		for i, licenseHolderId := range licenseHolderIds {
@@ -638,7 +638,7 @@ func ValidateReleaseId(releaseId string) (Data, error) {
 	release := bigchain.GetTxData(tx)
 	recordLabelId := spec.GetRecordLabelId(release)
 	recordLabelKey := bigchain.DefaultGetTxSender(tx)
-	tx, err = QueryAndValidateSchema(recordLabelId, "party")
+	tx, err = QueryAndValidateSchema(recordLabelId, "user")
 	if err != nil {
 		return nil, err
 	}

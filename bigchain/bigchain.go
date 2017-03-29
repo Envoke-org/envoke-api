@@ -228,7 +228,7 @@ func FulfilledTx(tx Data) bool {
 	return fulfilled
 }
 
-// TODO: cleanup
+// TODO: cleanup!
 
 // for convenience
 func GetId(data Data) string {

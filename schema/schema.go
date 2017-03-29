@@ -14,8 +14,8 @@ func ValidateSchema(model Data, _type string) error {
 	var schemaLoader jsonschema.JSONLoader
 	modelLoader := jsonschema.NewGoLoader(model)
 	switch _type {
-	case "party":
-		schemaLoader = PartyLoader
+	case "user":
+		schemaLoader = UserLoader
 	case "composition":
 		schemaLoader = CompositionLoader
 	case "license":
@@ -51,9 +51,9 @@ var link = Sprintf(`{
 	"required": ["@id"]
 }`, regex.ID)
 
-var PartyLoader = jsonschema.NewStringLoader(Sprintf(`{
+var UserLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"$schema": "%s",
-	"title": "Party",
+	"title": "User",
 	"type": "object",
 	"definitions": {
 		"link": %s
@@ -98,7 +98,7 @@ var PartyLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "string"
 		}
 	},
-	"required": ["@context", "@type", "name"]
+	"required": ["@context", "@type", "name", "sameAs"]
 }`, SCHEMA, link, spec.CONTEXT, regex.EMAIL, regex.IPI, regex.ISNI, regex.PRO))
 
 var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
@@ -150,7 +150,7 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 		"publisher": {
 			"$ref": "#/definitions/link"
 		},
-		"uri": {
+		"thresholdSignature": {
 			"type": "string",
 			"pattern": "%s"
 		},
@@ -165,7 +165,7 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 					"type": "array"
 				}
 			},
-			"required": ["uri"]
+			"required": ["thresholdSignature"]
 		},
 		{
 			"properties": {
@@ -174,7 +174,7 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 				}
 			},
 			"not": {
-				"required": ["uri"]
+				"required": ["thresholdSignature"]
 			}
 		}
 	],
@@ -242,7 +242,7 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 		"recordLabel": {
 			"$ref": "#/definitions/link"
 		},
-		"uri": {
+		"thresholdSignature": {
 			"type": "string",
 			"pattern": "%s"
 		},
@@ -257,7 +257,7 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 					"type": "array"
 				}
 			},
-			"required": ["uri"]
+			"required": ["thresholdSignature"]
 		},
 		{
 			"properties": {
@@ -266,7 +266,7 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 				}
 			},
 			"not": {
-				"required": ["uri"]
+				"required": ["thresholdSignature"]
 			}
 		}
 	],

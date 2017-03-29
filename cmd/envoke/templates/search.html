@@ -3,8 +3,9 @@
 {{end}}
 
 {{define "body"}}
-<form id="search-form" name="search-form">
+<form id="search-form" name="search-form" method="GET">
     <header>SEARCH</header>
+    <input type="text" name="action" value="search" hidden>
     <select form="search-form" id="type" name="type">
         <option value="" selected disabled>--TYPE--</option>
         <option value="composition">COMPOSITION</option>
@@ -12,15 +13,15 @@
         <option value="recording">RECORDING</option> 
     </select><br><br>
     <input type="text" id="name" name="name" placeholder="TITLE">
-    <input type="text" id="partyId" name="partyId" required>
-    <button type="button" class="btn" data-clipboard-target="#partyId">copy</button>
+    <input type="text" id="userId" name="userId" required>
+    <button type="button" class="btn" data-clipboard-target="#userId">copy</button>
     <input type="submit" value="SEARCH" />
 </form>
 <br><br>
 <pre id="message" style="color:#97cc5f; font-size: 1.2em;"></pre>
 <script type="text/javascript">
 
-function httpPostAsync(addr, data, callback) {
+function httpGetAsync(addr, data, callback) {
     var xhr = new XMLHttpRequest ();
     xhr.onreadystatechange = function() {
         if (xhr.readyState == 4) {
@@ -31,7 +32,7 @@ function httpPostAsync(addr, data, callback) {
             };
         };
     };
-    xhr.open("POST", addr, true); 
+    xhr.open("GET", addr, true); 
     xhr.send(data);
 };
 
@@ -59,23 +60,16 @@ window.onload = function() {
     type.change(function() {
         if (type.val() == "composition") {
             $("#name").show();
-            $("#partyId").attr("placeholder", "COMPOSER ID");
+            $("#userId").attr("placeholder", "COMPOSER ID");
         } else if (type.val() == "license") {
             $("#name").hide();
-            $("#partyId").attr("placeholder", "LICENSE-HOLDER ID");
+            $("#userId").attr("placeholder", "LICENSE-HOLDER ID");
         } else if (type.val() == "recording") {
             $("#name").show();
-            $("#partyId").attr("placeholder", "ARTIST ID");
+            $("#userId").attr("placeholder", "ARTIST ID");
         } else {
             //..
         }
-    });
-
-    var searchForm = $("#search-form");
-    searchForm.submit(function(event){
-        event.preventDefault();
-        var formData = searchForm.serialize();
-        httpPostAsync("http://localhost:8888/search_handler", formData, callback);
     });
 }
 </script>

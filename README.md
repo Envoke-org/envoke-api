@@ -1,6 +1,6 @@
 ## envoke-cli
 
-A demo client-side application for persisting music metadata and rights to BigchainDB/IPDB.
+A demo client-side application for persisting, querying, and validating music metadata in BigchainDB/IPDB.
 
 ### Install 
 
@@ -24,4 +24,7 @@ In a terminal window, `cd ~/go/src/github.com/Envoke-org/envoke-cli`...
 
 	`sh run_tests.sh`
 
-	You will be prompted to enter an endpoint to the BigchainDB/IPDB http-api and a path to an audio file.
+	You will be prompted to enter...
+		- a path to a directory for user credentials
+		- an endpoint to the BigchainDB/IPDB http-api
+		- a path to an audio file

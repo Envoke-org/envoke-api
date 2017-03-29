@@ -30,7 +30,7 @@ func TestApi(t *testing.T) {
 	api := NewApi()
 	output := MustOpenWriteFile("output.json")
 	composer, err := api.Register(
-		spec.NewParty("composer@email.com", "", "", nil, "composer", "", "www.composer.com", "Person"),
+		spec.NewUser("composer@email.com", "", "", nil, "composer", "", "www.composer.com", "Person"),
 		"itisasecret",
 		DIR+"composer",
 	)
@@ -41,7 +41,7 @@ func TestApi(t *testing.T) {
 	composerPriv := GetPrivateKey(composer)
 	WriteJSON(output, composer)
 	recordLabel, err := api.Register(
-		spec.NewParty("record_label@email.com", "", "", nil, "record_label", "", "www.record_label.com", "Organization"),
+		spec.NewUser("record_label@email.com", "", "", nil, "record_label", "", "www.record_label.com", "Organization"),
 		"shhhh",
 		DIR+"record_label",
 	)
@@ -52,7 +52,7 @@ func TestApi(t *testing.T) {
 	recordLabelPriv := GetPrivateKey(recordLabel)
 	WriteJSON(output, recordLabel)
 	performer, err := api.Register(
-		spec.NewParty("performer@email.com", "123456789", "", nil, "performer", "ASCAP", "www.performer.com", "MusicGroup"),
+		spec.NewUser("performer@email.com", "123456789", "", nil, "performer", "ASCAP", "www.performer.com", "MusicGroup"),
 		"makeitup",
 		DIR+"performer",
 	)
@@ -63,7 +63,7 @@ func TestApi(t *testing.T) {
 	performerPriv := GetPrivateKey(performer)
 	WriteJSON(output, performer)
 	producer, err := api.Register(
-		spec.NewParty("producer@email.com", "", "", nil, "producer", "", "www.soundcloud_page.com", "Person"),
+		spec.NewUser("producer@email.com", "", "", nil, "producer", "", "www.soundcloud_page.com", "Person"),
 		"1234",
 		DIR+"producer",
 	)
@@ -74,7 +74,7 @@ func TestApi(t *testing.T) {
 	producerPriv := GetPrivateKey(producer)
 	WriteJSON(output, producer)
 	publisher, err := api.Register(
-		spec.NewParty("publisher@email.com", "", "", nil, "publisher", "", "www.publisher.com", "Organization"),
+		spec.NewUser("publisher@email.com", "", "", nil, "publisher", "", "www.publisher.com", "Organization"),
 		"didyousaysomething?",
 		DIR+"publisher",
 	)
@@ -85,7 +85,7 @@ func TestApi(t *testing.T) {
 	publisherPriv := GetPrivateKey(publisher)
 	WriteJSON(output, publisher)
 	radio, err := api.Register(
-		spec.NewParty("radio@email.com", "", "", nil, "radio", "", "www.radio_station.com", "Organization"),
+		spec.NewUser("radio@email.com", "", "", nil, "radio", "", "www.radio_station.com", "Organization"),
 		"waves",
 		DIR+"radio",
 	)
@@ -98,7 +98,7 @@ func TestApi(t *testing.T) {
 	if err := api.Login(composerId, composerPriv.String()); err != nil {
 		t.Fatal(err)
 	}
-	composition, err := api.Compose(spec.NewComposition([]string{composerId}, "B3107S", "T-034.524.680-1", "EN", "composition_title", publisherId, "", "www.composition_url"), nil)
+	composition, err := api.Compose(spec.NewComposition([]string{composerId}, "B3107S", "T-034.524.680-1", "EN", "composition_title", publisherId, "", "www.composition_url.com"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,11 +112,11 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	SleepSeconds(2)
-	transferId, err := api.Transfer(compositionId, compositionId, 0, publisherPriv.Public(), 20)
+	transferId, rightHolderIds, err := api.Transfer(compositionId, compositionId, 0, publisherPriv.Public(), publisherId, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
-	compositionRight, err := api.DefaultSendIndividualCreateTx(spec.NewRight([]string{composerId, publisherId}, compositionId, transferId))
+	compositionRight, err := api.DefaultSendIndividualCreateTx(spec.NewRight(rightHolderIds, compositionId, transferId))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -213,7 +213,7 @@ func TestApi(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	signRecording.Set("uri", thresh.String())
+	signRecording.Set("thresholdSignature", thresh.String())
 	recording, err = api.Record(file, []int{80, 20}, signRecording)
 	if err != nil {
 		t.Fatal(err)
@@ -235,11 +235,11 @@ func TestApi(t *testing.T) {
 	if err = ld.VerifyArtist(producerId, CHALLENGE, recordingId, sig); err != nil {
 		t.Fatal(err)
 	}
-	transferId, err = api.Transfer(recordingId, recordingId, 0, recordLabelPriv.Public(), 20)
+	transferId, rightHolderIds, err = api.Transfer(recordingId, recordingId, 0, recordLabelPriv.Public(), recordLabelId, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
-	recordingRight, err := api.DefaultSendIndividualCreateTx(spec.NewRight([]string{performerId, recordLabelId}, recordingId, transferId))
+	recordingRight, err := api.DefaultSendIndividualCreateTx(spec.NewRight(rightHolderIds, recordingId, transferId))
 	if err != nil {
 		t.Fatal(err)
 	}

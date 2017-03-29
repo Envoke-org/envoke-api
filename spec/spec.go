@@ -27,8 +27,8 @@ func GetType(data Data) string {
 	return data.GetStr("@type")
 }
 
-func NewParty(email, ipi, isni string, memberIds []string, name, pro, sameAs, _type string) Data {
-	party := Data{
+func NewUser(email, ipi, isni string, memberIds []string, name, pro, sameAs, _type string) Data {
+	user := Data{
 		"@context": CONTEXT,
 		"@type":    _type,
 		"name":     name,
@@ -43,7 +43,7 @@ func NewParty(email, ipi, isni string, memberIds []string, name, pro, sameAs, _t
 				}
 				member[i] = NewLink(memberId)
 			}
-			party.Set("member", member)
+			user.Set("member", member)
 		}
 	case "Person":
 		//..
@@ -51,21 +51,21 @@ func NewParty(email, ipi, isni string, memberIds []string, name, pro, sameAs, _t
 		panic(ErrorAppend(ErrInvalidType, _type))
 	}
 	if MatchStr(regex.EMAIL, email) {
-		party.Set("email", email)
+		user.Set("email", email)
 	}
 	if MatchStr(regex.IPI, ipi) {
-		party.Set("ipiNumber", ipi)
+		user.Set("ipiNumber", ipi)
 	}
 	if MatchStr(regex.ISNI, isni) {
-		party.Set("isniNumber", isni)
+		user.Set("isniNumber", isni)
 	}
 	if MatchStr(regex.PRO, pro) {
-		party.Set("pro", pro)
+		user.Set("pro", pro)
 	}
 	if MatchUrlRelaxed(sameAs) {
-		party.Set("sameAs", sameAs)
+		user.Set("sameAs", sameAs)
 	}
-	return party
+	return user
 }
 
 func GetDescription(data Data) string {
@@ -105,7 +105,7 @@ func GetSameAs(data Data) string {
 	return data.GetStr("sameAs")
 }
 
-func NewComposition(composerIds []string, hfa, iswc, lang, name, publisherId string, uri, url string) Data {
+func NewComposition(composerIds []string, hfaCode, inLanguage, iswcCode, name, publisherId string, thresholdSignature, url string) Data {
 	composition := Data{
 		"@context": CONTEXT,
 		"@type":    "MusicComposition",
@@ -122,20 +122,20 @@ func NewComposition(composerIds []string, hfa, iswc, lang, name, publisherId str
 		}
 		composition.Set("composer", composers)
 	}
-	if MatchStr(regex.HFA, hfa) {
-		composition.Set("hfaCode", hfa)
+	if MatchStr(regex.HFA, hfaCode) {
+		composition.Set("hfaCode", hfaCode)
 	}
-	if MatchStr(regex.ISWC, iswc) {
-		composition.Set("iswcCode", iswc)
+	if MatchStr(regex.ISWC, iswcCode) {
+		composition.Set("iswcCode", iswcCode)
 	}
-	if MatchStr(regex.LANGUAGE, lang) {
-		composition.Set("inLanguage", lang)
+	if MatchStr(regex.LANGUAGE, inLanguage) {
+		composition.Set("inLanguage", inLanguage)
 	}
 	if MatchId(publisherId) {
 		composition.Set("publisher", NewLink(publisherId))
 	}
-	if MatchStr(regex.FULFILLMENT, uri) {
-		composition.Set("uri", uri)
+	if MatchStr(regex.FULFILLMENT, thresholdSignature) {
+		composition.Set("thresholdSignature", thresholdSignature)
 	}
 	if MatchUrlRelaxed(url) {
 		composition.Set("url", url)
@@ -164,7 +164,7 @@ func GetLanguage(data Data) string {
 }
 
 func GetURI(data Data) string {
-	return data.GetStr("uri")
+	return data.GetStr("thresholdSignature")
 }
 
 func GetPublisherId(data Data) string {
@@ -172,7 +172,7 @@ func GetPublisherId(data Data) string {
 	return GetId(publisher)
 }
 
-func NewRecording(artistIds []string, compositionId, duration, isrc, licenseId string, recordLabelId string, uri, url string) Data {
+func NewRecording(artistIds []string, compositionId, duration, isrcCode, licenseId string, recordLabelId string, thresholdSignature, url string) Data {
 	recording := Data{
 		"@context":    CONTEXT,
 		"@type":       "MusicRecording",
@@ -192,8 +192,8 @@ func NewRecording(artistIds []string, compositionId, duration, isrc, licenseId s
 	if !EmptyStr(duration) {
 		recording.Set("duration", duration)
 	}
-	if MatchStr(regex.ISRC, isrc) {
-		recording.Set("isrcCode", isrc)
+	if MatchStr(regex.ISRC, isrcCode) {
+		recording.Set("isrcCode", isrcCode)
 	}
 	if MatchId(licenseId) {
 		recording.SetInnerValue(NewLink(licenseId), "recordingOf", "hasLicense")
@@ -201,8 +201,8 @@ func NewRecording(artistIds []string, compositionId, duration, isrc, licenseId s
 	if MatchId(recordLabelId) {
 		recording.Set("recordLabel", NewLink(recordLabelId))
 	}
-	if MatchStr(regex.FULFILLMENT, uri) {
-		recording.Set("uri", uri)
+	if MatchStr(regex.FULFILLMENT, thresholdSignature) {
+		recording.Set("thresholdSignature", thresholdSignature)
 	}
 	if MatchUrlRelaxed(url) {
 		recording.Set("url", url)
@@ -223,7 +223,7 @@ func GetDuration(data Data) string {
 }
 
 func GetISRC(data Data) string {
-	return data.GetStr("isrc")
+	return data.GetStr("isrcCode")
 }
 
 func GetLicenseId(data Data) string {
