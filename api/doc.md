@@ -20,18 +20,18 @@
 * **Data Params**
 	```javascript
 	u: {
-					// REQUIRED
-						composerIds: [array|hexadecimal],
-						name: [string],
+		// Required
+		composerIds: [array|hexadecimal],
+		name: [string],
 					
-						// OPTIONAL
-						hfaCode: [alphanumeric],
-						inLanguage: [string],
-						iswcCode: [alphanumeric & special characters],
-						publisherId: [hexadecimal],
-						splits: [array],
-						thresholdSignature: [cf:number:base64],
-						url: [url]
+		// Optional
+		hfaCode: [alphanumeric],
+		inLanguage: [string],
+		iswcCode: [alphanumeric & special characters],
+		publisherId: [hexadecimal],
+		splits: [array],
+		thresholdSignature: [cf:number:base64],
+		url: [url]
 	}
 	```   
 		
@@ -39,28 +39,28 @@
 
 	* **Code**: 200
 	
-			**Content**: 
-				```javascript
-				{ 
-					"@context": "<context placeholder>",
-						"@type": "MusicComposition",
-						"composer": {
-								"@id": "<composerId>"
-						},
-						"hfaCode": "<hfaCode>",     // ex. "B3107S"
-						"inLanguage": "<inLanguage>", // ex. "EN"
-						"iswcCode": "<iswcCode>",   // ex. "T-034.524.680-1"
-						"name": "<name>",
-						"publisher": {
-								"@id": "<publisherId>"
-						},
-						"url": "<url>"
-				} 
-				```
+		**Content**: 
+		```javascript
+		{ 
+			"@context": "<context placeholder>",
+			"@type": "MusicComposition",
+			"composer": {
+				"@id": "<composerId>"
+			},
+			"hfaCode": "<hfaCode>",		// ex. "B3107S"
+			"inLanguage": "<inLanguage>",	// ex. "EN"
+			"iswcCode": "<iswcCode>",	// ex. "T-034.524.680-1"
+			"name": "<name>",
+			"publisher": {
+				"@id": "<publisherId>"
+			},
+			"url": "<url>"
+		} 
+		```
 
 * **Error Response**
 	
-		* **Code**: 400
+	* **Code**: 400
 
 ### License
 * **Purpose**
@@ -73,20 +73,20 @@
 
 * **Method**
 	
-		`POST`
+	`POST`
 
 * **Data Params**
 	```javascript
-		u: {
-			// REQUIRED
-					licenseForIds: [array],
-						licenseHolderIds: [array],
-						licenserId: [hexadecimal],
-						validFrom: [date],      // ISO 8601
-						validTo: [date],      // ...
-					
-						// OPTIONAL
-						rightIds: [array]
+	u: {
+		// Required
+		licenseForIds: [array],
+		licenseHolderIds: [array],
+		licenserId: [hexadecimal],
+		validFrom: [date],		// ISO 8601
+		validTo: [date],		// ...
+
+		// Optional
+		rightIds: [array]
 	}
 	```
 	
@@ -94,41 +94,41 @@
 
 	* **Code**: 200
 	
-			**Content**:
-				```javascript
+		**Content**:
+		```javascript
+		{
+			"@context": "<context placeholder>",
+			"@type": "License",
+			"licenseFor": [
 				{
-						"@context": "<context placeholder>",
-						"@type": "License",
-						"licenseFor": [
-								{
-										"@id": "<licenseForId>",
-										"hasRight": {
-												"@id": "<rightId>"
-										}
-								}
-						],
-						"licenseHolder": [
-								{
-										"@id": "<licenseHolderId1>"
-								},
-								{
-										"@id": "<licenseHolderId2>"
-								},
-								{
-										"@id": "<licenseHolderId3>"
-								}
-						],
-						"licenser": {
-								"@id": "<licenserId>"
-						},
-						"validFrom": "<validFrom>",   // ex. "2020-01-01"
-						"validThrough": "<validTo>"   // ex. "2024-01-01"
+					"@id": "<licenseForId>",
+					"hasRight": {
+						"@id": "<rightId>"
+					}
 				}
-				```
+			],
+			"licenseHolder": [
+				{
+					"@id": "<licenseHolderId1>"
+				},
+				{
+					"@id": "<licenseHolderId2>"
+				},
+				{
+					"@id": "<licenseHolderId3>"
+				}
+			],
+			"licenser": {
+				"@id": "<licenserId>"
+			},
+			"validFrom": "<validFrom>",	// ex. "2020-01-01"
+			"validThrough": "<validTo>"	// ex. "2024-01-01"
+		}
+		```
 
 * **Error Response**
 	
-		* **Code**: 400
+	* **Code**: 400
 
 ### Prove 
 * **Purpose**
@@ -138,7 +138,7 @@
 		
 * **URL**
 	
-		`/prove`
+	`/prove?key=value&...`
 		
 * **Method**
 
@@ -156,8 +156,6 @@
 
 * **Success Response**
 	* **Code**: 200
-		
-			**Content**:
 			
 * **Error Response**
 	* **Code**: 400
@@ -179,58 +177,58 @@
 * **Data Params**
 	```javascript
 	u: {
-			// Required
-					artistIds: [array],
-						compositionId: [hexadecimal],
-						recording: [audio blob],
-					
-						// Optional
-						duration: [alphanumeric],
-						isrcCode: [alphanumeric & special characters],
-						licenseId: [hexadecimal],
-						recordLabelId: [hexadecimal],
-						splits: [array],
-						thresholdSignature: [cf:number:base64],
-						url: [url]
+		// Required
+		artistIds: [array],
+		compositionId: [hexadecimal],
+		recording: [audio blob],
+
+		// Optional
+		duration: [alphanumeric],
+		isrcCode: [alphanumeric & special characters],
+		licenseId: [hexadecimal],
+		recordLabelId: [hexadecimal],
+		splits: [array],
+		thresholdSignature: [cf:number:base64],
+		url: [url]
 	}
-		```
+	```
 		
 * **Success Response**
 
 	* **Code**: 200
 	
-			**Content**:
-				```javascript 
+		**Content**:
+		```javascript 
+		{
+			"@context": "<context placeholder>",
+			"@type": "MusicRecording",
+			"byArtist": [
 				{
-						"@context": "<context placeholder>",
-						"@type": "MusicRecording",
-						"byArtist": [
-								{
-										"@id": "<artistId1>"
-								},
-								{
-										"@id": "<artistId2>"
-								}
-						],
-						"duration": "<duration>",   // ex. "PT2M43S"
-						"isrcCode": "<isrcCode>",   // ex. "US-S1Z-99-00001"
-						"recordLabel": {
-								"@id": "<recordLabelId>"
-						},
-						"recordingOf": {
-								"@id": "<compositionId>",
-								"hasLicense": {
-										"@id": "<licenseId>"
-								}
-						},
-						"thresholdSignature": "<thresholdSignature>", // ex. "cf:2:AQIB..."
-						"url": "<url>"
-			}
-				```
+					"@id": "<artistId1>"
+				},
+				{
+					"@id": "<artistId2>"
+				}
+			],
+			"duration": "<duration>",	// ex. "PT2M43S"
+			"isrcCode": "<isrcCode>",   	// ex. "US-S1Z-99-00001"
+			"recordLabel": {
+				"@id": "<recordLabelId>"
+			},
+			"recordingOf": {
+				"@id": "<compositionId>",
+				"hasLicense": {
+					"@id": "<licenseId>"
+				}
+			},
+			"thresholdSignature": "<thresholdSignature>",	// ex. "cf:2:AQIB..."
+			"url": "<url>"
+		}
+		```
 
 * **Error Response**
 	
-		* **Code**: 400
+	* **Code**: 400
 
 ### Right
 * **Purpose**
@@ -247,13 +245,13 @@
 		
 * **Data Params**
 	```javascript
-		u: {
-				// REQUIRED
-				percentShares: [integer],
-						prevTransferId: [hexadecimal],
-					rightHolderId: [hexadecimal],
-					rightToId: [hexadecimal]
-		}
+	u: {
+		// Required
+		percentShares: [integer],
+		prevTransferId: [hexadecimal],
+		rightHolderId: [hexadecimal],
+		rightToId: [hexadecimal]
+	}
 	```
 
 * **Success Response**
@@ -261,31 +259,31 @@
 	* **Code**: 200
 	
 		**Content**:
-				```javascript
+		```javascript
+		{
+			"@context": "<context placeholder>",
+			"@type": "Right",
+			"rightHolder": [
 				{
-				"@context": "<context placeholder>",
-				"@type": "Right",
-				"rightHolder": [
-						{
-							"@id": "<rightHolderId1>"
-						},
-						{
-							"@id": "<rightHolderId2>"
-						}
-				],
-				"rightTo": {
-						"@id": "<rightToId>"
+					"@id": "<rightHolderId1>"
 				},
-				"transfer": {
-						"@id": "<newTransferId>"
+				{
+					"@id": "<rightHolderId2>"
 				}
+			],
+			"rightTo": {
+				"@id": "<rightToId>"
+			},
+			"transfer": {
+				"@id": "<newTransferId>"
+			}
 		}
-				```
+		```
 				
 
 * **Error Response**
 	
-		* **Code**: 400
+	* **Code**: 400
 
 ### Search
 * **Purpose**
@@ -294,7 +292,7 @@
 
 * **URL**
 
-	`/search`
+	`/search?key=value&...`
 		
 		
 * **Method**
@@ -305,11 +303,11 @@
 
 	**Required**:
 		
-		* `type=[composition|license|recording|right|user]`
-		* `userId=[hexadecimal]`
-		
-		**Optional**:
-		* `name=[string]`
+	* `type=[composition|license|recording|right|user]`
+	* `userId=[hexadecimal]`
+
+	**Optional**:
+	* `name=[string]`
 		
 * **Success Response**
 
@@ -327,7 +325,7 @@
 		
 * **URL**
 	
-		`/verify`
+	`/verify?key=value&...`
 		
 * **Method**
 
@@ -346,8 +344,6 @@
 
 * **Success Response**
 	* **Code**: 200
-		
-		**Content**:
 				
 * **Error Response**
 	* **Code**: 400
