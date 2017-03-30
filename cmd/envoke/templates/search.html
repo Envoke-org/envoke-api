@@ -10,7 +10,9 @@
         <option value="" selected disabled>--TYPE--</option>
         <option value="composition">COMPOSITION</option>
         <option value="license">LICENSE</option>
+        <option value="profile">PROFILE</option>
         <option value="recording">RECORDING</option> 
+        <option value="right">RIGHT</option>
     </select><br><br>
     <input type="text" id="name" name="name" placeholder="TITLE">
     <input type="text" id="userId" name="userId" required>
@@ -64,11 +66,17 @@ window.onload = function() {
         } else if (type.val() == "license") {
             $("#name").hide();
             $("#userId").attr("placeholder", "LICENSE-HOLDER ID");
+        } else if (type.val() == "profile") {
+            $("#name").hide();
+            $("#userId").attr("placeholder", "USER ID");
         } else if (type.val() == "recording") {
             $("#name").show();
             $("#userId").attr("placeholder", "ARTIST ID");
+        } else if (type.val() == "right") {
+            $("#name").hide();
+            $("#userId").attr("placeholder", "RIGHT-HOLDER ID");
         } else {
-            //..
+            alert("Invalid type: "+type.val());
         }
     });
 }

@@ -21,17 +21,17 @@
     {
     	u: {
         	// Required
-        	composerIds: [array|hexadecimal],
-            name: [string],
-            
-            // Optional 
-            hfaCode: [alphanumeric],
-            inLanguage: [string],
-            iswcCode: [alphanumeric & special characters],
-            publisherId: [hexadecimal],
-            splits: [array],
-            thresholdSignature: [cf:number:base64],
-            url: [url],
+          composerIds: [array|hexadecimal],
+          name: [string],
+          
+          // Optional 
+          hfaCode: [alphanumeric],
+          inLanguage: [string],
+          iswcCode: [alphanumeric & special characters],
+          publisherId: [hexadecimal],
+          splits: [array],
+          thresholdSignature: [cf:number:base64],
+          url: [url],
         }
     }
     ```   
@@ -82,13 +82,13 @@
     	u: {
         	// Required
         	licenseForIds: [array],
-            licenseHolderIds: [array],
-            licenserId: [hexadecimal],
-            validFrom: [date],		// ISO 8601
-            validTo: [date],		// ...
-            
-            // Optional
-            rightIds: [array]
+          licenseHolderIds: [array],
+          licenserId: [hexadecimal],
+          validFrom: [date],  // ISO 8601
+          validTo: [date],    // ...
+          
+          // Optional
+          rightIds: [array]
         }
     }
     ```
@@ -154,17 +154,17 @@
     	u: {
         	// Required
         	artistIds: [array],
-            compositionId: [hexadecimal],
-            recording: [audio blob],
-            
-            // Optional
-            duration: [alphanumeric],
-            isrcCode: [alphanumeric & special characters],
-            licenseId: [hexadecimal],
-            recordLabelId: [hexadecimal],
-            splits: [array],
-            thresholdSignature: [cf:number:base64],
-            url: [url]
+          compositionId: [hexadecimal],
+          recording: [audio blob],
+          
+          // Optional
+          duration: [alphanumeric],
+          isrcCode: [alphanumeric & special characters],
+          licenseId: [hexadecimal],
+          recordLabelId: [hexadecimal],
+          splits: [array],
+          thresholdSignature: [cf:number:base64],
+          url: [url]
         }
     }
     ```
@@ -197,8 +197,7 @@
         		"@id": "<licenseId>"
       		}
     	},
-    	"thresholdSignature": "<thresholdSignature>",	
-        // ex. "cf:2:AQIB..."
+    	"thresholdSignature": "<thresholdSignature>",	// ex. "cf:2:AQIB..."
     	"url": "<url>"
   }
     ```
@@ -226,10 +225,10 @@
     	u: {
         	// Required
         	percentageShares: [integer],
-            rightHolderId: [hexadecimal],
-            rightToId: [hexadecimal],
-            sentPreviousTransfer: [bool],
-            txId: [hexadecimal]
+          rightHolderId: [hexadecimal],
+          rightToId: [hexadecimal],
+          sentPreviousTransfer: [bool],
+          txId: [hexadecimal]
         }
     }
 
@@ -267,11 +266,11 @@
 ### Search
 * **Purpose**
   
-  Search for user metadata, licenses, or rights.
+  Search for user profile, content metadata, licenses, or rights.
 
 * **URL**
 
-	`/search?type={composition|license|recording|right}&userId={hexadecimal}&name={string}`
+	`/search?type={composition|license|profile|recording|right}&userId={hexadecimal}&name={string}`
     
     
 * **Method**
@@ -294,4 +293,4 @@
 
 * **Error Response**
 	
-    * **Code**: 400  
+  * **Code**: 400  

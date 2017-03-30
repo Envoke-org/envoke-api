@@ -38,6 +38,7 @@ func (api *Api) AddRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/right", api.RightHandler)
 	mux.HandleFunc("/search", api.SearchHandler)
 	mux.HandleFunc("/verification", api.VerificationHandler)
+
 	// mux.HandleFunc("/sign", api.SignHandler)
 	// mux.HandleFunc("/threshold", api.ThresholdHandler)
 }
@@ -371,14 +372,16 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
 			return ld.ValidateLicenseId(txId)
 		}, pub)
+	case "profile":
+		models = []Data{bigchain.GetTxData(tx)}
 	case "recording":
 		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
 			return RecordingFilter(txId, name)
 		}, pub)
-	case "release":
-		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
-			return ld.ValidateReleaseId(txId)
-		}, pub)
+	// case "release":
+	//	models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
+	//		return ld.ValidateReleaseId(txId)
+	//	}, pub)
 	case "right":
 		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
 			return ld.ValidateRightId(userId, txId)
