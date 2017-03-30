@@ -5,7 +5,6 @@
 {{define "body"}}
 <form id="prove-form" name="prove-form" method="GET">
     <header>PROVE</header>
-    <input type="text" name="action" value="prove" hidden />
     <select form="prove-form" id="prove-type" name="type">
         <option value="" selected disabled>--TYPE--</option>
         <option value="composition">COMPOSITION</option>
@@ -14,15 +13,14 @@
         <option value="right">RIGHT</option>
     </select><br><br>
     <input type="text" name="challenge" placeholder="CHALLENGE" required />
-    <input type="text" id="prove-modelId" name="modelId" required />
-    <button type="button" class="btn" data-clipboard-target="#prove-modelId">copy</button>
+    <input type="text" id="prove-dataId" name="dataId" required />
+    <button type="button" class="btn" data-clipboard-target="#prove-dataId">copy</button>
     <input type="text" id="prove-userId" name="userId" required />
     <button type="button" class="btn" data-clipboard-target="#prove-userId">copy</button>
     <input type="submit" value="PROVE" />
 </form>
 <form id="verify-form" name="verify-form" method="GET">
     <header>VERIFY</header>
-    <input type="text" name="action" value="verify" hidden />
     <select form="verify-form" id="verify-type" name="type">
         <option value="" selected disabled>--TYPE--</option>
         <option value="composition">COMPOSITION</option>
@@ -31,8 +29,8 @@
         <option value="right">RIGHT</option>
     </select><br><br>
     <input type="text" name="challenge" placeholder="CHALLENGE" required />
-    <input type="text" id="verify-modelId" name="modelId" required />
-    <button type="button" class="btn" data-clipboard-target="#verify-modelId">copy</button>
+    <input type="text" id="verify-dataId" name="dataId" required />
+    <button type="button" class="btn" data-clipboard-target="#verify-dataId">copy</button>
     <input type="text" id="verify-userId" name="userId" required />
     <button type="button" class="btn" data-clipboard-target="#verify-userId">copy</button>
     <input type="text" name="signature" placeholder="SIGNATURE" required />
@@ -66,23 +64,23 @@ window.onload = function() {
     proveType.change(function() {
         switch (proveType.val()) {
             case "composition":
-                $("#prove-modelId").show();
-                $("#prove-modelId").attr("placeholder", "COMPOSITION ID");
+                $("#prove-dataId").show();
+                $("#prove-dataId").attr("placeholder", "COMPOSITION ID");
                 $("#prove-userId").attr("placeholder", "COMPOSER ID");
                 break;
             case "license":
-                $("#prove-modelId").show();
-                $("#prove-modelId").attr("placeholder", "LICENSE ID");
+                $("#prove-dataId").show();
+                $("#prove-dataId").attr("placeholder", "LICENSE ID");
                 $("#prove-userId").attr("placeholder", "LICENSE-HOLDER ID");
                 break;
             case "recording":
-                $("#prove-modelId").show();
-                $("#prove-modelId").attr("placeholder", "RECORDING ID");
+                $("#prove-dataId").show();
+                $("#prove-dataId").attr("placeholder", "RECORDING ID");
                 $("#prove-userId").attr("placeholder", "ARTIST ID");
                 break;
             case "right":
-                $("#prove-modelId").show();
-                $("#prove-modelId").attr("placeholder", "RIGHT ID");
+                $("#prove-dataId").show();
+                $("#prove-dataId").attr("placeholder", "RIGHT ID");
                 $("#prove-userId").attr("placeholder", "RIGHT-HOLDER ID");
                 break;
             default:
@@ -94,23 +92,23 @@ window.onload = function() {
     verifyType.change(function() {
         switch (verifyType.val()) {
             case "composition":
-                $("#verify-modelId").show();
-                $("#verify-modelId").attr("placeholder", "COMPOSITION ID");
+                $("#verify-dataId").show();
+                $("#verify-dataId").attr("placeholder", "COMPOSITION ID");
                 $("#verify-userId").attr("placeholder", "COMPOSER ID");
                 break;
             case "license":
-                $("#verify-modelId").show();
-                $("#verify-modelId").attr("placeholder", "LICENSE ID");
+                $("#verify-dataId").show();
+                $("#verify-dataId").attr("placeholder", "LICENSE ID");
                 $("#verify-userId").attr("placeholder", "LICENSE-HOLDER ID");
                 break;
             case "recording":
-                $("#verify-modelId").show();
-                $("#verify-modelId").attr("placeholder", "RECORDING ID");
+                $("#verify-dataId").show();
+                $("#verify-dataId").attr("placeholder", "RECORDING ID");
                 $("#verify-userId").attr("placeholder", "ARTIST ID");
                 break;
             case "right":
-                $("#verify-modelId").show();
-                $("#verify-modelId").attr("placeholder", "RIGHT ID");
+                $("#verify-dataId").show();
+                $("#verify-dataId").attr("placeholder", "RIGHT ID");
                 $("#verify-userId").attr("placeholder", "RIGHT-HOLDER ID");
                 break;
             default:
@@ -121,7 +119,7 @@ window.onload = function() {
     proveForm = $("#prove-form");
     proveForm.submit(function(event) {
         event.preventDefault();
-        $.getJSON("http://localhost:8888/verify?"+proveForm.serialize(), function() {
+        $.getJSON("http://localhost:8888/prove?"+proveForm.serialize(), function() {
             // console.log("success");
         })
         .done(function(data, statusText, jqxhr) {

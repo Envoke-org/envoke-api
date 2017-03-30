@@ -14,7 +14,7 @@ func main() {
 		"license",
 		"login_register",
 		"search",
-		"verify",
+		"verification",
 	)
 
 	RegisterTemplates(
@@ -22,7 +22,7 @@ func main() {
 		"license.html",
 		"login_register.html",
 		"search.html",
-		"verify.html",
+		"verification.html",
 	)
 
 	// Create request multiplexer
@@ -30,6 +30,7 @@ func main() {
 	mux.HandleFunc("/create", TemplateHandler("create.html"))
 	// mux.HandleFunc("/license", TemplateHandler("license.html"))
 	mux.HandleFunc("/login_register", TemplateHandler("login_register.html"))
+	mux.HandleFunc("/verification", TemplateHandler("verification.html"))
 	fs := http.Dir("static/")
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(fs)))
 

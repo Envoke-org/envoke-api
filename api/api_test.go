@@ -98,7 +98,7 @@ func TestApi(t *testing.T) {
 	if err := api.Login(composerId, composerPriv.String()); err != nil {
 		t.Fatal(err)
 	}
-	composition, err := api.Compose(spec.NewComposition([]string{composerId}, "B3107S", "T-034.524.680-1", "EN", "composition_title", publisherId, "", "www.composition_url.com"), nil)
+	composition, err := api.Composition(spec.NewComposition([]string{composerId}, "B3107S", "T-034.524.680-1", "EN", "composition_title", publisherId, "", "www.composition_url.com"), nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -112,7 +112,7 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	SleepSeconds(2)
-	transferId, rightHolderIds, err := api.Transfer(compositionId, compositionId, 0, publisherPriv.Public(), publisherId, 20)
+	transferId, rightHolderIds, err := api.Transfer(compositionId, compositionId, publisherPriv.Public(), publisherId, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,7 +167,7 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	/*
-		transferId, err = api.Transfer(compositionId, transferId, 1, composerPriv.Public(), 10)
+		transferId, err = api.Transfer(compositionId, transferId, composerPriv.Public(), 10)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -190,7 +190,7 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	signRecording := spec.NewRecording([]string{performerId, producerId}, compositionId, "PT2M43S", "US-S1Z-99-00001", mechanicalLicenseId, recordLabelId, "", "www.recording_url.com")
-	recording, err := api.Record(file, []int{80, 20}, signRecording)
+	recording, err := api.Recording(file, []int{80, 20}, signRecording)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -214,7 +214,7 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	signRecording.Set("thresholdSignature", thresh.String())
-	recording, err = api.Record(file, []int{80, 20}, signRecording)
+	recording, err = api.Recording(file, []int{80, 20}, signRecording)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -235,7 +235,7 @@ func TestApi(t *testing.T) {
 	if err = ld.VerifyArtist(producerId, CHALLENGE, recordingId, sig); err != nil {
 		t.Fatal(err)
 	}
-	transferId, rightHolderIds, err = api.Transfer(recordingId, recordingId, 0, recordLabelPriv.Public(), recordLabelId, 20)
+	transferId, rightHolderIds, err = api.Transfer(recordingId, recordingId, recordLabelPriv.Public(), recordLabelId, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
