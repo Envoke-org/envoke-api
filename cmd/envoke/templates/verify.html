@@ -1,0 +1,150 @@
+{{define "head"}}
+  <title>{{ .Title}}</title>
+{{end}}
+
+{{define "body"}}
+<form id="prove-form" name="prove-form" method="GET">
+    <header>PROVE</header>
+    <input type="text" name="action" value="prove" hidden />
+    <select form="prove-form" id="prove-type" name="type">
+        <option value="" selected disabled>--TYPE--</option>
+        <option value="composition">COMPOSITION</option>
+        <option value="license">LICENSE</option>
+        <option value="recording">RECORDING</option> 
+        <option value="right">RIGHT</option>
+    </select><br><br>
+    <input type="text" name="challenge" placeholder="CHALLENGE" required />
+    <input type="text" id="prove-modelId" name="modelId" required />
+    <button type="button" class="btn" data-clipboard-target="#prove-modelId">copy</button>
+    <input type="text" id="prove-userId" name="userId" required />
+    <button type="button" class="btn" data-clipboard-target="#prove-userId">copy</button>
+    <input type="submit" value="PROVE" />
+</form>
+<form id="verify-form" name="verify-form" method="GET">
+    <header>VERIFY</header>
+    <input type="text" name="action" value="verify" hidden />
+    <select form="verify-form" id="verify-type" name="type">
+        <option value="" selected disabled>--TYPE--</option>
+        <option value="composition">COMPOSITION</option>
+        <option value="license">LICENSE</option>
+        <option value="recording">RECORDING</option> 
+        <option value="right">RIGHT</option>
+    </select><br><br>
+    <input type="text" name="challenge" placeholder="CHALLENGE" required />
+    <input type="text" id="verify-modelId" name="modelId" required />
+    <button type="button" class="btn" data-clipboard-target="#verify-modelId">copy</button>
+    <input type="text" id="verify-userId" name="userId" required />
+    <button type="button" class="btn" data-clipboard-target="#verify-userId">copy</button>
+    <input type="text" name="signature" placeholder="SIGNATURE" required />
+    <input type="submit" value="VERIFY" />
+</form>
+<br><br>
+<pre id="message" style="color:#97cc5f; font-size: 1.2em;"></pre>
+<script type="text/javascript">
+
+var callback = function(responseText) {
+    if (responseText != null) {
+        var json = JSON.parse(responseText);
+        var str = JSON.stringify(json,null,2);
+        $("#message").text(str);
+    };
+};
+
+var clipboard = new Clipboard(".btn");
+
+clipboard.on("success", function(e){
+    console.log(e);
+});
+
+clipboard.on("error", function(e){
+    console.log(e);
+});
+
+window.onload = function() {
+
+    var proveType = $("#prove-type");
+    proveType.change(function() {
+        switch (proveType.val()) {
+            case "composition":
+                $("#prove-modelId").show();
+                $("#prove-modelId").attr("placeholder", "COMPOSITION ID");
+                $("#prove-userId").attr("placeholder", "COMPOSER ID");
+                break;
+            case "license":
+                $("#prove-modelId").show();
+                $("#prove-modelId").attr("placeholder", "LICENSE ID");
+                $("#prove-userId").attr("placeholder", "LICENSE-HOLDER ID");
+                break;
+            case "recording":
+                $("#prove-modelId").show();
+                $("#prove-modelId").attr("placeholder", "RECORDING ID");
+                $("#prove-userId").attr("placeholder", "ARTIST ID");
+                break;
+            case "right":
+                $("#prove-modelId").show();
+                $("#prove-modelId").attr("placeholder", "RIGHT ID");
+                $("#prove-userId").attr("placeholder", "RIGHT-HOLDER ID");
+                break;
+            default:
+                alert("Invalid type: "+type.val());
+        }
+    });
+
+    var verifyType = $("#verify-type");
+    verifyType.change(function() {
+        switch (verifyType.val()) {
+            case "composition":
+                $("#verify-modelId").show();
+                $("#verify-modelId").attr("placeholder", "COMPOSITION ID");
+                $("#verify-userId").attr("placeholder", "COMPOSER ID");
+                break;
+            case "license":
+                $("#verify-modelId").show();
+                $("#verify-modelId").attr("placeholder", "LICENSE ID");
+                $("#verify-userId").attr("placeholder", "LICENSE-HOLDER ID");
+                break;
+            case "recording":
+                $("#verify-modelId").show();
+                $("#verify-modelId").attr("placeholder", "RECORDING ID");
+                $("#verify-userId").attr("placeholder", "ARTIST ID");
+                break;
+            case "right":
+                $("#verify-modelId").show();
+                $("#verify-modelId").attr("placeholder", "RIGHT ID");
+                $("#verify-userId").attr("placeholder", "RIGHT-HOLDER ID");
+                break;
+            default:
+                alert("Invalid type: "+type.val());
+        }
+    });
+
+    proveForm = $("#prove-form");
+    proveForm.submit(function(event) {
+        event.preventDefault();
+        $.getJSON("http://localhost:8888/verify?"+proveForm.serialize(), function() {
+            // console.log("success");
+        })
+        .done(function(data, statusText, jqxhr) {
+            callback(jqxhr.responseText);
+        })
+        .fail(function(data, statusText, jqxhr) {
+            alert(jqxhr.responseText);
+        });
+    });
+
+    verifyForm = $("#verify-form");
+    verifyForm.submit(function(event) {
+        event.preventDefault();
+        $.getJSON("http://localhost:8888/verify?"+verifyForm.serialize(), function() {
+            // console.log("success");
+        })
+        .done(function(data, statusText, jqxhr) {
+            callback(jqxhr.responseText);
+        })
+        .fail(function(data, statusText, jqxhr) {
+            alert(jqxhr.responseText);
+        });
+    });
+}
+</script>
+{{end}}

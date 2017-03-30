@@ -37,7 +37,7 @@ func (api *Api) AddRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/release", api.ReleaseHandler)
 	mux.HandleFunc("/right", api.RightHandler)
 	mux.HandleFunc("/search", api.SearchHandler)
-	mux.HandleFunc("/verification", api.VerificationHandler)
+	mux.HandleFunc("/verify", api.VerifyHandler)
 
 	// mux.HandleFunc("/sign", api.SignHandler)
 	// mux.HandleFunc("/threshold", api.ThresholdHandler)
@@ -328,7 +328,7 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 		}
 		license, err = api.SendMultipleOwnersCreateTx(amounts, spec.NewLicense(licenseForIds, licenseHolderIds, api.id, rightIds, validFrom, validThrough), owners)
 	} else {
-		http.Error(w, ErrorAppend(ErrInvalidSize, "zero license-holder ids").Error(), http.StatusBadRequest)
+		http.Error(w, Error("zero license-holder ids").Error(), http.StatusBadRequest)
 	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -346,17 +346,16 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
 	}
-	pg, _ := LoadPage("search")
-	RenderTemplate(w, "search.html", pg)
 	params := req.URL.Query()
 	if params.Get("action") != "search" {
+		pg, _ := LoadPage("search")
+		RenderTemplate(w, "search.html", pg)
 		return
 	}
 	var models []Data
 	name := params.Get("name")
 	_type := params.Get("type")
 	userId := params.Get("userId")
-	api.logger.Info(userId)
 	tx, err := ld.QueryAndValidateSchema(userId, "user")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -372,8 +371,6 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
 			return ld.ValidateLicenseId(txId)
 		}, pub)
-	case "profile":
-		models = []Data{bigchain.GetTxData(tx)}
 	case "recording":
 		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
 			return RecordingFilter(txId, name)
@@ -386,6 +383,8 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
 			return ld.ValidateRightId(userId, txId)
 		}, pub)
+	case "user":
+		models = []Data{bigchain.GetTxData(tx)}
 	default:
 		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
 		return
@@ -395,57 +394,6 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	WriteJSON(w, models)
-}
-
-func (api *Api) VerificationHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		http.Error(w, ErrExpectedGet.Error(), http.StatusBadRequest)
-		return
-	}
-	if !api.LoggedIn() {
-		http.Error(w, "Not logged in", http.StatusUnauthorized)
-		return
-	}
-	pg, _ := LoadPage("verification")
-	RenderTemplate(w, "verification.html", pg)
-	params := req.URL.Query()
-	if action := params.Get("action"); action == "prove" {
-		sig, err := api.Prove(params)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		WriteJSON(w, sig)
-	} else if action == "verify" {
-		if err := api.Verify(params); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		w.Write([]byte("Verified proof!"))
-	} else {
-		http.Error(w, Error("Invalid action: "+action).Error(), http.StatusBadRequest)
-	}
-}
-
-func (api *Api) Prove(params url.Values) (crypto.Signature, error) {
-	challenge := params.Get("challenge")
-	modelId := params.Get("modelId")
-	_type := params.Get("type")
-	userId := params.Get("userId")
-	switch _type {
-	case "composition":
-		return ld.ProveComposer(challenge, userId, modelId, api.priv)
-	case "license":
-		return ld.ProveLicenseHolder(challenge, userId, modelId, api.priv)
-	case "recording":
-		return ld.ProveArtist(userId, challenge, api.priv, modelId)
-	case "release":
-		return ld.ProveRecordLabel(challenge, api.priv, modelId)
-	case "right":
-		return ld.ProveRightHolder(challenge, api.priv, userId, modelId)
-	default:
-		return nil, ErrorAppend(ErrInvalidType, _type)
-	}
 }
 
 func CompositionFilter(compositionId, name string) (Data, error) {
@@ -473,6 +421,56 @@ func RecordingFilter(recordingId, name string) (Data, error) {
 	return recording, nil
 }
 
+func (api *Api) VerifyHandler(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		http.Error(w, ErrExpectedGet.Error(), http.StatusBadRequest)
+		return
+	}
+	if !api.LoggedIn() {
+		http.Error(w, "Not logged in", http.StatusUnauthorized)
+		return
+	}
+	params := req.URL.Query()
+	if action := params.Get("action"); action == "prove" {
+		sig, err := api.Prove(params)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		WriteJSON(w, sig)
+	} else if action == "verify" {
+		if err := api.Verify(params); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		WriteJSON(w, "Verified proof!")
+	} else {
+		pg, _ := LoadPage("verify")
+		RenderTemplate(w, "verify.html", pg)
+	}
+}
+
+func (api *Api) Prove(params url.Values) (crypto.Signature, error) {
+	challenge := params.Get("challenge")
+	modelId := params.Get("modelId")
+	_type := params.Get("type")
+	userId := params.Get("userId")
+	switch _type {
+	case "composition":
+		return ld.ProveComposer(challenge, userId, modelId, api.priv)
+	case "license":
+		return ld.ProveLicenseHolder(challenge, userId, modelId, api.priv)
+	case "recording":
+		return ld.ProveArtist(userId, challenge, api.priv, modelId)
+	// case "release":
+	//	return ld.ProveRecordLabel(challenge, api.priv, modelId)
+	case "right":
+		return ld.ProveRightHolder(challenge, api.priv, userId, modelId)
+	default:
+		return nil, ErrorAppend(ErrInvalidType, _type)
+	}
+}
+
 func (api *Api) Verify(params url.Values) error {
 	challenge := params.Get("challenge")
 	modelId := params.Get("modelId")
@@ -490,8 +488,8 @@ func (api *Api) Verify(params url.Values) error {
 		return ld.VerifyLicenseHolder(challenge, userId, modelId, sig)
 	case "recording":
 		return ld.VerifyArtist(userId, challenge, modelId, sig)
-	case "release":
-		return ld.VerifyRecordLabel(challenge, modelId, sig)
+	// case "release":
+	//	return ld.VerifyRecordLabel(challenge, modelId, sig)
 	case "right":
 		return ld.VerifyRightHolder(challenge, modelId, userId, sig)
 	default:

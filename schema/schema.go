@@ -14,8 +14,6 @@ func ValidateSchema(model Data, _type string) error {
 	var schemaLoader jsonschema.JSONLoader
 	modelLoader := jsonschema.NewGoLoader(model)
 	switch _type {
-	case "user":
-		schemaLoader = UserLoader
 	case "composition":
 		schemaLoader = CompositionLoader
 	case "license":
@@ -26,6 +24,8 @@ func ValidateSchema(model Data, _type string) error {
 		schemaLoader = ReleaseLoader
 	case "right":
 		schemaLoader = RightLoader
+	case "user":
+		schemaLoader = UserLoader
 	default:
 		return ErrorAppend(ErrInvalidType, _type)
 	}

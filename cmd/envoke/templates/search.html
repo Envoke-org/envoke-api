@@ -10,9 +10,9 @@
         <option value="" selected disabled>--TYPE--</option>
         <option value="composition">COMPOSITION</option>
         <option value="license">LICENSE</option>
-        <option value="profile">PROFILE</option>
         <option value="recording">RECORDING</option> 
         <option value="right">RIGHT</option>
+        <option value="user">USER</option>
     </select><br><br>
     <input type="text" id="name" name="name" placeholder="TITLE">
     <input type="text" id="userId" name="userId" required>
@@ -22,21 +22,6 @@
 <br><br>
 <pre id="message" style="color:#97cc5f; font-size: 1.2em;"></pre>
 <script type="text/javascript">
-
-function httpGetAsync(addr, data, callback) {
-    var xhr = new XMLHttpRequest ();
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState == 4) {
-            if (xhr.status == 200) {
-                callback(xhr.responseText);
-            } else {
-                alert(xhr.responseText);
-            };
-        };
-    };
-    xhr.open("GET", addr, true); 
-    xhr.send(data);
-};
 
 var callback = function(responseText) {
     if (responseText != null) {
@@ -58,25 +43,45 @@ clipboard.on('error', function(e){
 
 window.onload = function() {
 
+    searchForm = $("#search-form");
+    searchForm.submit(function(event) {
+        event.preventDefault();
+        $.getJSON("http://localhost:8888/search?"+searchForm.serialize(), function() {
+            // console.log("success");
+        })
+        .done(function(data, statusText, jqxhr) {
+            callback(jqxhr.responseText);
+        })
+        .fail(function(data, statusText, jqxhr) {
+            alert(jqxhr.responseText);
+        });
+    });
+
     var type = $("#type");
     type.change(function() {
-        if (type.val() == "composition") {
-            $("#name").show();
-            $("#userId").attr("placeholder", "COMPOSER ID");
-        } else if (type.val() == "license") {
-            $("#name").hide();
-            $("#userId").attr("placeholder", "LICENSE-HOLDER ID");
-        } else if (type.val() == "profile") {
-            $("#name").hide();
-            $("#userId").attr("placeholder", "USER ID");
-        } else if (type.val() == "recording") {
-            $("#name").show();
-            $("#userId").attr("placeholder", "ARTIST ID");
-        } else if (type.val() == "right") {
-            $("#name").hide();
-            $("#userId").attr("placeholder", "RIGHT-HOLDER ID");
-        } else {
-            alert("Invalid type: "+type.val());
+        switch (type.val()) {
+            case "composition":
+                $("#name").show();
+                $("#userId").attr("placeholder", "COMPOSER ID");
+                break;
+            case "license":
+                $("#name").hide();
+                $("#userId").attr("placeholder", "LICENSE-HOLDER ID");
+                break;
+            case "recording":
+                $("#name").show();
+                $("#userId").attr("placeholder", "ARTIST ID");
+                break;
+            case "right":
+                $("#name").hide();
+                $("#userId").attr("placeholder", "RIGHT-HOLDER ID");
+                break;
+            case "user":
+                $("#name").hide();
+                $("#userId").attr("placeholder", "USER ID");
+                break;
+            default:
+                alert("Invalid type: "+type.val());
         }
     });
 }

@@ -170,12 +170,12 @@ func ValidateRightId(rightHolderId, rightId string) (Data, error) {
 	rightHolderIds := spec.GetRightHolderIds(right)
 	n := len(rightHolderIds)
 	if n != 1 && n != 2 {
-		return nil, ErrorAppend(ErrInvalidSize, "right-holder ids must have size 1 or 2")
+		return nil, Error("must be 1 or 2 right-holder ids")
 	}
 	outputIdx := 0
 	outputs := bigchain.GetTxOutputs(tx)
 	if n != len(outputs) {
-		return nil, ErrorAppend(ErrInvalidSize, "right must have outputs with same size as right-holder ids")
+		return nil, Error("right must have same number of outputs as right-holder ids")
 	}
 	var recipientKey crypto.PublicKey = nil
 	senderKey := bigchain.DefaultGetTxSender(tx)
@@ -237,7 +237,7 @@ func ValidateRightId(rightHolderId, rightId string) (Data, error) {
 		return nil, Error("right sender is not sender of TRANSFER tx")
 	}
 	if n != len(bigchain.GetTxOutputs(tx)) {
-		return nil, ErrorAppend(ErrInvalidSize, "TRANSFER tx outputs must have same size as right-holder ids")
+		return nil, Error("TRANSFER tx outputs must have same size as right-holder ids")
 	}
 	if n == 1 {
 		if !recipientKey.Equals(bigchain.GetTxRecipient(tx, 0)) {

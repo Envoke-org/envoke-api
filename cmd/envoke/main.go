@@ -14,7 +14,7 @@ func main() {
 		"license",
 		"login_register",
 		"search",
-		"verification",
+		"verify",
 	)
 
 	RegisterTemplates(
@@ -22,7 +22,7 @@ func main() {
 		"license.html",
 		"login_register.html",
 		"search.html",
-		"verification.html",
+		"verify.html",
 	)
 
 	// Create request multiplexer
@@ -33,11 +33,8 @@ func main() {
 	fs := http.Dir("static/")
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(fs)))
 
-	// Create api
-	api := api.NewApi()
-
-	// Add routes to multiplexer
-	api.AddRoutes(mux)
+	// Create api and add routes to multiplexer
+	api.NewApi().AddRoutes(mux)
 
 	// Start HTTP server with multiplexer
 	http.ListenAndServe(":8888", mux)

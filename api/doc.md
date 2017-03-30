@@ -270,7 +270,7 @@
 
 * **URL**
 
-	`/search?type={composition|license|profile|recording|right}&userId={hexadecimal}&name={string}`
+	`/search?type={composition|license|recording|right|user}&userId={hexadecimal}&name={string}`
     
     
 * **Method**
