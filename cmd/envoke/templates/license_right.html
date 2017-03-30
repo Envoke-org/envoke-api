@@ -16,6 +16,18 @@
     <input type="date" name="validTo" style="border-bottom: solid 1px #025768;" required /><br><br>
     <input type="submit" value="LICENSE" />
 </form>
+<form id="right-form" name="right-form">
+    <header>RIGHT</header>
+    <input type="number" name="percentShares" placeholder="PERCENT SHARES" min=1 max=100 required />
+    <button type="button" class="btn" data-clipboard-target="#percentShares">copy</button>
+    <input type="text" id="prevRightId" name="prevRightId" placeholder="PREVIOUS RIGHT ID" required />
+    <button type="button" class="btn" data-clipboard-target="#prevRightId">copy</button>
+    <input type="text" id="rightHolderId" name="rightHolderId" placeholder="RIGHT-HOLDER ID" required />
+    <button type="button" class="btn" data-clipboard-target="#rightHolderId">copy</button>
+    <input type="text" id="rightToId" name="rightToId" placeholder="COMPOSITION/RECORDING ID" required /> 
+    <button type="button" class="btn" data-clipboard-target="#rightToId">copy</button>
+    <input type="submit" value="RIGHT" />
+</form>
 <br><br>
 <pre id="message" style="color:#97cc5f; font-size: 1.2em; margin-top: -200px"></pre>
 <script type="text/javascript">
@@ -43,13 +55,13 @@ var callback = function(responseText) {
     };
 };
 
-var clipboard = new Clipboard('.btn');
+var clipboard = new Clipboard(".btn");
 
-clipboard.on('success', function(e){
+clipboard.on("success", function(e){
     console.log(e);
 });
 
-clipboard.on('error', function(e){
+clipboard.on("error", function(e){
     console.log(e);
 });
 
@@ -60,6 +72,13 @@ window.onload = function() {
         event.preventDefault();
         var formData = new FormData(event.target);
         httpPostAsync("http://localhost:8888/license", formData, callback);
+    });
+
+    var rightForm = $("#right-form");
+    rightForm.submit(function(event) {
+        event.preventDefault();
+        var formData = new FormData(event.target);
+        httpPostAsync("http://localhost:8888/right", formData, callback);
     });
 }
 </script>

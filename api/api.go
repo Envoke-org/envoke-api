@@ -105,12 +105,18 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
 	}
+	prevRightId := req.PostFormValue("prevRightId")
+	right, err := ld.ValidateRightId(api.id, prevRightId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	prevTransferId := spec.GetTransferId(right)
 	percentShares, err := Atoi(req.PostFormValue("percentShares"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	var right Data
 	rightHolderId := req.PostFormValue("rightHolderId")
 	rightToId := req.PostFormValue("rightToId")
 	tx, err := ld.QueryAndValidateSchema(rightHolderId, "user")
@@ -119,7 +125,6 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	rightHolderKey := bigchain.DefaultGetTxSender(tx)
-	prevTransferId := req.PostFormValue("prevTransferId")
 	transferId, rightHolderIds, err := api.Transfer(rightToId, prevTransferId, rightHolderKey, rightHolderId, percentShares)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -137,7 +142,7 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, right)
 }
 
-func (api *Api) Transfer(assetId, consumeId string, owner crypto.PublicKey, ownerId string, percentShares int) (transferId string, ownerIds []string, err error) {
+func (api *Api) Transfer(assetId, consumeId string, owner crypto.PublicKey, ownerId string, transferAmount int) (transferId string, ownerIds []string, err error) {
 	tx, err := bigchain.HttpGetTx(consumeId)
 	if err != nil {
 		return "", nil, err
@@ -152,16 +157,16 @@ func (api *Api) Transfer(assetId, consumeId string, owner crypto.PublicKey, owne
 	}
 	for outputIdx, output := range bigchain.GetTxOutputs(tx) {
 		if api.pub.Equals(bigchain.GetOutputPublicKey(output)) {
-			totalShares := bigchain.GetOutputAmount(output)
-			keepShares := totalShares - percentShares
-			if keepShares == 0 {
+			totalAmount := bigchain.GetOutputAmount(output)
+			keepAmount := totalAmount - transferAmount
+			if keepAmount == 0 {
 				ownerIds = []string{ownerId}
-				transferId, err = api.SendIndividualTransferTx(percentShares, assetId, consumeId, outputIdx, owner)
-			} else if keepShares > 0 {
+				transferId, err = api.SendIndividualTransferTx(transferAmount, assetId, consumeId, outputIdx, owner)
+			} else if keepAmount > 0 {
 				ownerIds = append([]string{api.id}, ownerId)
-				transferId, err = api.SendDivisibleTransferTx([]int{keepShares, percentShares}, assetId, consumeId, outputIdx, owner)
+				transferId, err = api.SendDivisibleTransferTx([]int{keepAmount, transferAmount}, assetId, consumeId, outputIdx, owner)
 			} else {
-				return "", nil, Error("Cannot transfer that many shares")
+				err = Error("Cannot transfer that many shares")
 			}
 			if err != nil {
 				return "", nil, err

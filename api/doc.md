@@ -248,7 +248,7 @@
 	u: {
 		// Required
 		percentShares: [integer],
-		prevTransferId: [hexadecimal],
+		prevRightId: [hexadecimal],
 		rightHolderId: [hexadecimal],
 		rightToId: [hexadecimal]
 	}
