@@ -6,10 +6,10 @@
 <br><br>
 <form id="license-form" name="license-form">
     <header>LICENSE</header>
-    <input type="text" id="licenseHolderIds" name="licenseHolderIds" placeholder="LICENSE-HOLDER IDs" required />
-    <button type="button" class="btn" data-clipboard-target="#licenseHolderIds">copy</button>
-    <input type="text" id="licenseForIds" name="licenseForIds" placeholder="COMPOSITION/RECORDING IDs" required /> 
-    <button type="button" class="btn" data-clipboard-target="#licenseForIds">copy</button>
+    <input type="text" id="licenseHolderId" name="licenseHolderId" placeholder="LICENSE-HOLDER ID" required />
+    <button type="button" class="btn" data-clipboard-target="#licenseHolderId">copy</button>
+    <input type="text" id="licenseForId" name="licenseForId" placeholder="COMPOSITION/RECORDING ID" required />
+    <button type="button" class="btn" data-clipboard-target="#licenseForId">copy</button>
     <label>VALID FROM</label>
     <input type="date" name="validFrom" style="border-bottom: solid 1px #025768;" required /><br><br>
     <label>VALID TO</label>
@@ -20,7 +20,7 @@
     <header>RIGHT</header>
     <input type="number" name="percentShares" placeholder="PERCENT SHARES" min=1 max=100 required />
     <button type="button" class="btn" data-clipboard-target="#percentShares">copy</button>
-    <input type="text" id="prevRightId" name="prevRightId" placeholder="PREVIOUS RIGHT ID" required />
+    <input type="text" id="prevRightId" name="prevRightId" placeholder="PREVIOUS RIGHT ID" />
     <button type="button" class="btn" data-clipboard-target="#prevRightId">copy</button>
     <input type="text" id="rightHolderId" name="rightHolderId" placeholder="RIGHT-HOLDER ID" required />
     <button type="button" class="btn" data-clipboard-target="#rightHolderId">copy</button>
@@ -67,15 +67,13 @@ clipboard.on("error", function(e){
 
 window.onload = function() {
 
-    var licenseForm = $("#license-form");
-    licenseForm.submit(function(event) {
+    $("#license-form").submit(function(event) {
         event.preventDefault();
         var formData = new FormData(event.target);
         httpPostAsync("http://localhost:8888/license", formData, callback);
     });
 
-    var rightForm = $("#right-form");
-    rightForm.submit(function(event) {
+    $("#right-form").submit(function(event) {
         event.preventDefault();
         var formData = new FormData(event.target);
         httpPostAsync("http://localhost:8888/right", formData, callback);

@@ -34,11 +34,11 @@ func (api *Api) AddRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/prove", api.ProveHandler)
 	mux.HandleFunc("/recording", api.RecordingHandler)
 	mux.HandleFunc("/register", api.RegisterHandler)
-	mux.HandleFunc("/release", api.ReleaseHandler)
 	mux.HandleFunc("/right", api.RightHandler)
 	mux.HandleFunc("/search", api.SearchHandler)
 	mux.HandleFunc("/verify", api.VerifyHandler)
 
+	// mux.HandleFunc("/release", api.ReleaseHandler)
 	// mux.HandleFunc("/sign", api.SignHandler)
 	// mux.HandleFunc("/threshold", api.ThresholdHandler)
 }
@@ -48,12 +48,11 @@ func (api *Api) LoginHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
 		return
 	}
-	form, err := MultipartForm(req)
-	if err != nil {
+	if err := req.ParseMultipartForm(1000); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	credentials, err := form.File["credentials"][0].Open()
+	credentials, err := req.MultipartForm.File["credentials"][0].Open()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -81,7 +80,7 @@ func (api *Api) RegisterHandler(w http.ResponseWriter, req *http.Request) {
 	email := req.PostFormValue("email")
 	ipiNumer := req.PostFormValue("ipiNumber")
 	isniNumber := req.PostFormValue("isniNumber")
-	memberIds := SplitStr(req.PostFormValue("memberIds"), ",")
+	memberIds := req.PostForm["memberIds"]
 	name := req.PostFormValue("name")
 	password := req.PostFormValue("password")
 	path := req.PostFormValue("path")
@@ -105,13 +104,6 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
 	}
-	prevRightId := req.PostFormValue("prevRightId")
-	right, err := ld.ValidateRightId(api.id, prevRightId)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	prevTransferId := spec.GetTransferId(right)
 	percentShares, err := Atoi(req.PostFormValue("percentShares"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -125,6 +117,19 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	rightHolderKey := bigchain.DefaultGetTxSender(tx)
+	prevRightId := req.PostFormValue("prevRightId")
+	var prevTransferId string
+	var right Data
+	if spec.MatchId(prevRightId) {
+		right, err = ld.ValidateRightId(api.id, prevRightId)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		prevTransferId = spec.GetTransferId(right)
+	} else {
+		prevTransferId = rightToId
+	}
 	transferId, rightHolderIds, err := api.Transfer(rightToId, prevTransferId, rightHolderKey, rightHolderId, percentShares)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -186,15 +191,15 @@ func (api *Api) CompositionHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
 	}
-	composerIds := SplitStr(req.PostFormValue("composerIds"), ",")
+	var err error
 	hfaCode := req.PostFormValue("hfaCode")
+	composerIds := req.PostForm["composerId"]
 	inLanguage := req.PostFormValue("inLanguage")
 	iswcCode := req.PostFormValue("iswcCode")
 	name := req.PostFormValue("name")
-	publisherId := req.PostFormValue("publisherId")
-	shares := SplitStr(req.PostFormValue("splits"), ",")
-	var err error
 	var percentShares []int
+	publisherId := req.PostFormValue("publisherId")
+	shares := req.PostForm["splits"]
 	if len(shares) > 1 {
 		percentShares = make([]int, len(shares))
 		for i, share := range shares {
@@ -208,7 +213,7 @@ func (api *Api) CompositionHandler(w http.ResponseWriter, req *http.Request) {
 	thresholdSignature := req.PostFormValue("thresholdSignature")
 	url := req.PostFormValue("url")
 	composition, err := api.Composition(
-		spec.NewComposition(composerIds, hfaCode, iswcCode, inLanguage, name, publisherId, thresholdSignature, url),
+		spec.NewComposition(composerIds, hfaCode, inLanguage, iswcCode, name, publisherId, thresholdSignature, url),
 		percentShares,
 	)
 	if err != nil {
@@ -227,23 +232,18 @@ func (api *Api) RecordingHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
 	}
-	form, err := MultipartForm(req)
+	compositionId := req.PostFormValue("compositionId")
+	artistIds := req.PostForm["artistId"]
+	duration := req.PostFormValue("duration")
+	file, err := req.MultipartForm.File["recording"][0].Open()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	artistIds := SplitStr(form.Value["artistId"][0], ",")
-	compositionId := form.Value["compositionId"][0]
-	duration := form.Value["duration"][0]
-	file, err := form.File["recording"][0].Open()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	isrcCode := form.Value["isrcCode"][0]
-	licenseId := form.Value["licenseId"][0]
-	recordLabelId := form.Value["recordLabelId"][0]
-	splits := SplitStr(form.Value["splits"][0], ",")
+	isrcCode := req.PostFormValue("isrcCode")
+	licenseId := req.PostFormValue("licenseId")
+	recordLabelId := req.PostFormValue("recordLabelId")
+	splits := req.PostForm["splits"]
 	var percentShares []int = nil
 	if len(splits) > 1 {
 		percentShares = make([]int, len(splits))
@@ -251,8 +251,8 @@ func (api *Api) RecordingHandler(w http.ResponseWriter, req *http.Request) {
 			percentShares[i] = MustAtoi(split)
 		}
 	}
-	thresholdSignature := form.Value["thresholdSignature"][0]
-	url := form.Value["url"][0]
+	thresholdSignature := req.PostFormValue("thresholdSignature")
+	url := req.PostFormValue("url")
 	recording, err := api.Recording(
 		file,
 		percentShares,
@@ -263,28 +263,6 @@ func (api *Api) RecordingHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	WriteJSON(w, recording)
-}
-
-func (api *Api) ReleaseHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
-		return
-	}
-	if !api.LoggedIn() {
-		http.Error(w, "Not logged in", http.StatusUnauthorized)
-		return
-	}
-	name := req.PostFormValue("name")
-	recordingIds := SplitStr(req.PostFormValue("recordingIds"), ",")
-	recordLabelId := req.PostFormValue("recordLabelId")
-	rightIds := SplitStr(req.PostFormValue("rightIds"), ",")
-	url := req.PostFormValue("url")
-	release, err := api.DefaultSendIndividualCreateTx(spec.NewRelease(name, recordingIds, recordLabelId, rightIds, url))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	WriteJSON(w, release)
 }
 
 func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
@@ -298,11 +276,11 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	var err error
 	var license Data
-	licenseForIds := SplitStr(req.PostFormValue("licenseForIds"), ",")
-	licenseHolderIds := SplitStr(req.PostFormValue("licenseHolderIds"), ",")
-	rightIds := SplitStr(req.PostFormValue("rightId"), ",")
 	validFrom := req.PostFormValue("validFrom")
 	validThrough := req.PostFormValue("validThrough")
+	licenseForIds := req.PostForm["licenseForId"]
+	licenseHolderIds := req.PostForm["licenseHolderId"]
+	rightIds := req.PostForm["rightId"]
 	if n := len(licenseHolderIds); n == 1 {
 		tx, err := ld.QueryAndValidateSchema(licenseHolderIds[0], "user")
 		if err != nil {
@@ -325,7 +303,7 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 		}
 		license, err = api.SendMultipleOwnersCreateTx(amounts, spec.NewLicense(licenseForIds, licenseHolderIds, api.id, rightIds, validFrom, validThrough), owners)
 	} else {
-		http.Error(w, Error("zero license-holder ids").Error(), http.StatusBadRequest)
+		err = Error("zero license-holder ids")
 	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -372,10 +350,6 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
 			return RecordingFilter(txId, name)
 		}, pub)
-	// case "release":
-	//	models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
-	//		return ld.ValidateReleaseId(txId)
-	//	}, pub)
 	case "right":
 		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
 			return ld.ValidateRightId(userId, txId)
@@ -517,6 +491,28 @@ func Threshold(thresholdSignatures []string) (cc.Fulfillment, error) {
 }
 
 /*
+
+func (api *Api) ReleaseHandler(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
+		return
+	}
+	if !api.LoggedIn() {
+		http.Error(w, "Not logged in", http.StatusUnauthorized)
+		return
+	}
+	name := req.PostFormValue("name")
+	recordingIds := SplitStr(req.PostFormValue("recordingIds"), ",")
+	recordLabelId := req.PostFormValue("recordLabelId")
+	rightIds := SplitStr(req.PostFormValue("rightIds"), ",")
+	url := req.PostFormValue("url")
+	release, err := api.DefaultSendIndividualCreateTx(spec.NewRelease(name, recordingIds, recordLabelId, rightIds, url))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	WriteJSON(w, release)
+}
 
 func (api *Api) SignHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {

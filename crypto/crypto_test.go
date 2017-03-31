@@ -3,7 +3,7 @@ package crypto
 import (
 	"bytes"
 	. "github.com/zbo14/envoke/common"
-	conds "github.com/zbo14/envoke/crypto/conditions"
+	cc "github.com/zbo14/envoke/crypto/conditions"
 	"github.com/zbo14/envoke/crypto/ed25519"
 	"github.com/zbo14/envoke/crypto/rsa"
 	"sort"
@@ -23,7 +23,7 @@ func TestCrypto(t *testing.T) {
 	}
 	// Sha256 Pre-Image
 	preimage := []byte("helloworld")
-	f1 := conds.NewFulfillmentPreImage(preimage, 1)
+	f1 := cc.NewFulfillmentPreImage(preimage, 1)
 	// Validate the fulfillment
 	if !f1.Validate(preimage) {
 		t.Fatal("Failed to validate pre-image fulfillment")
@@ -31,7 +31,7 @@ func TestCrypto(t *testing.T) {
 	// Sha256 Prefix
 	prefix := []byte("hello")
 	suffix := []byte("world")
-	f2 := conds.NewFulfillmentPrefix(prefix, f1, 1)
+	f2 := cc.NewFulfillmentPrefix(prefix, f1, 1)
 	// Validate the fulfillment
 	if !f2.Validate(suffix) {
 		t.Fatal("Failed to validate prefix fulfillment")
@@ -39,21 +39,21 @@ func TestCrypto(t *testing.T) {
 	// Ed25519
 	msg := []byte("deadbeef")
 	privEd25519, _ := ed25519.GenerateKeypairFromPassword("password")
-	f3 := conds.FulfillmentFromPrivKey(msg, privEd25519, 2)
+	f3 := cc.FulfillmentFromPrivKey(msg, privEd25519, 2)
 	if !f3.Validate(msg) {
 		t.Fatal("Failed to validate ed25519 fulfillment")
 	}
 	// RSA
 	anotherMsg := []byte("foobar")
-	f4 := conds.FulfillmentFromPrivKey(anotherMsg, privRSA, 1)
+	f4 := cc.FulfillmentFromPrivKey(anotherMsg, privRSA, 1)
 	if !f4.Validate(anotherMsg) {
 		t.Fatal("Failed to validate pre-image fulfillment")
 	}
 	// Sha256 Threshold
-	subs := conds.Fulfillments{f1, f2, f3, f4}
+	subs := cc.Fulfillments{f1, f2, f3, f4}
 	sort.Sort(subs)
 	threshold := 4
-	f5 := conds.NewFulfillmentThreshold(subs, threshold, 1)
+	f5 := cc.NewFulfillmentThreshold(subs, threshold, 1)
 	buf := new(bytes.Buffer)
 	WriteVarOctet(buf, msg)
 	WriteVarOctet(buf, preimage)
@@ -65,7 +65,7 @@ func TestCrypto(t *testing.T) {
 	// Get fulfillment uri
 	uri := f5.String()
 	// Derive new fulfillment from uri, use same weight
-	f6, err := conds.UnmarshalURI(uri, 1)
+	f6, err := cc.UnmarshalURI(uri, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func TestCrypto(t *testing.T) {
 		t.Fatal("Expected identical fulfillment hashes")
 	}
 	// Nested Thresholds
-	subs = conds.Fulfillments{f1, f2, f3, f4, f5}
+	subs = cc.Fulfillments{f1, f2, f3, f4, f5}
 	sort.Sort(subs)
 	buf2 := new(bytes.Buffer)
 	WriteVarOctet(buf2, msg)
@@ -83,7 +83,7 @@ func TestCrypto(t *testing.T) {
 	WriteVarOctet(buf2, buf.Bytes())
 	WriteVarOctet(buf2, anotherMsg)
 	threshold = 4
-	f7 := conds.NewFulfillmentThreshold(subs, threshold, 1)
+	f7 := cc.NewFulfillmentThreshold(subs, threshold, 1)
 	if !f7.Validate(buf2.Bytes()) {
 		t.Fatal("Failed to validate nested thresholds")
 	}

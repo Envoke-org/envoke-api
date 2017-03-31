@@ -2,7 +2,6 @@ package common
 
 import (
 	"github.com/mvdan/xurls"
-	"net/http"
 	"net/url"
 )
 
@@ -30,24 +29,6 @@ func ParseQuery(query string) (url.Values, error) {
 
 func MustParseQuery(query string) url.Values {
 	values, err := ParseQuery(query)
-	Check(err)
-	return values
-}
-
-func UrlValues(req *http.Request) (url.Values, error) {
-	data, err := ReadAll(req.Body)
-	if err != nil {
-		return nil, err
-	}
-	vals, err := ParseQuery(string(data))
-	if err != nil {
-		return nil, err
-	}
-	return vals, nil
-}
-
-func MustUrlValues(req *http.Request) url.Values {
-	values, err := UrlValues(req)
 	Check(err)
 	return values
 }

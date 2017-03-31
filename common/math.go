@@ -5,20 +5,18 @@ import (
 	"math/big"
 )
 
-func Pow2(x int) bool {
-	return x != 0 && (x&(x-1)) == 0
+func BigIntFromBytes(p []byte) *big.Int {
+	x := new(big.Int)
+	return x.SetBytes(p)
+}
+
+func EvenSquare(n int) bool {
+	sqrt := math.Sqrt(float64(n))
+	return float64(int(sqrt)) != sqrt
 }
 
 func Exp2(x int) int {
 	return 1 << uint(x)
-}
-
-func Pow2Ceil(x int) int {
-	return Exp2(Log2Ceil(x))
-}
-
-func Pow2Floor(x int) int {
-	return Exp2(Log2Floor(x))
 }
 
 func Log2Floor(x int) int {
@@ -39,12 +37,14 @@ func Log2Ceil(x int) int {
 	return log + 1
 }
 
-func EvenSquare(n int) bool {
-	sqrt := math.Sqrt(float64(n))
-	return float64(int(sqrt)) != sqrt
+func Pow2(x int) bool {
+	return x != 0 && (x&(x-1)) == 0
 }
 
-func BigIntFromBytes(p []byte) *big.Int {
-	x := new(big.Int)
-	return x.SetBytes(p)
+func Pow2Ceil(x int) int {
+	return Exp2(Log2Ceil(x))
+}
+
+func Pow2Floor(x int) int {
+	return Exp2(Log2Floor(x))
 }

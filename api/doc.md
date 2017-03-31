@@ -82,8 +82,8 @@
 		licenseForIds: [array],
 		licenseHolderIds: [array],
 		licenserId: [hexadecimal],
-		validFrom: [date],		// ISO 8601
-		validTo: [date],		// ...
+		validFrom: [date],
+		validTo: [date],
 
 		// Optional
 		rightIds: [array]
@@ -248,9 +248,11 @@
 	u: {
 		// Required
 		percentShares: [integer],
-		prevRightId: [hexadecimal],
 		rightHolderId: [hexadecimal],
-		rightToId: [hexadecimal]
+		rightToId: [hexadecimal],
+
+		// Optional
+		prevRightId: [hexadecimal]
 	}
 	```
 
