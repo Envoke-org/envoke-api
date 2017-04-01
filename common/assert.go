@@ -1,9 +1,5 @@
 package common
 
-func MustAssertBool(v interface{}) bool {
-	return v.(bool)
-}
-
 func AssertData(v interface{}) Data {
 	if d, ok := v.(Data); ok {
 		return d

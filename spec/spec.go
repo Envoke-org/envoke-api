@@ -163,7 +163,7 @@ func GetLanguage(data Data) string {
 	return data.GetStr("inLanguage")
 }
 
-func GetURI(data Data) string {
+func GetThresholdSignature(data Data) string {
 	return data.GetStr("thresholdSignature")
 }
 
@@ -196,7 +196,7 @@ func NewRecording(artistIds []string, compositionId, duration, isrcCode, license
 		recording.Set("isrcCode", isrcCode)
 	}
 	if MatchId(licenseId) {
-		recording.SetInnerValue(NewLink(licenseId), "recordingOf", "hasLicense")
+		recording.GetData("recordingOf").Set("hasLicense", NewLink(licenseId))
 	}
 	if MatchId(recordLabelId) {
 		recording.Set("recordLabel", NewLink(recordLabelId))

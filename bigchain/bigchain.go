@@ -4,15 +4,15 @@ import (
 	"bytes"
 
 	. "github.com/zbo14/envoke/common"
-	conds "github.com/zbo14/envoke/crypto/conditions"
+	cc "github.com/zbo14/envoke/crypto/conditions"
 	"github.com/zbo14/envoke/crypto/crypto"
 	"github.com/zbo14/envoke/crypto/ed25519"
 )
 
-// GET
+// GET requests
 
-func HttpGetTx(txId string) (Data, error) {
-	url := Getenv("ENDPOINT") + "transactions/" + txId
+func HttpGetTx(id string) (Data, error) {
+	url := Getenv("ENDPOINT") + "transactions/" + id
 	response, err := HttpGet(url)
 	if err != nil {
 		return nil, err
@@ -63,21 +63,18 @@ func HttpGetFilter(fn func(string) (Data, error), pub crypto.PublicKey) ([]Data,
 	if err != nil {
 		return nil, err
 	}
-	var meetsCriteria []Data
+	var datas []Data
 	for _, link := range links {
 		txId := SubmatchStr(`transactions/(.*?)/outputs`, link)[1]
-		model, err := fn(txId)
+		tx, err := fn(txId)
 		if err == nil {
-			meetsCriteria = append(meetsCriteria, model)
+			datas = append(datas, GetTxAssetData(tx))
 		}
 	}
-	return meetsCriteria, nil
+	return datas, nil
 }
 
-// POST
-
-// BigchainDB transaction type
-// docs.bigchaindb.com/projects/py-driver/en/latest/handcraft.html
+// POST request
 
 func HttpPostTx(tx Data) (string, error) {
 	url := Getenv("ENDPOINT") + "transactions/"
@@ -91,12 +88,15 @@ func HttpPostTx(tx Data) (string, error) {
 	if err := ReadJSON(response.Body, &data); err != nil {
 		return "", err
 	}
-	return GetId(tx), nil
+	return tx.GetStr("id"), nil
 }
+
+// BigchainDB transaction type
+// docs.bigchaindb.com/projects/py-driver/en/latest/handcraft.html
 
 const (
 	CREATE   = "CREATE"
-	GENESIS  = "GENESIS"
+	GENESIS  = "GENSIS"
 	TRANSFER = "TRANSFER"
 	VERSION  = "0.9"
 )
@@ -200,17 +200,17 @@ func FulfillTx(tx Data, priv crypto.PrivateKey) {
 	json := MustMarshalJSON(tx)
 	inputs := tx.Get("inputs").([]Data)
 	for _, input := range inputs {
-		input.Set("fulfillment", conds.DefaultFulfillmentFromPrivKey(json, priv).String())
+		input.Set("fulfillment", cc.DefaultFulfillmentFromPrivKey(json, priv).String())
 	}
 }
 
 func FulfilledTx(tx Data) bool {
 	var err error
 	inputs := tx.GetDataSlice("inputs")
-	fulfillments := make([]conds.Fulfillment, len(inputs))
+	fulfillments := make([]cc.Fulfillment, len(inputs))
 	for i, input := range inputs {
 		uri := input.GetStr("fulfillment")
-		fulfillments[i], err = conds.DefaultUnmarshalURI(uri)
+		fulfillments[i], err = cc.DefaultUnmarshalURI(uri)
 		Check(err)
 		input.Clear("fulfillment")
 	}
@@ -223,176 +223,9 @@ func FulfilledTx(tx Data) bool {
 		}
 	}
 	for i, input := range inputs {
-		input.Set("fulfillment", fulfillments[i])
+		input.Set("fulfillment", fulfillments[i].String())
 	}
 	return fulfilled
-}
-
-// TODO: cleanup!
-
-// for convenience
-func GetId(data Data) string {
-	return data.GetStr("id")
-}
-
-func GetPublicKey(data Data) crypto.PublicKey {
-	pub := new(ed25519.PublicKey)
-	pub.FromString(data.GetStr("public_key"))
-	return pub
-}
-
-func GetTxAsset(tx Data) Data {
-	return tx.GetData("asset")
-}
-
-func GetTxConsume(tx Data, n int) Data {
-	return GetTxInputs(tx)[n].GetData("fulfills")
-}
-
-func GetTxConsumeId(tx Data, n int) string {
-	return GetTxConsume(tx, n).GetStr("txid")
-}
-
-func GetTxConsumeOutput(tx Data, n int) int {
-	return GetTxConsume(tx, n).GetInt("output")
-}
-
-func GetTxAssetId(tx Data) string {
-	return GetId(GetTxAsset(tx))
-}
-
-func GetTxData(tx Data) Data {
-	return tx.GetInnerData("asset", "data")
-}
-
-func SetTxData(tx, data Data) {
-	tx.SetInnerValue(data, "asset", "data")
-}
-
-func GetTxOperation(tx Data) string {
-	return tx.GetStr("operation")
-}
-
-func GetTxSenders(tx Data) [][]crypto.PublicKey {
-	inputs := GetTxInputs(tx)
-	return GetInputsPublicKeys(inputs)
-}
-
-func DefaultGetTxSender(tx Data) crypto.PublicKey {
-	return GetTxSender(tx, 0)
-}
-
-func GetTxSender(tx Data, n int) crypto.PublicKey {
-	pubs := GetTxSenders(tx)
-	return pubs[n][0]
-}
-
-func GetTxRecipients(tx Data) [][]crypto.PublicKey {
-	outputs := GetTxOutputs(tx)
-	return GetOutputsPublicKeys(outputs)
-}
-
-func DefaultGetTxRecipient(tx Data) crypto.PublicKey {
-	return GetTxRecipient(tx, 0)
-}
-
-func GetTxRecipient(tx Data, n int) crypto.PublicKey {
-	pubs := GetTxRecipients(tx)
-	return pubs[n][0]
-}
-
-func GetTxShares(tx Data) int {
-	return GetTxOutputAmount(tx, 0)
-}
-
-func GetTxInputs(tx Data) []Data {
-	return tx.GetDataSlice("inputs")
-}
-
-func GetInputPublicKeys(input Data) []crypto.PublicKey {
-	owners := input.GetStrSlice("owners_before")
-	pubs := make([]crypto.PublicKey, len(owners))
-	for i, owner := range owners {
-		pubs[i] = new(ed25519.PublicKey)
-		pubs[i].FromString(owner)
-	}
-	return pubs
-}
-
-func GetInputsPublicKeys(inputs []Data) [][]crypto.PublicKey {
-	pubs := make([][]crypto.PublicKey, len(inputs))
-	for i, input := range inputs {
-		pubs[i] = GetInputPublicKeys(input)
-	}
-	return pubs
-}
-
-func GetTxOutputAmount(tx Data, n int) int {
-	output := GetTxOutput(tx, n)
-	return GetOutputAmount(output)
-}
-
-func GetTxOutputs(tx Data) []Data {
-	return tx.GetDataSlice("outputs")
-}
-
-func DefaultGetTxOutput(tx Data) Data {
-	return GetTxOutput(tx, 0)
-}
-
-func DefaultGetTxCondition(tx Data) Data {
-	return GetOutputCondition(DefaultGetTxOutput(tx))
-}
-
-func GetTxOutput(tx Data, n int) Data {
-	outputs := GetTxOutputs(tx)
-	return outputs[n]
-}
-
-func GetOutputAmount(output Data) int {
-	return output.GetInt("amount")
-}
-
-func GetOutputCondition(output Data) Data {
-	return output.GetData("condition")
-}
-
-func GetConditionURI(condition Data) string {
-	return condition.GetStr("uri")
-}
-
-func GetConditionDetails(condition Data) Data {
-	return condition.GetData("details")
-}
-
-func GetDetailsSubfulfillments(details Data) []Data {
-	return details.GetDataSlice("subfulfillments")
-}
-
-func GetOutputPublicKey(output Data) crypto.PublicKey {
-	details := output.GetInnerData("condition", "details")
-	return GetPublicKey(details)
-}
-
-func GetOutputPublicKeys(output Data) []crypto.PublicKey {
-	details := output.GetInnerData("condition", "details")
-	subs := GetDetailsSubfulfillments(details)
-	if subs == nil {
-		return []crypto.PublicKey{GetOutputPublicKey(output)}
-	}
-	pubs := make([]crypto.PublicKey, len(subs))
-	for i, sub := range subs {
-		pubs[i] = GetPublicKey(sub)
-	}
-	return pubs
-}
-
-func GetOutputsPublicKeys(outputs []Data) [][]crypto.PublicKey {
-	pubs := make([][]crypto.PublicKey, len(outputs))
-	for i, output := range outputs {
-		pubs[i] = GetOutputPublicKeys(output)
-	}
-	return pubs
 }
 
 func NewInputs(fulfills []Data, ownersBefore [][]crypto.PublicKey) []Data {
@@ -435,13 +268,117 @@ func NewOutput(amount int, ownersAfter []crypto.PublicKey) Data {
 	if n == 1 {
 		return Data{
 			"amount":      amount,
-			"condition":   conds.DefaultFulfillmentFromPubKey(ownersAfter[0]),
+			"condition":   cc.DefaultFulfillmentFromPubKey(ownersAfter[0]).Data(),
 			"public_keys": ownersAfter,
 		}
 	}
 	return Data{
 		"amount":      amount,
-		"condition":   conds.DefaultFulfillmentThresholdFromPubKeys(ownersAfter),
+		"condition":   cc.DefaultFulfillmentThresholdFromPubKeys(ownersAfter).Data(),
 		"public_keys": ownersAfter,
 	}
+}
+
+//---------------------------------------------------------------------------------------
+
+// For convenience
+
+func DefaultTxOwnerBefore(tx Data) crypto.PublicKey {
+	return DefaultInputOwnerBefore(GetTxInput(tx, 0))
+}
+
+func DefaultTxOwnerAfter(tx Data, outputIdx int) crypto.PublicKey {
+	return GetOutputOwnerAfter(GetTxOutput(tx, outputIdx), 0)
+}
+
+func DefaultTxConsume(tx Data) Data {
+	return GetInputFulfills(GetTxInput(tx, 0))
+}
+
+// Tx
+
+func GetTxAssetData(tx Data) Data {
+	return tx.GetData("asset").GetData("data")
+}
+
+func GetTxAssetId(tx Data) string {
+	return tx.GetData("asset").GetStr("id")
+}
+
+func GetTxInput(tx Data, inputIdx int) Data {
+	return GetTxInputs(tx)[inputIdx]
+}
+
+func GetTxInputs(tx Data) []Data {
+	return tx.GetDataSlice("inputs")
+}
+
+func GetTxOperation(tx Data) string {
+	return tx.GetStr("operation")
+}
+
+func GetTxOutput(tx Data, outputIdx int) Data {
+	return GetTxOutputs(tx)[outputIdx]
+}
+
+func GetTxOutputs(tx Data) []Data {
+	return tx.GetDataSlice("outputs")
+}
+
+// Inputs
+
+func GetInputFulfills(input Data) Data {
+	return input.GetData("fulfills")
+}
+
+func DefaultInputOwnerBefore(input Data) crypto.PublicKey {
+	return GetInputOwnerBefore(input, 0)
+}
+
+func GetInputOwnerBefore(input Data, inputIdx int) crypto.PublicKey {
+	return GetInputOwnersBefore(input)[inputIdx]
+}
+
+func GetInputOwnersBefore(input Data) []crypto.PublicKey {
+	if pubkeys, ok := input.Get("owners_before").([]crypto.PublicKey); ok {
+		return pubkeys
+	}
+	ownersBefore := input.GetStrSlice("owners_before")
+	pubkeys := make([]crypto.PublicKey, len(ownersBefore))
+	for i, owner := range ownersBefore {
+		pubkeys[i] = new(ed25519.PublicKey)
+		pubkeys[i].FromString(owner)
+	}
+	return pubkeys
+}
+
+// Outputs
+
+func GetOutputAmount(output Data) int {
+	return output.GetInt("amount")
+}
+
+func GetOutputCondition(output Data) Data {
+	return output.GetData("condition")
+}
+
+func DefaultOutputOwnerAfter(output Data) crypto.PublicKey {
+	return GetOutputOwnerAfter(output, 0)
+}
+
+func GetOutputOwnerAfter(output Data, outputIdx int) crypto.PublicKey {
+	return GetOutputOwnersAfter(output)[outputIdx]
+}
+
+func GetOutputOwnersAfter(output Data) []crypto.PublicKey {
+	if pubkeys, ok := output.Get("public_keys").([]crypto.PublicKey); ok {
+		return pubkeys
+	}
+	ownersAfter := output.GetStrSlice("public_keys")
+	pubkeys := make([]crypto.PublicKey, len(ownersAfter))
+	for i, owner := range ownersAfter {
+		pubkeys[i] = new(ed25519.PublicKey)
+		pubkeys[i].FromString(owner)
+	}
+	return pubkeys
 }

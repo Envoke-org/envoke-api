@@ -124,33 +124,17 @@ func (f *fulfillmentEd25519) Init() {
 	f.size = ED25519_SIZE
 }
 
-func (f *fulfillmentEd25519) MarshalJSON() ([]byte, error) {
-	// TODO: validate
-	return MustMarshalJSON(struct {
-		Details struct {
-			Bitmask   int              `json:"bitmask"`
-			PubKey    crypto.PublicKey `json:"public_key"`
-			Signature interface{}      `json:"signature"`
-			Type      string           `json:"type"`
-			TypeId    int              `json:"type_id"`
-		} `json:"details"`
-		URI string `json:"uri"`
-	}{
-		Details: struct {
-			Bitmask   int              `json:"bitmask"`
-			PubKey    crypto.PublicKey `json:"public_key"`
-			Signature interface{}      `json:"signature"`
-			Type      string           `json:"type"`
-			TypeId    int              `json:"type_id"`
-		}{
-			Bitmask:   f.bitmask,
-			PubKey:    f.pub,
-			Signature: nil,
-			Type:      FULFILLMENT_TYPE,
-			TypeId:    f.id,
+func (f *fulfillmentEd25519) Data() Data {
+	return Data{
+		"details": Data{
+			"bitmask":    f.bitmask,
+			"public_key": f.PublicKey().String(),
+			"signature":  nil,
+			"type":       "fulfillment",
+			"type_id":    f.id,
 		},
-		URI: GetCondition(f).String(),
-	}), nil
+		"uri": GetCondition(f).String(),
+	}
 }
 
 func (f *fulfillmentEd25519) PublicKey() crypto.PublicKey {
@@ -292,55 +276,24 @@ func DefaultFulfillmentThresholdFromPrivKeys(msg []byte, privs ...crypto.Private
 	return NewFulfillmentThreshold(subs, n, 1)
 }
 
-func (f *fulfillmentThreshold) MarshalJSON() ([]byte, error) {
+func (f *fulfillmentThreshold) Data() Data {
 	// TODO: validate
-	subs := make([]interface{}, len(f.subs))
+	subs := make([]Data, len(f.subs))
 	for i, sub := range f.subs {
 		if sub.PublicKey() != nil {
-			subs[i] = struct {
-				Bitmask   int              `json:"bitmask"`
-				PubKey    crypto.PublicKey `json:"public_key"`
-				Signature interface{}      `json:"signature"`
-				Type      string           `json:"type"`
-				TypeId    int              `json:"type_id"`
-				Weight    int              `json:"weight"`
-			}{
-				Bitmask:   sub.Bitmask(),
-				PubKey:    sub.PublicKey(),
-				Signature: nil,
-				Type:      FULFILLMENT_TYPE,
-				TypeId:    sub.Id(),
-				Weight:    sub.Weight(),
-			}
-		} else {
-			//..
+			subs[i] = sub.Data()
 		}
 	}
-	return MustMarshalJSON(struct {
-		Details struct {
-			Bitmask   int           `json:"bitmask"`
-			Subs      []interface{} `json:"subfulfillments"`
-			Threshold int           `json:"threshold"`
-			Type      string        `json:"type"`
-			TypeId    int           `json:"type_id"`
-		} `json:"details"`
-		URI string `json:"uri"`
-	}{
-		Details: struct {
-			Bitmask   int           `json:"bitmask"`
-			Subs      []interface{} `json:"subfulfillments"`
-			Threshold int           `json:"threshold"`
-			Type      string        `json:"type"`
-			TypeId    int           `json:"type_id"`
-		}{
-			Bitmask:   f.bitmask,
-			Subs:      subs,
-			Threshold: f.threshold,
-			Type:      FULFILLMENT_TYPE,
-			TypeId:    f.id,
+	return Data{
+		"details": Data{
+			"bitmask":   f.bitmask,
+			"subs":      subs,
+			"threshold": f.threshold,
+			"type":      "fulfillment",
+			"type_id":   f.id,
 		},
-		URI: GetCondition(f).String(),
-	}), nil
+		"uri": GetCondition(f).String(),
+	}
 }
 
 func ThresholdBitmask(subs Fulfillments) int {

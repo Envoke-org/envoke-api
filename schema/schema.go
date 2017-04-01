@@ -10,9 +10,9 @@ import (
 
 const SCHEMA = "http://json-schema.org/draft-04/schema#"
 
-func ValidateSchema(model Data, _type string) error {
+func ValidateSchema(data Data, _type string) error {
 	var schemaLoader jsonschema.JSONLoader
-	modelLoader := jsonschema.NewGoLoader(model)
+	dataLoader := jsonschema.NewGoLoader(data)
 	switch _type {
 	case "composition":
 		schemaLoader = CompositionLoader
@@ -20,8 +20,6 @@ func ValidateSchema(model Data, _type string) error {
 		schemaLoader = LicenseLoader
 	case "recording":
 		schemaLoader = RecordingLoader
-	case "release":
-		schemaLoader = ReleaseLoader
 	case "right":
 		schemaLoader = RightLoader
 	case "user":
@@ -29,11 +27,13 @@ func ValidateSchema(model Data, _type string) error {
 	default:
 		return ErrorAppend(ErrInvalidType, _type)
 	}
-	result, err := jsonschema.Validate(schemaLoader, modelLoader)
+	result, err := jsonschema.Validate(schemaLoader, dataLoader)
 	if err != nil {
 		return err
 	}
 	if !result.Valid() {
+		Println(result.Errors())
+		PrintJSON(data)
 		return Error(_type + " validation failed")
 	}
 	return nil

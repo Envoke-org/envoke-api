@@ -15,10 +15,10 @@ import (
 )
 
 type Api struct {
-	id     string
-	logger Logger
-	priv   crypto.PrivateKey
-	pub    crypto.PublicKey
+	id      string
+	logger  Logger
+	privkey crypto.PrivateKey
+	pubkey  crypto.PublicKey
 }
 
 func NewApi() *Api {
@@ -110,23 +110,21 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	rightHolderId := req.PostFormValue("rightHolderId")
-	rightToId := req.PostFormValue("rightToId")
-	tx, err := ld.QueryAndValidateSchema(rightHolderId, "user")
+	tx, err := ld.ValidateUserId(rightHolderId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	rightHolderKey := bigchain.DefaultGetTxSender(tx)
+	rightHolderKey := bigchain.DefaultTxOwnerBefore(tx)
+	rightToId := req.PostFormValue("rightToId")
 	prevRightId := req.PostFormValue("prevRightId")
 	var prevTransferId string
-	var right Data
 	if spec.MatchId(prevRightId) {
-		right, err = ld.ValidateRightId(api.id, prevRightId)
-		if err != nil {
+		if _, err = ld.CheckRightIdHolder(api.id, prevRightId); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		prevTransferId = spec.GetTransferId(right)
+		prevTransferId = spec.GetTransferId(bigchain.GetTxAssetData(tx))
 	} else {
 		prevTransferId = rightToId
 	}
@@ -135,10 +133,11 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	var right Data
 	if n := len(rightHolderIds); n == 1 {
-		right, err = api.SendIndividualCreateTx(1, spec.NewRight(rightHolderIds, rightToId, transferId), rightHolderKey)
+		right, err = api.SendIndividualCreateTx(1, spec.NewRight(rightHolderIds, rightToId, transferId), rightHolderKey, ld.ValidateRightTx)
 	} else if n == 2 {
-		right, err = api.SendMultipleOwnersCreateTx([]int{1, 1}, spec.NewRight(rightHolderIds, rightToId, transferId), []crypto.PublicKey{api.pub, rightHolderKey})
+		right, err = api.SendMultipleOwnersCreateTx([]int{1, 1}, spec.NewRight(rightHolderIds, rightToId, transferId), []crypto.PublicKey{api.pubkey, rightHolderKey}, ld.ValidateRightTx)
 	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -161,7 +160,7 @@ func (api *Api) Transfer(assetId, consumeId string, owner crypto.PublicKey, owne
 		}
 	}
 	for outputIdx, output := range bigchain.GetTxOutputs(tx) {
-		if api.pub.Equals(bigchain.GetOutputPublicKey(output)) {
+		if api.pubkey.Equals(bigchain.DefaultOutputOwnerAfter(output)) {
 			totalAmount := bigchain.GetOutputAmount(output)
 			keepAmount := totalAmount - transferAmount
 			if keepAmount == 0 {
@@ -215,6 +214,7 @@ func (api *Api) CompositionHandler(w http.ResponseWriter, req *http.Request) {
 	composition, err := api.Composition(
 		spec.NewComposition(composerIds, hfaCode, inLanguage, iswcCode, name, publisherId, thresholdSignature, url),
 		percentShares,
+		true,
 	)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -257,6 +257,7 @@ func (api *Api) RecordingHandler(w http.ResponseWriter, req *http.Request) {
 		file,
 		percentShares,
 		spec.NewRecording(artistIds, compositionId, duration, isrcCode, licenseId, recordLabelId, thresholdSignature, url),
+		true,
 	)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -282,13 +283,13 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 	licenseHolderIds := req.PostForm["licenseHolderId"]
 	rightIds := req.PostForm["rightId"]
 	if n := len(licenseHolderIds); n == 1 {
-		tx, err := ld.QueryAndValidateSchema(licenseHolderIds[0], "user")
+		tx, err := bigchain.HttpGetTx(licenseHolderIds[0])
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		owner := bigchain.DefaultGetTxSender(tx)
-		license, err = api.SendIndividualCreateTx(1, spec.NewLicense(licenseForIds, licenseHolderIds, api.id, rightIds, validFrom, validThrough), owner)
+		owner := bigchain.DefaultTxOwnerBefore(tx)
+		license, err = api.SendIndividualCreateTx(1, spec.NewLicense(licenseForIds, licenseHolderIds, api.id, rightIds, validFrom, validThrough), owner, ld.ValidateLicenseTx)
 	} else if n > 1 {
 		amounts := make([]int, n)
 		owners := make([]crypto.PublicKey, n)
@@ -299,11 +300,11 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 				http.Error(w, err.Error(), http.StatusBadRequest)
 				return
 			}
-			owners[i] = bigchain.DefaultGetTxSender(tx)
+			owners[i] = bigchain.DefaultTxOwnerBefore(tx)
 		}
-		license, err = api.SendMultipleOwnersCreateTx(amounts, spec.NewLicense(licenseForIds, licenseHolderIds, api.id, rightIds, validFrom, validThrough), owners)
+		license, err = api.SendMultipleOwnersCreateTx(amounts, spec.NewLicense(licenseForIds, licenseHolderIds, api.id, rightIds, validFrom, validThrough), owners, ld.ValidateLicenseTx)
 	} else {
-		err = Error("zero license-holder ids")
+		err = Error("No license-holder ids")
 	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -336,26 +337,26 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	pub := bigchain.DefaultGetTxSender(tx)
+	pub := bigchain.DefaultTxOwnerBefore(tx)
 	switch _type {
 	case "composition":
-		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
-			return CompositionFilter(txId, name)
+		models, err = bigchain.HttpGetFilter(func(id string) (Data, error) {
+			return CompositionFilter(id, name)
 		}, pub)
 	case "license":
-		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
-			return ld.ValidateLicenseId(txId)
+		models, err = bigchain.HttpGetFilter(func(id string) (Data, error) {
+			return ld.ValidateLicenseId(id)
 		}, pub)
 	case "recording":
-		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
-			return RecordingFilter(txId, name)
+		models, err = bigchain.HttpGetFilter(func(id string) (Data, error) {
+			return RecordingFilter(id, name)
 		}, pub)
 	case "right":
-		models, err = bigchain.HttpGetFilter(func(txId string) (Data, error) {
-			return ld.ValidateRightId(userId, txId)
+		models, err = bigchain.HttpGetFilter(func(id string) (Data, error) {
+			return ld.ValidateRightId(id)
 		}, pub)
 	case "user":
-		models = []Data{bigchain.GetTxData(tx)}
+		models = []Data{bigchain.GetTxAssetData(tx)}
 	default:
 		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
 		return
@@ -410,13 +411,13 @@ func (api *Api) ProveHandler(w http.ResponseWriter, req *http.Request) {
 	userId := params.Get("userId")
 	switch _type {
 	case "composition":
-		sig, err = ld.ProveComposer(challenge, userId, dataId, api.priv)
+		sig, err = ld.ProveComposer(challenge, userId, dataId, api.privkey)
 	case "license":
-		sig, err = ld.ProveLicenseHolder(challenge, userId, dataId, api.priv)
+		sig, err = ld.ProveLicenseHolder(challenge, userId, dataId, api.privkey)
 	case "recording":
-		sig, err = ld.ProveArtist(userId, challenge, api.priv, dataId)
+		sig, err = ld.ProveArtist(userId, challenge, api.privkey, dataId)
 	case "right":
-		sig, err = ld.ProveRightHolder(challenge, api.priv, userId, dataId)
+		sig, err = ld.ProveRightHolder(challenge, api.privkey, userId, dataId)
 	default:
 		err = ErrorAppend(ErrInvalidType, _type)
 	}
@@ -465,15 +466,14 @@ func (api *Api) VerifyHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, "Verified proof!")
 }
 
-func (api *Api) Sign(txId string) (cc.Fulfillment, error) {
-	tx, err := bigchain.HttpGetTx(txId)
+func (api *Api) Sign(id string) (cc.Fulfillment, error) {
+	tx, err := bigchain.HttpGetTx(id)
 	if err != nil {
 		return nil, err
 	}
-	model := bigchain.GetTxData(tx)
-	sig := api.priv.Sign(Checksum256(MustMarshalJSON(model)))
+	sig := api.privkey.Sign(Checksum256(MustMarshalJSON(bigchain.GetTxAssetData(tx))))
 	return cc.DefaultFulfillmentEd25519(
-		api.pub.(*ed25519.PublicKey),
+		api.pubkey.(*ed25519.PublicKey),
 		sig.(*ed25519.Signature),
 	), nil
 }
@@ -561,9 +561,9 @@ func (api *Api) LoggedIn() bool {
 	switch {
 	case api.id == "":
 		api.logger.Warn("ID is not set")
-	case api.priv == nil:
+	case api.privkey == nil:
 		api.logger.Warn("Private-key is not set")
-	case api.pub == nil:
+	case api.pubkey == nil:
 		api.logger.Warn("Public-key is not set")
 	default:
 		return true
@@ -572,14 +572,19 @@ func (api *Api) LoggedIn() bool {
 	return false
 }
 
-func (api *Api) DefaultSendIndividualCreateTx(data Data) (Data, error) {
-	return api.SendIndividualCreateTx(1, data, api.pub)
+func (api *Api) DefaultSendIndividualCreateTx(data Data, validateTx func(Data) error) (Data, error) {
+	return api.SendIndividualCreateTx(1, data, api.pubkey, validateTx)
 }
 
-func (api *Api) SendIndividualCreateTx(amount int, data Data, owner crypto.PublicKey) (Data, error) {
+func (api *Api) SendIndividualCreateTx(amount int, data Data, owner crypto.PublicKey, validateTx func(Data) error) (Data, error) {
 	_type := spec.GetType(data)
-	tx := bigchain.IndividualCreateTx(amount, data, owner, api.pub)
-	bigchain.FulfillTx(tx, api.priv)
+	tx := bigchain.IndividualCreateTx(amount, data, owner, api.pubkey)
+	bigchain.FulfillTx(tx, api.privkey)
+	if validateTx != nil {
+		if err := validateTx(tx); err != nil {
+			return nil, err
+		}
+	}
 	id, err := bigchain.HttpPostTx(tx)
 	if err != nil {
 		return nil, err
@@ -591,14 +596,19 @@ func (api *Api) SendIndividualCreateTx(amount int, data Data, owner crypto.Publi
 	}, nil
 }
 
-func (api *Api) DefaultSendMultipleOwnersCreateTx(data Data, owners []crypto.PublicKey) (Data, error) {
-	return api.SendMultipleOwnersCreateTx([]int{1}, data, owners)
+func (api *Api) DefaultSendMultipleOwnersCreateTx(data Data, owners []crypto.PublicKey, validateTx func(Data) error) (Data, error) {
+	return api.SendMultipleOwnersCreateTx([]int{1}, data, owners, validateTx)
 }
 
-func (api *Api) SendMultipleOwnersCreateTx(amounts []int, data Data, owners []crypto.PublicKey) (Data, error) {
+func (api *Api) SendMultipleOwnersCreateTx(amounts []int, data Data, owners []crypto.PublicKey, validateTx func(Data) error) (Data, error) {
 	_type := spec.GetType(data)
-	tx := bigchain.MultipleOwnersCreateTx(amounts, data, owners, api.pub)
-	bigchain.FulfillTx(tx, api.priv)
+	tx := bigchain.MultipleOwnersCreateTx(amounts, data, owners, api.pubkey)
+	bigchain.FulfillTx(tx, api.privkey)
+	if validateTx != nil {
+		if err := validateTx(tx); err != nil {
+			return nil, err
+		}
+	}
 	id, err := bigchain.HttpPostTx(tx)
 	if err != nil {
 		return nil, err
@@ -611,8 +621,8 @@ func (api *Api) SendMultipleOwnersCreateTx(amounts []int, data Data, owners []cr
 }
 
 func (api *Api) SendIndividualTransferTx(amount int, assetId, consumeId string, outputIdx int, owner crypto.PublicKey) (string, error) {
-	tx := bigchain.IndividualTransferTx(amount, assetId, consumeId, outputIdx, owner, api.pub)
-	bigchain.FulfillTx(tx, api.priv)
+	tx := bigchain.IndividualTransferTx(amount, assetId, consumeId, outputIdx, owner, api.pubkey)
+	bigchain.FulfillTx(tx, api.privkey)
 	id, err := bigchain.HttpPostTx(tx)
 	if err != nil {
 		return "", err
@@ -622,8 +632,8 @@ func (api *Api) SendIndividualTransferTx(amount int, assetId, consumeId string, 
 }
 
 func (api *Api) SendDivisibleTransferTx(amounts []int, assetId, consumeId string, outputIdx int, owner crypto.PublicKey) (string, error) {
-	tx := bigchain.DivisibleTransferTx(amounts, assetId, consumeId, outputIdx, []crypto.PublicKey{api.pub, owner}, api.pub)
-	bigchain.FulfillTx(tx, api.priv)
+	tx := bigchain.DivisibleTransferTx(amounts, assetId, consumeId, outputIdx, []crypto.PublicKey{api.pubkey, owner}, api.pubkey)
+	bigchain.FulfillTx(tx, api.privkey)
 	id, err := bigchain.HttpPostTx(tx)
 	if err != nil {
 		return "", err
@@ -633,22 +643,22 @@ func (api *Api) SendDivisibleTransferTx(amounts []int, assetId, consumeId string
 }
 
 func (api *Api) Login(id, privstr string) error {
-	priv := new(ed25519.PrivateKey)
-	if err := priv.FromString(privstr); err != nil {
+	privkey := new(ed25519.PrivateKey)
+	if err := privkey.FromString(privstr); err != nil {
 		return err
 	}
-	tx, err := ld.QueryAndValidateSchema(id, "user")
+	tx, err := ld.ValidateUserId(id)
 	if err != nil {
 		return err
 	}
-	user := bigchain.GetTxData(tx)
-	pub := bigchain.DefaultGetTxSender(tx)
-	if !pub.Equals(priv.Public()) {
-		return ErrInvalidKey
+	user := bigchain.GetTxAssetData(tx)
+	pubkey := bigchain.DefaultTxOwnerBefore(tx)
+	if !pubkey.Equals(privkey.Public()) {
+		return ErrorAppend(ErrInvalidKey, pubkey.String())
 	}
 	api.logger.Info(Sprintf("SUCCESS %s is logged in", spec.GetName(user)))
 	api.id = id
-	api.priv, api.pub = priv, pub
+	api.privkey, api.pubkey = privkey, pubkey
 	return nil
 }
 
@@ -657,39 +667,43 @@ func (api *Api) Register(user Data, password, path string) (Data, error) {
 	if err != nil {
 		return nil, err
 	}
-	api.priv, api.pub = ed25519.GenerateKeypairFromPassword(password)
-	user, err = api.DefaultSendIndividualCreateTx(user)
+	api.privkey, api.pubkey = ed25519.GenerateKeypairFromPassword(password)
+	user, err = api.DefaultSendIndividualCreateTx(user, ld.ValidateUserTx)
 	if err != nil {
 		return nil, err
 	}
 	credentials := Data{
-		"id":         bigchain.GetId(user),
-		"privateKey": api.priv.String(),
-		"publicKey":  api.pub.String(),
+		"id":         user.GetStr("id"),
+		"privateKey": api.privkey.String(),
+		"publicKey":  api.pubkey.String(),
 	}
-	api.priv, api.pub = nil, nil
+	api.privkey, api.pubkey = nil, nil
 	WriteJSON(file, credentials)
 	return credentials, nil
 }
 
-func (api *Api) Composition(composition Data, percentShares []int) (Data, error) {
+func (api *Api) Composition(composition Data, percentShares []int, validate bool) (Data, error) {
 	composers := spec.GetComposers(composition)
 	n := len(composers)
 	composerKeys := make([]crypto.PublicKey, n)
 	for i, composer := range composers {
-		tx, err := ld.QueryAndValidateSchema(spec.GetId(composer), "user")
+		tx, err := ld.ValidateUserId(spec.GetId(composer))
 		if err != nil {
 			return nil, err
 		}
-		composerKeys[i] = bigchain.DefaultGetTxSender(tx)
+		composerKeys[i] = bigchain.DefaultTxOwnerBefore(tx)
+	}
+	var validateTx func(Data) error
+	if validate {
+		validateTx = ld.ValidateCompositionTx
 	}
 	if n == 1 {
-		return api.SendIndividualCreateTx(100, composition, composerKeys[0])
+		return api.SendIndividualCreateTx(100, composition, composerKeys[0], validateTx)
 	}
-	return api.SendMultipleOwnersCreateTx(percentShares, composition, composerKeys)
+	return api.SendMultipleOwnersCreateTx(percentShares, composition, composerKeys, validateTx)
 }
 
-func (api *Api) Recording(file io.Reader, percentShares []int, recording Data) (Data, error) {
+func (api *Api) Recording(file io.Reader, percentShares []int, recording Data, validate bool) (Data, error) {
 	// rs := MustReadSeeker(file)
 	// meta, err := tag.ReadFrom(rs)
 	// if err != nil {
@@ -700,14 +714,18 @@ func (api *Api) Recording(file io.Reader, percentShares []int, recording Data) (
 	n := len(artists)
 	artistKeys := make([]crypto.PublicKey, n)
 	for i, artist := range artists {
-		tx, err := ld.QueryAndValidateSchema(spec.GetId(artist), "user")
+		tx, err := ld.ValidateUserId(spec.GetId(artist))
 		if err != nil {
 			return nil, err
 		}
-		artistKeys[i] = bigchain.DefaultGetTxSender(tx)
+		artistKeys[i] = bigchain.DefaultTxOwnerBefore(tx)
+	}
+	var validateTx func(Data) error
+	if validate {
+		validateTx = ld.ValidateRecordingTx
 	}
 	if n == 1 {
-		return api.SendIndividualCreateTx(100, recording, artistKeys[0])
+		return api.SendIndividualCreateTx(100, recording, artistKeys[0], validateTx)
 	}
-	return api.SendMultipleOwnersCreateTx(percentShares, recording, artistKeys)
+	return api.SendMultipleOwnersCreateTx(percentShares, recording, artistKeys, validateTx)
 }

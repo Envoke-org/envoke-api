@@ -18,7 +18,6 @@ const (
 	SUPPORTED_BITMASK = 0x3f
 
 	// Types
-	FULFILLMENT_TYPE = "fulfillment"
 
 	PREIMAGE_ID      = 0
 	PREIMAGE_BITMASK = 0x03
@@ -45,19 +44,18 @@ const (
 
 type Fulfillment interface {
 	Bitmask() int
+	Data() Data
 	FromString(string) error
 	Hash() []byte
 	Id() int
 	Init()
 	IsCondition() bool
 	MarshalBinary() ([]byte, error)
-	MarshalJSON() ([]byte, error)
 	PublicKey() crypto.PublicKey
 	Signature() crypto.Signature
 	Size() int
 	String() string
 	UnmarshalBinary([]byte) error
-	UnmarshalJSON([]byte) error
 	Validate([]byte) bool
 	Weight() int
 }
@@ -377,6 +375,8 @@ func NewFulfillment(id int, outer Fulfillment, payload []byte, weight int) *fulf
 
 func (f *fulfillment) Bitmask() int { return f.bitmask }
 
+func (f *fulfillment) Data() Data { return nil }
+
 func (f *fulfillment) FromString(uri string) (err error) {
 	if !MatchStr(regex.FULFILLMENT, uri) {
 		return ErrInvalidFulfillment
@@ -414,16 +414,6 @@ func (f *fulfillment) MarshalBinary() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (f *fulfillment) MarshalJSON() ([]byte, error) {
-	if f == nil {
-		return nil, nil
-	}
-	if !f.Validate(nil) {
-		panic(ErrInvalidFulfillment)
-	}
-	return MustMarshalJSON(f.String()), nil
-}
-
 func (f *fulfillment) PublicKey() crypto.PublicKey { return nil }
 
 func (f *fulfillment) Signature() crypto.Signature { return nil }
@@ -452,17 +442,6 @@ func (f *fulfillment) UnmarshalBinary(p []byte) (err error) {
 		if !f.Validate(nil) {
 			return ErrInvalidFulfillment
 		}
-	}
-	return nil
-}
-
-func (f *fulfillment) UnmarshalJSON(p []byte) error {
-	var uri string
-	if err := UnmarshalJSON(p, &uri); err != nil {
-		return err
-	}
-	if err := f.FromString(uri); err != nil {
-		return err
 	}
 	return nil
 }
@@ -565,16 +544,6 @@ func (c *Condition) MarshalBinary() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (c *Condition) MarshalJSON() ([]byte, error) {
-	if c == nil {
-		return nil, nil
-	}
-	if !c.Validate(nil) {
-		panic(ErrInvalidCondition)
-	}
-	return MustMarshalJSON(c.String()), nil
-}
-
 func (c *Condition) String() string {
 	hash64 := Base64UrlEncode(c.hash)
 	return Sprintf("cc:%x:%x:%s:%d", c.id, c.bitmask, hash64, c.size)
@@ -602,12 +571,4 @@ func (c *Condition) UnmarshalBinary(p []byte) (err error) {
 		return ErrInvalidCondition
 	}
 	return nil
-}
-
-func (c *Condition) UnmarshalJSON(p []byte) error {
-	var uri string
-	if err := UnmarshalJSON(p, &uri); err != nil {
-		return err
-	}
-	return c.FromString(uri)
 }
