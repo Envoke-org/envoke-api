@@ -550,27 +550,27 @@ OUTER:
 			return err
 		}
 		artistKeys[i] = bigchain.DefaultTxOwnerBefore(tx)
-		if artistKeys[i].Equals(bigchain.DefaultOutputOwnerAfter(outputs[i])) {
-			if totalShares += bigchain.GetOutputAmount(outputs[i]); totalShares > 100 {
-				return Error("total shares exceed 100")
+		if !artistKeys[i].Equals(bigchain.DefaultOutputOwnerAfter(outputs[i])) {
+			return Error("artist does not hold output")
+		}
+		if totalShares += bigchain.GetOutputAmount(outputs[i]); totalShares > 100 {
+			return Error("total shares exceed 100")
+		}
+		for j, composer := range composers {
+			if artistId == spec.GetId(composer) {
+				composers = append(composers[:j], composers[j+1:]...)
+				continue OUTER
 			}
-			for j, composer := range composers {
-				if artistId == spec.GetId(composer) {
-					composers = append(composers[:j], composers[j+1:]...)
+		}
+		if len(licenseHolderIds) > 0 {
+			for j, licenseHolderId := range licenseHolderIds {
+				if artistId == licenseHolderId {
+					licenseHolderIds = append(licenseHolderIds[:j], licenseHolderIds[j+1:]...)
 					continue OUTER
 				}
 			}
-			if len(licenseHolderIds) > 0 {
-				for j, licenseHolderId := range licenseHolderIds {
-					if artistId == licenseHolderId {
-						licenseHolderIds = append(licenseHolderIds[:j], licenseHolderIds[j+1:]...)
-						continue OUTER
-					}
-				}
-			}
-			return Error("artist is not composer/does not have mechanical")
 		}
-		return Error("could not find output with artist pubkey")
+		return Error("artist is not composer/does not have mechanical")
 	}
 	if totalShares != 100 {
 		return Error("total shares do not equal 100")
