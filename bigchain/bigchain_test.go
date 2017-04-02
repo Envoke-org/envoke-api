@@ -49,7 +49,7 @@ func TestBigchain(t *testing.T) {
 	if !FulfilledTx(tx) {
 		t.Fatal(ErrInvalidFulfillment)
 	}
-	if _, err = HttpPostTx(tx); err != nil {
+	if _, err := HttpPostTx(tx); err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, Data{"transfer2Tx": tx})
@@ -59,30 +59,18 @@ func TestBigchain(t *testing.T) {
 	if !FulfilledTx(tx) {
 		t.Fatal(ErrInvalidFulfillment)
 	}
-	multipleOwnersTxId, err := HttpPostTx(tx)
-	if err != nil {
+	if _, err := HttpPostTx(tx); err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, Data{"multipleOwnersTx": tx})
-	tx, err = HttpGetTx(multipleOwnersTxId)
-	if err != nil {
-		t.Fatal(err)
-	}
-	PrintJSON(tx)
 	// Multiple owners tx with shared output/threshold signature
 	tx = MultipleOwnersCreateTx([]int{100}, data, []crypto.PublicKey{pubAlice, pubBob}, pubAlice)
 	FulfillTx(tx, privAlice)
 	if !FulfilledTx(tx) {
 		t.Fatal(ErrInvalidFulfillment)
 	}
-	sharedTxId, err := HttpPostTx(tx)
-	if err != nil {
+	if _, err := HttpPostTx(tx); err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, Data{"sharedTx": tx})
-	tx, err = HttpGetTx(sharedTxId)
-	if err != nil {
-		t.Fatal(err)
-	}
-	PrintJSON(tx)
 }

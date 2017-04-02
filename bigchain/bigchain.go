@@ -288,7 +288,7 @@ func DefaultTxOwnerBefore(tx Data) crypto.PublicKey {
 }
 
 func DefaultTxOwnerAfter(tx Data, outputIdx int) crypto.PublicKey {
-	return GetOutputOwnerAfter(GetTxOutput(tx, outputIdx), 0)
+	return DefaultOutputOwnerAfter(GetTxOutput(tx, outputIdx))
 }
 
 func DefaultTxConsume(tx Data) Data {

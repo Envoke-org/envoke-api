@@ -2,8 +2,6 @@
 
 source init.sh
 
-read -p "Enter directory for user credentials: " directory
-
 read -p "Enter path to audio file: " path
 
 export DIR=$directory

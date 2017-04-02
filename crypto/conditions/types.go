@@ -281,16 +281,17 @@ func (f *fulfillmentThreshold) Data() Data {
 	subs := make([]Data, len(f.subs))
 	for i, sub := range f.subs {
 		if sub.PublicKey() != nil {
-			subs[i] = sub.Data()
+			subs[i] = sub.Data().GetData("details")
+			subs[i].Set("weight", sub.Weight())
 		}
 	}
 	return Data{
 		"details": Data{
-			"bitmask":   f.bitmask,
-			"subs":      subs,
-			"threshold": f.threshold,
-			"type":      "fulfillment",
-			"type_id":   f.id,
+			"bitmask":         f.bitmask,
+			"subfulfillments": subs,
+			"threshold":       f.threshold,
+			"type":            "fulfillment",
+			"type_id":         f.id,
 		},
 		"uri": GetCondition(f).String(),
 	}

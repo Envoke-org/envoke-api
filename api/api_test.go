@@ -38,7 +38,6 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	composerId := GetUserId(composer)
-	PrintJSON(composer)
 	composerPrivKey := GetPrivateKey(composer)
 	WriteJSON(output, composer)
 	recordLabel, err := api.Register(
