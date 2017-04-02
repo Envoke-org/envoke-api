@@ -3,8 +3,6 @@ package common
 import "github.com/pkg/errors"
 
 var (
-	ErrExpectedGet        = Error("Expected GET request")
-	ErrExpectedPost       = Error("Expected POST request")
 	ErrInvalidCondition   = Error("Invalid condition")
 	ErrInvalidFulfillment = Error("Invalid fulfillment")
 	ErrInvalidId          = Error("Invalid id")

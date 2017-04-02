@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	// "github.com/dhowden/tag"
+	"github.com/julienschmidt/httprouter"
 	"github.com/zbo14/envoke/bigchain"
 	. "github.com/zbo14/envoke/common"
 	cc "github.com/zbo14/envoke/crypto/conditions"
@@ -27,27 +28,21 @@ func NewApi() *Api {
 	}
 }
 
-func (api *Api) AddRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("/composition", api.CompositionHandler)
-	mux.HandleFunc("/license", api.LicenseHandler)
-	mux.HandleFunc("/login", api.LoginHandler)
-	mux.HandleFunc("/prove", api.ProveHandler)
-	mux.HandleFunc("/recording", api.RecordingHandler)
-	mux.HandleFunc("/register", api.RegisterHandler)
-	mux.HandleFunc("/right", api.RightHandler)
-	mux.HandleFunc("/search", api.SearchHandler)
-	mux.HandleFunc("/verify", api.VerifyHandler)
+func (api *Api) AddRoutes(router *httprouter.Router) {
+	router.POST("/composition", api.CompositionHandler)
+	router.POST("/license", api.LicenseHandler)
+	router.POST("/login", api.LoginHandler)
+	router.POST("/recording", api.RecordingHandler)
+	router.POST("/register", api.RegisterHandler)
+	router.POST("/right", api.RightHandler)
 
-	// mux.HandleFunc("/release", api.ReleaseHandler)
-	// mux.HandleFunc("/sign", api.SignHandler)
-	// mux.HandleFunc("/threshold", api.ThresholdHandler)
+	router.GET("/prove", api.ProveHandler)
+	router.GET("/search/:type/:userId", api.SearchHandler)
+	// router.GET("/search/:type/:userId/:name", api.SearchNameHandler)
+	router.GET("/verify", api.VerifyHandler)
 }
 
-func (api *Api) LoginHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
-		return
-	}
+func (api *Api) LoginHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	privateKey := req.PostFormValue("privateKey")
 	userId := req.PostFormValue("userId")
 	if err := api.Login(privateKey, userId); err != nil {
@@ -57,11 +52,7 @@ func (api *Api) LoginHandler(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func (api *Api) RegisterHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
-		return
-	}
+func (api *Api) RegisterHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	email := req.PostFormValue("email")
 	ipiNumer := req.PostFormValue("ipiNumber")
 	isniNumber := req.PostFormValue("isniNumber")
@@ -82,11 +73,7 @@ func (api *Api) RegisterHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, credentials)
 }
 
-func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
-		return
-	}
+func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	if !api.LoggedIn() {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
@@ -168,11 +155,7 @@ func (api *Api) Transfer(assetId, consumeId string, owner crypto.PublicKey, owne
 	return "", nil, Error("You do not own output in consume tx")
 }
 
-func (api *Api) CompositionHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
-		return
-	}
+func (api *Api) CompositionHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	if !api.LoggedIn() {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
@@ -210,11 +193,7 @@ func (api *Api) CompositionHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, composition)
 }
 
-func (api *Api) RecordingHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
-		return
-	}
+func (api *Api) RecordingHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	if !api.LoggedIn() {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
@@ -222,7 +201,7 @@ func (api *Api) RecordingHandler(w http.ResponseWriter, req *http.Request) {
 	compositionId := req.PostFormValue("compositionId")
 	artistIds := req.PostForm["artistId"]
 	duration := req.PostFormValue("duration")
-	file, err := req.MultipartForm.File["recording"][0].Open()
+	file, _, err := req.FormFile("recording")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -253,11 +232,7 @@ func (api *Api) RecordingHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, recording)
 }
 
-func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
-		return
-	}
+func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	if !api.LoggedIn() {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
@@ -300,53 +275,41 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, license)
 }
 
-func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		http.Error(w, ErrExpectedGet.Error(), http.StatusBadRequest)
-		return
-	}
+func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
 	if !api.LoggedIn() {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
 	}
-	params := req.URL.Query()
-	if params.Get("action") != "search" {
-		pg, _ := LoadPage("search")
-		RenderTemplate(w, "search.html", pg)
-		return
-	}
 	var models []Data
-	name := params.Get("name")
-	_type := params.Get("type")
-	userId := params.Get("userId")
+	_type := params.ByName("type")
+	userId := params.ByName("userId")
 	tx, err := ld.QueryAndValidateSchema(userId, "user")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	pub := bigchain.DefaultTxOwnerBefore(tx)
+	pubkey := bigchain.DefaultTxOwnerBefore(tx)
 	switch _type {
 	case "composition":
 		models, err = bigchain.HttpGetFilter(func(id string) (Data, error) {
-			return CompositionFilter(id, name)
-		}, pub)
+			return ld.ValidateCompositionId(id)
+		}, pubkey)
 	case "license":
 		models, err = bigchain.HttpGetFilter(func(id string) (Data, error) {
 			return ld.ValidateLicenseId(id)
-		}, pub)
+		}, pubkey)
 	case "recording":
 		models, err = bigchain.HttpGetFilter(func(id string) (Data, error) {
-			return RecordingFilter(id, name)
-		}, pub)
+			return ld.ValidateRecordingId(id)
+		}, pubkey)
 	case "right":
 		models, err = bigchain.HttpGetFilter(func(id string) (Data, error) {
 			return ld.ValidateRightId(id)
-		}, pub)
+		}, pubkey)
 	case "user":
 		models = []Data{bigchain.GetTxAssetData(tx)}
 	default:
-		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
-		return
+		err = ErrorAppend(ErrInvalidType, _type)
 	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -380,22 +343,17 @@ func RecordingFilter(recordingId, name string) (Data, error) {
 	return recording, nil
 }
 
-func (api *Api) ProveHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		http.Error(w, ErrExpectedGet.Error(), http.StatusBadRequest)
-		return
-	}
+func (api *Api) ProveHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
 	if !api.LoggedIn() {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
 	}
 	var err error
-	params := req.URL.Query()
-	challenge := params.Get("challenge")
-	dataId := params.Get("dataId")
+	challenge := params.ByName("challenge")
+	dataId := params.ByName("dataId")
 	var sig crypto.Signature
-	_type := params.Get("type")
-	userId := params.Get("userId")
+	_type := params.ByName("type")
+	userId := params.ByName("userId")
 	switch _type {
 	case "composition":
 		sig, err = ld.ProveComposer(challenge, userId, dataId, api.privkey)
@@ -415,24 +373,19 @@ func (api *Api) ProveHandler(w http.ResponseWriter, req *http.Request) {
 	WriteJSON(w, sig)
 }
 
-func (api *Api) VerifyHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		http.Error(w, ErrExpectedGet.Error(), http.StatusBadRequest)
-		return
-	}
+func (api *Api) VerifyHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
 	if !api.LoggedIn() {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
 	}
 	var err error
-	params := req.URL.Query()
-	challenge := params.Get("challenge")
-	dataId := params.Get("dataId")
-	userId := params.Get("userId")
+	challenge := params.ByName("challenge")
+	dataId := params.ByName("dataId")
+	userId := params.ByName("userId")
 	sig := new(ed25519.Signature)
-	signature := params.Get("signature")
+	signature := params.ByName("signature")
 	if err = sig.FromString(signature); err == nil {
-		_type := params.Get("type")
+		_type := params.ByName("type")
 		switch _type {
 		case "composition":
 			err = ld.VerifyComposer(challenge, userId, dataId, sig)
@@ -513,7 +466,7 @@ func (api *Api) SignHandler(w http.ResponseWriter, req *http.Request) {
 	pg, _ := LoadPage("sign")
 	RenderTemplate(w, "sign.html", pg)
 	params := req.URL.Query()
-	txId := params.Get("txId")
+	txId := params.ByName("txId")
 	ful, err := api.Sign(txId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -533,7 +486,7 @@ func (api *Api) ThresholdHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	pg, _ := LoadPage("threshold")
 	RenderTemplate(w, "threshold.html", pg)
-	thresholdSignatures := SplitStr(params.Get("thresholdSignatures"), ",")
+	thresholdSignatures := SplitStr(params.ByName("thresholdSignatures"), ",")
 	ful, err := Threshold(thresholdSignatures)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -546,12 +499,12 @@ func (api *Api) ThresholdHandler(w http.ResponseWriter, req *http.Request) {
 
 func (api *Api) LoggedIn() bool {
 	switch {
-	case api.userId == "":
-		api.logger.Warn("ID is not set")
 	case api.privkey == nil:
 		api.logger.Warn("Private-key is not set")
 	case api.pubkey == nil:
 		api.logger.Warn("Public-key is not set")
+	case api.userId == "":
+		api.logger.Warn("ID is not set")
 	default:
 		return true
 	}
