@@ -15,10 +15,10 @@ import (
 )
 
 type Api struct {
-	id      string
 	logger  Logger
 	privkey crypto.PrivateKey
 	pubkey  crypto.PublicKey
+	userId  string
 }
 
 func NewApi() *Api {
@@ -48,24 +48,9 @@ func (api *Api) LoginHandler(w http.ResponseWriter, req *http.Request) {
 		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
 		return
 	}
-	if err := req.ParseMultipartForm(1000); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	credentials, err := req.MultipartForm.File["credentials"][0].Open()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	login := &struct {
-		Id         string `json:"id"`
-		PrivateKey string `json:"privateKey"`
-	}{}
-	if err = ReadJSON(credentials, login); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if err := api.Login(login.Id, login.PrivateKey); err != nil {
+	privateKey := req.PostFormValue("privateKey")
+	userId := req.PostFormValue("userId")
+	if err := api.Login(privateKey, userId); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
@@ -80,19 +65,21 @@ func (api *Api) RegisterHandler(w http.ResponseWriter, req *http.Request) {
 	email := req.PostFormValue("email")
 	ipiNumer := req.PostFormValue("ipiNumber")
 	isniNumber := req.PostFormValue("isniNumber")
-	memberIds := req.PostForm["memberIds"]
+	memberIds := req.PostForm["memberId"]
 	name := req.PostFormValue("name")
 	password := req.PostFormValue("password")
-	path := req.PostFormValue("path")
 	pro := req.PostFormValue("pro")
 	sameAs := req.PostFormValue("sameAs")
 	_type := req.PostFormValue("type")
-	user := spec.NewUser(email, ipiNumer, isniNumber, memberIds, name, pro, sameAs, _type)
-	if _, err := api.Register(user, password, path); err != nil {
+	credentials, err := api.Register(
+		password,
+		spec.NewUser(email, ipiNumer, isniNumber, memberIds, name, pro, sameAs, _type),
+	)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	w.Write([]byte("Registration successful!"))
+	WriteJSON(w, credentials)
 }
 
 func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
@@ -120,7 +107,7 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request) {
 	prevRightId := req.PostFormValue("prevRightId")
 	var prevTransferId string
 	if spec.MatchId(prevRightId) {
-		if _, err = ld.CheckRightIdHolder(api.id, prevRightId); err != nil {
+		if _, err = ld.CheckRightIdHolder(api.userId, prevRightId); err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
@@ -167,7 +154,7 @@ func (api *Api) Transfer(assetId, consumeId string, owner crypto.PublicKey, owne
 				ownerIds = []string{ownerId}
 				transferId, err = api.SendIndividualTransferTx(transferAmount, assetId, consumeId, outputIdx, owner)
 			} else if keepAmount > 0 {
-				ownerIds = append([]string{api.id}, ownerId)
+				ownerIds = append([]string{api.userId}, ownerId)
 				transferId, err = api.SendDivisibleTransferTx([]int{keepAmount, transferAmount}, assetId, consumeId, outputIdx, owner)
 			} else {
 				err = Error("Cannot transfer that many shares")
@@ -289,7 +276,7 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		owner := bigchain.DefaultTxOwnerBefore(tx)
-		license, err = api.SendIndividualCreateTx(1, spec.NewLicense(licenseForIds, licenseHolderIds, api.id, rightIds, validFrom, validThrough), owner, ld.ValidateLicenseTx)
+		license, err = api.SendIndividualCreateTx(1, spec.NewLicense(licenseForIds, licenseHolderIds, api.userId, rightIds, validFrom, validThrough), owner, ld.ValidateLicenseTx)
 	} else if n > 1 {
 		amounts := make([]int, n)
 		owners := make([]crypto.PublicKey, n)
@@ -302,7 +289,7 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request) {
 			}
 			owners[i] = bigchain.DefaultTxOwnerBefore(tx)
 		}
-		license, err = api.SendMultipleOwnersCreateTx(amounts, spec.NewLicense(licenseForIds, licenseHolderIds, api.id, rightIds, validFrom, validThrough), owners, ld.ValidateLicenseTx)
+		license, err = api.SendMultipleOwnersCreateTx(amounts, spec.NewLicense(licenseForIds, licenseHolderIds, api.userId, rightIds, validFrom, validThrough), owners, ld.ValidateLicenseTx)
 	} else {
 		err = Error("No license-holder ids")
 	}
@@ -559,7 +546,7 @@ func (api *Api) ThresholdHandler(w http.ResponseWriter, req *http.Request) {
 
 func (api *Api) LoggedIn() bool {
 	switch {
-	case api.id == "":
+	case api.userId == "":
 		api.logger.Warn("ID is not set")
 	case api.privkey == nil:
 		api.logger.Warn("Private-key is not set")
@@ -642,12 +629,12 @@ func (api *Api) SendDivisibleTransferTx(amounts []int, assetId, consumeId string
 	return id, nil
 }
 
-func (api *Api) Login(id, privstr string) error {
+func (api *Api) Login(privstr, userId string) error {
 	privkey := new(ed25519.PrivateKey)
 	if err := privkey.FromString(privstr); err != nil {
 		return err
 	}
-	tx, err := ld.ValidateUserId(id)
+	tx, err := ld.ValidateUserId(userId)
 	if err != nil {
 		return err
 	}
@@ -657,28 +644,23 @@ func (api *Api) Login(id, privstr string) error {
 		return ErrorAppend(ErrInvalidKey, pubkey.String())
 	}
 	api.logger.Info(Sprintf("SUCCESS %s is logged in", spec.GetName(user)))
-	api.id = id
 	api.privkey, api.pubkey = privkey, pubkey
+	api.userId = userId
 	return nil
 }
 
-func (api *Api) Register(user Data, password, path string) (Data, error) {
-	file, err := CreateFile(path + "/credentials.json")
-	if err != nil {
-		return nil, err
-	}
+func (api *Api) Register(password string, user Data) (Data, error) {
 	api.privkey, api.pubkey = ed25519.GenerateKeypairFromPassword(password)
-	user, err = api.DefaultSendIndividualCreateTx(user, ld.ValidateUserTx)
+	user, err := api.DefaultSendIndividualCreateTx(user, ld.ValidateUserTx)
 	if err != nil {
 		return nil, err
 	}
 	credentials := Data{
-		"id":         user.GetStr("id"),
 		"privateKey": api.privkey.String(),
 		"publicKey":  api.pubkey.String(),
+		"userId":     user.GetStr("id"),
 	}
 	api.privkey, api.pubkey = nil, nil
-	WriteJSON(file, credentials)
 	return credentials, nil
 }
 

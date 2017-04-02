@@ -64,27 +64,23 @@ window.onload = function() {
     proveType.change(function() {
         switch (proveType.val()) {
             case "composition":
-                $("#prove-dataId").show();
                 $("#prove-dataId").attr("placeholder", "COMPOSITION ID");
                 $("#prove-userId").attr("placeholder", "COMPOSER ID");
                 break;
             case "license":
-                $("#prove-dataId").show();
                 $("#prove-dataId").attr("placeholder", "LICENSE ID");
                 $("#prove-userId").attr("placeholder", "LICENSE-HOLDER ID");
                 break;
             case "recording":
-                $("#prove-dataId").show();
                 $("#prove-dataId").attr("placeholder", "RECORDING ID");
                 $("#prove-userId").attr("placeholder", "ARTIST ID");
                 break;
             case "right":
-                $("#prove-dataId").show();
                 $("#prove-dataId").attr("placeholder", "RIGHT ID");
                 $("#prove-userId").attr("placeholder", "RIGHT-HOLDER ID");
                 break;
             default:
-                alert("Invalid type: "+type.val());
+                alert("Invalid type: "+proveType.val());
         }
     });
 
@@ -92,27 +88,23 @@ window.onload = function() {
     verifyType.change(function() {
         switch (verifyType.val()) {
             case "composition":
-                $("#verify-dataId").show();
                 $("#verify-dataId").attr("placeholder", "COMPOSITION ID");
                 $("#verify-userId").attr("placeholder", "COMPOSER ID");
                 break;
             case "license":
-                $("#verify-dataId").show();
                 $("#verify-dataId").attr("placeholder", "LICENSE ID");
                 $("#verify-userId").attr("placeholder", "LICENSE-HOLDER ID");
                 break;
             case "recording":
-                $("#verify-dataId").show();
                 $("#verify-dataId").attr("placeholder", "RECORDING ID");
                 $("#verify-userId").attr("placeholder", "ARTIST ID");
                 break;
             case "right":
-                $("#verify-dataId").show();
                 $("#verify-dataId").attr("placeholder", "RIGHT ID");
                 $("#verify-userId").attr("placeholder", "RIGHT-HOLDER ID");
                 break;
             default:
-                alert("Invalid type: "+type.val());
+                alert("Invalid type: "+verifyType.val());
         }
     });
 

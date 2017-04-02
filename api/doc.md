@@ -21,7 +21,7 @@
 	```javascript
 	u: {
 		// Required
-		composerIds: [array|hexadecimal],
+		composerId: [array|hexadecimal],
 		name: [string],
 					
 		// Optional
@@ -130,6 +130,34 @@
 	
 	* **Code**: 400
 
+### Login
+* **Purpose**
+
+	Validate user credentials and keep them in memory for remainder of session. 
+	
+* **URL**
+
+	`/login`
+	
+* **Method**
+
+	`POST`
+	
+* **Data Params**
+	```javascript
+	u: {
+		// Required
+		privateKey: [base58],
+		userId: [hexadecimal]
+	}
+	```
+
+* **Success Response**
+	* **Code**: 200
+
+* **Error Response**
+	* **Code**: 400
+
 ### Prove 
 * **Purpose**
 
@@ -178,7 +206,7 @@
 	```javascript
 	u: {
 		// Required
-		artistIds: [array],
+		artistId: [array|hexadecimal],
 		compositionId: [hexadecimal],
 		recording: [audio blob],
 
@@ -228,6 +256,51 @@
 
 * **Error Response**
 	
+	* **Code**: 400
+
+### Register
+* **Purpose**
+
+	Persist a new user to the database.
+	
+* **URL**
+
+	`/register`
+	
+* **Method**
+
+	`POST`
+
+* **Data Params**
+	```javascript
+	u: {
+		// Required
+		name: [string],
+		password: [alphanumeric & special characters],
+		sameAs: [url],
+		type: [MusicGroup|Organization|Person],
+		
+		// Optional
+		email: [email address],
+		ipiNumber: [number],
+		isniNumber: [alphanumeric],
+		memberId: [array],
+		pro: [string]
+	}
+	```
+
+* **Success Response**
+	* **Code**: 200
+	
+		**Content**:
+		```javascript
+		{
+  			"privateKey": "<newPrivateKey>",
+  			"publicKey": "<newPublicKey>"
+			"userId": "<newUserId>",
+		}
+		```
+* **Error Response**
 	* **Code**: 400
 
 ### Right
@@ -349,4 +422,3 @@
 				
 * **Error Response**
 	* **Code**: 400
-

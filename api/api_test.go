@@ -11,10 +11,7 @@ import (
 	"github.com/zbo14/envoke/spec"
 )
 
-var (
-	CHALLENGE = "Y2hhbGxlbmdl"
-	DIR       = Getenv("DIR")
-)
+var CHALLENGE = "Y2hhbGxlbmdl"
 
 func GetId(data Data) string {
 	return data.GetStr("id")
@@ -26,76 +23,75 @@ func GetPrivateKey(data Data) crypto.PrivateKey {
 	return privkey
 }
 
+func GetUserId(data Data) string {
+	return data.GetStr("userId")
+}
+
 func TestApi(t *testing.T) {
 	api := NewApi()
 	output := MustOpenWriteFile("output.json")
 	composer, err := api.Register(
-		spec.NewUser("composer@email.com", "", "", nil, "composer", "", "www.composer.com", "Person"),
 		"itisasecret",
-		DIR+"composer",
+		spec.NewUser("composer@email.com", "", "", nil, "composer", "", "www.composer.com", "Person"),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	composerId := GetId(composer)
+	composerId := GetUserId(composer)
+	PrintJSON(composer)
 	composerPrivKey := GetPrivateKey(composer)
 	WriteJSON(output, composer)
 	recordLabel, err := api.Register(
-		spec.NewUser("record_label@email.com", "", "", nil, "record_label", "", "www.record_label.com", "Organization"),
 		"shhhh",
-		DIR+"record_label",
+		spec.NewUser("record_label@email.com", "", "", nil, "record_label", "", "www.record_label.com", "Organization"),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	recordLabelId := GetId(recordLabel)
+	recordLabelId := GetUserId(recordLabel)
 	recordLabelPrivKey := GetPrivateKey(recordLabel)
 	WriteJSON(output, recordLabel)
 	performer, err := api.Register(
-		spec.NewUser("performer@email.com", "123456789", "", nil, "performer", "ASCAP", "www.performer.com", "MusicGroup"),
 		"makeitup",
-		DIR+"performer",
+		spec.NewUser("performer@email.com", "123456789", "", nil, "performer", "ASCAP", "www.performer.com", "MusicGroup"),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	performerId := GetId(performer)
+	performerId := GetUserId(performer)
 	performerPrivKey := GetPrivateKey(performer)
 	WriteJSON(output, performer)
 	producer, err := api.Register(
-		spec.NewUser("producer@email.com", "", "", nil, "producer", "", "www.soundcloud_page.com", "Person"),
 		"1234",
-		DIR+"producer",
+		spec.NewUser("producer@email.com", "", "", nil, "producer", "", "www.soundcloud_page.com", "Person"),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	producerId := GetId(producer)
+	producerId := GetUserId(producer)
 	producerPrivKey := GetPrivateKey(producer)
 	WriteJSON(output, producer)
 	publisher, err := api.Register(
-		spec.NewUser("publisher@email.com", "", "", nil, "publisher", "", "www.publisher.com", "Organization"),
 		"didyousaysomething?",
-		DIR+"publisher",
+		spec.NewUser("publisher@email.com", "", "", nil, "publisher", "", "www.publisher.com", "Organization"),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	publisherId := GetId(publisher)
+	publisherId := GetUserId(publisher)
 	publisherPrivKey := GetPrivateKey(publisher)
 	WriteJSON(output, publisher)
 	radio, err := api.Register(
-		spec.NewUser("radio@email.com", "", "", nil, "radio", "", "www.radio_station.com", "Organization"),
 		"waves",
-		DIR+"radio",
+		spec.NewUser("radio@email.com", "", "", nil, "radio", "", "www.radio_station.com", "Organization"),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
-	radioId := GetId(radio)
+	radioId := GetUserId(radio)
 	radioPrivKey := GetPrivateKey(radio)
 	WriteJSON(output, radio)
-	if err := api.Login(composerId, composerPrivKey.String()); err != nil {
+	if err := api.Login(composerPrivKey.String(), composerId); err != nil {
 		t.Fatal(err)
 	}
 	composition, err := api.Composition(spec.NewComposition([]string{composerId}, "B3107S", "T-034.524.680-1", "EN", "composition_title", publisherId, "", "www.composition_url.com"), nil, true)
@@ -136,7 +132,7 @@ func TestApi(t *testing.T) {
 	if err = ld.VerifyRightHolder(CHALLENGE, publisherId, compositionRightId, sig); err != nil {
 		t.Fatal(err)
 	}
-	if err = api.Login(publisherId, publisherPrivKey.String()); err != nil {
+	if err = api.Login(publisherPrivKey.String(), publisherId); err != nil {
 		t.Fatal(err)
 	}
 	mechanicalLicense, err := api.SendMultipleOwnersCreateTx([]int{1, 1, 1}, spec.NewLicense([]string{compositionId}, []string{performerId, producerId, recordLabelId}, publisherId, []string{compositionRightId}, "2020-01-01", "2024-01-01"), []crypto.PublicKey{performerPrivKey.Public(), producerPrivKey.Public(), recordLabelPrivKey.Public()}, ld.ValidateLicenseTx)
@@ -186,7 +182,7 @@ func TestApi(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = api.Login(performerId, performerPrivKey.String()); err != nil {
+	if err = api.Login(performerPrivKey.String(), performerId); err != nil {
 		t.Fatal(err)
 	}
 	signRecording := spec.NewRecording([]string{performerId, producerId}, compositionId, "PT2M43S", "US-S1Z-99-00001", mechanicalLicenseId, recordLabelId, "", "www.recording_url.com")
@@ -199,14 +195,14 @@ func TestApi(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = api.Login(producerId, producerPrivKey.String()); err != nil {
+	if err = api.Login(producerPrivKey.String(), producerId); err != nil {
 		t.Fatal(err)
 	}
 	producerFulfillment, err := api.Sign(recordingId)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = api.Login(performerId, performerPrivKey.String()); err != nil {
+	if err = api.Login(performerPrivKey.String(), performerId); err != nil {
 		t.Fatal(err)
 	}
 	thresholdFulfillment, err := Threshold([]string{performerFulfillment.String(), producerFulfillment.String()})
@@ -259,7 +255,7 @@ func TestApi(t *testing.T) {
 	if err = ld.VerifyRightHolder(CHALLENGE, recordLabelId, recordingRightId, sig); err != nil {
 		t.Fatal(err)
 	}
-	if err = api.Login(recordLabelId, recordLabelPrivKey.String()); err != nil {
+	if err = api.Login(recordLabelPrivKey.String(), recordLabelId); err != nil {
 		t.Fatal(err)
 	}
 	/*
