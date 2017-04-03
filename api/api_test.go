@@ -93,7 +93,7 @@ func TestApi(t *testing.T) {
 	if err := api.Login(composerPrivKey.String(), composerId); err != nil {
 		t.Fatal(err)
 	}
-	composition, err := api.Composition(spec.NewComposition([]string{composerId}, "B3107S", "T-034.524.680-1", "EN", "composition_title", publisherId, "", "www.composition_url.com"), nil, true)
+	composition, err := api.Compose(spec.NewComposition([]string{composerId}, "T-034.524.680-1", "EN", "composition_title", publisherId, "", "www.composition_url.com"), nil, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,31 +185,25 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	signRecording := spec.NewRecording([]string{performerId, producerId}, compositionId, "PT2M43S", "US-S1Z-99-00001", mechanicalLicenseId, recordLabelId, "", "www.recording_url.com")
-	recording, err := api.Recording(file, []int{80, 20}, signRecording, false)
+	recording, err := api.Record(file, []int{80, 20}, signRecording, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	recordingId := GetId(recording)
-	performerFulfillment, err := api.Sign(recordingId)
-	if err != nil {
-		t.Fatal(err)
-	}
+	performerSig := api.Sign(signRecording)
 	if err = api.Login(producerPrivKey.String(), producerId); err != nil {
 		t.Fatal(err)
 	}
-	producerFulfillment, err := api.Sign(recordingId)
-	if err != nil {
-		t.Fatal(err)
-	}
+	producerSig := api.Sign(signRecording)
 	if err = api.Login(performerPrivKey.String(), performerId); err != nil {
 		t.Fatal(err)
 	}
-	thresholdFulfillment, err := Threshold([]string{performerFulfillment.String(), producerFulfillment.String()})
+	thresholdFulfillment, err := Threshold(signRecording, []string{performerSig.String(), producerSig.String()}, []string{performerId, producerId})
 	if err != nil {
 		t.Fatal(err)
 	}
 	signRecording.Set("thresholdSignature", thresholdFulfillment.String())
-	recording, err = api.Recording(file, []int{80, 20}, signRecording, true)
+	recording, err = api.Record(file, []int{80, 20}, signRecording, true)
 	if err != nil {
 		t.Fatal(err)
 	}

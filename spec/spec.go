@@ -15,10 +15,6 @@ func GetId(data Data) string {
 	return data.GetStr("@id")
 }
 
-func SetId(data Data, id string) {
-	data.Set("@id", id)
-}
-
 func MatchId(id string) bool {
 	return MatchStr(regex.ID, id)
 }
@@ -105,7 +101,7 @@ func GetSameAs(data Data) string {
 	return data.GetStr("sameAs")
 }
 
-func NewComposition(composerIds []string, hfaCode, inLanguage, iswcCode, name, publisherId string, thresholdSignature, url string) Data {
+func NewComposition(composerIds []string, inLanguage, iswcCode, name, publisherId, url string) Data {
 	composition := Data{
 		"@context": CONTEXT,
 		"@type":    "MusicComposition",
@@ -122,9 +118,6 @@ func NewComposition(composerIds []string, hfaCode, inLanguage, iswcCode, name, p
 		}
 		composition.Set("composer", composers)
 	}
-	if MatchStr(regex.HFA, hfaCode) {
-		composition.Set("hfaCode", hfaCode)
-	}
 	if MatchStr(regex.ISWC, iswcCode) {
 		composition.Set("iswcCode", iswcCode)
 	}
@@ -133,9 +126,6 @@ func NewComposition(composerIds []string, hfaCode, inLanguage, iswcCode, name, p
 	}
 	if MatchId(publisherId) {
 		composition.Set("publisher", NewLink(publisherId))
-	}
-	if MatchStr(regex.FULFILLMENT, thresholdSignature) {
-		composition.Set("thresholdSignature", thresholdSignature)
 	}
 	if MatchUrlRelaxed(url) {
 		composition.Set("url", url)
@@ -172,7 +162,7 @@ func GetPublisherId(data Data) string {
 	return GetId(publisher)
 }
 
-func NewRecording(artistIds []string, compositionId, duration, isrcCode, licenseId string, recordLabelId string, thresholdSignature, url string) Data {
+func NewRecording(artistIds []string, compositionId, duration, isrcCode, licenseId, recordLabelId, url string) Data {
 	recording := Data{
 		"@context":    CONTEXT,
 		"@type":       "MusicRecording",
@@ -200,9 +190,6 @@ func NewRecording(artistIds []string, compositionId, duration, isrcCode, license
 	}
 	if MatchId(recordLabelId) {
 		recording.Set("recordLabel", NewLink(recordLabelId))
-	}
-	if MatchStr(regex.FULFILLMENT, thresholdSignature) {
-		recording.Set("thresholdSignature", thresholdSignature)
 	}
 	if MatchUrlRelaxed(url) {
 		recording.Set("url", url)

@@ -29,17 +29,18 @@ func NewApi() *Api {
 }
 
 func (api *Api) AddRoutes(router *httprouter.Router) {
-	router.POST("/composition", api.CompositionHandler)
+	router.POST("/compose", api.ComposeHandler)
 	router.POST("/license", api.LicenseHandler)
 	router.POST("/login", api.LoginHandler)
-	router.POST("/recording", api.RecordingHandler)
+	router.POST("/record/release", api.RecordHandler)
 	router.POST("/register", api.RegisterHandler)
 	router.POST("/right", api.RightHandler)
+	router.POST("/sign/:type", api.SignHandler)
 
-	router.GET("/prove", api.ProveHandler)
+	router.GET("/prove/:challenge/:txId/:type/:userId", api.ProveHandler)
 	router.GET("/search/:type/:userId", api.SearchHandler)
-	// router.GET("/search/:type/:userId/:name", api.SearchNameHandler)
-	router.GET("/verify", api.VerifyHandler)
+	router.GET("/search/:type/:userId/:name", api.SearchNameHandler)
+	router.GET("/verify/:challenge/:txId/:signature/:type/:userId", api.VerifyHandler)
 }
 
 func (api *Api) LoginHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
@@ -52,20 +53,22 @@ func (api *Api) LoginHandler(w http.ResponseWriter, req *http.Request, _ httprou
 	w.WriteHeader(http.StatusOK)
 }
 
-func (api *Api) RegisterHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+func UserFromRequest(req *http.Request) Data {
 	email := req.PostFormValue("email")
 	ipiNumer := req.PostFormValue("ipiNumber")
 	isniNumber := req.PostFormValue("isniNumber")
 	memberIds := req.PostForm["memberId"]
 	name := req.PostFormValue("name")
-	password := req.PostFormValue("password")
 	pro := req.PostFormValue("pro")
 	sameAs := req.PostFormValue("sameAs")
 	_type := req.PostFormValue("type")
-	credentials, err := api.Register(
-		password,
-		spec.NewUser(email, ipiNumer, isniNumber, memberIds, name, pro, sameAs, _type),
-	)
+	return spec.NewUser(email, ipiNumer, isniNumber, memberIds, name, pro, sameAs, _type)
+}
+
+func (api *Api) RegisterHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+	password := req.PostFormValue("password")
+	user := UserFromRequest(req)
+	credentials, err := api.Register(password, user)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -155,37 +158,64 @@ func (api *Api) Transfer(assetId, consumeId string, owner crypto.PublicKey, owne
 	return "", nil, Error("You do not own output in consume tx")
 }
 
-func (api *Api) CompositionHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
-	if !api.LoggedIn() {
-		http.Error(w, "Not logged in", http.StatusUnauthorized)
-		return
-	}
-	var err error
-	hfaCode := req.PostFormValue("hfaCode")
+func CompositionFromRequest(req *http.Request) Data {
 	composerIds := req.PostForm["composerId"]
 	inLanguage := req.PostFormValue("inLanguage")
 	iswcCode := req.PostFormValue("iswcCode")
 	name := req.PostFormValue("name")
-	var percentShares []int
 	publisherId := req.PostFormValue("publisherId")
-	shares := req.PostForm["splits"]
-	if len(shares) > 1 {
-		percentShares = make([]int, len(shares))
-		for i, share := range shares {
-			percentShares[i], err = Atoi(share)
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusBadRequest)
-				return
-			}
+	url := req.PostFormValue("url")
+	return spec.NewComposition(composerIds, inLanguage, iswcCode, name, publisherId, url)
+}
+
+func PercentSharesFromRequest(req *http.Request) (percentShares []int, err error) {
+	splits := req.PostForm["split"]
+	n := len(splits)
+	if n == 0 {
+		return nil, nil
+	}
+	if n == 1 {
+		return nil, Error("must have more than one split")
+	}
+	percentShares = make([]int, n)
+	for i, split := range splits {
+		percentShares[i], err = Atoi(split)
+		if err != nil {
+			return nil, err
 		}
 	}
-	thresholdSignature := req.PostFormValue("thresholdSignature")
-	url := req.PostFormValue("url")
-	composition, err := api.Composition(
-		spec.NewComposition(composerIds, hfaCode, inLanguage, iswcCode, name, publisherId, thresholdSignature, url),
-		percentShares,
-		true,
-	)
+	return percentShares, nil
+}
+
+func SignaturesFromRequest(req *http.Request) ([]string, error) {
+	signatures := req.PostForm["signature"]
+	n := len(signatures)
+	if n == 0 {
+		return nil, nil
+	}
+	if n == 1 {
+		return nil, Error("must have more than one signature")
+	}
+	return signatures, nil
+}
+
+func (api *Api) ComposeHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+	if !api.LoggedIn() {
+		http.Error(w, "Not logged in", http.StatusUnauthorized)
+		return
+	}
+	composition := CompositionFromRequest(req)
+	percentShares, err := PercentSharesFromRequest(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	signatures, err := SignaturesFromRequest(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	composition, err = api.Compose(composition, percentShares, signatures, true)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -193,38 +223,39 @@ func (api *Api) CompositionHandler(w http.ResponseWriter, req *http.Request, _ h
 	WriteJSON(w, composition)
 }
 
-func (api *Api) RecordingHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+func RecordingFromRequest(req *http.Request) Data {
+	compositionId := req.PostFormValue("compositionId")
+	artistIds := req.PostForm["artistId"]
+	duration := req.PostFormValue("duration")
+	isrcCode := req.PostFormValue("isrcCode")
+	licenseId := req.PostFormValue("licenseId")
+	recordLabelId := req.PostFormValue("recordLabelId")
+	url := req.PostFormValue("url")
+	return spec.NewRecording(artistIds, compositionId, duration, isrcCode, licenseId, recordLabelId, url)
+}
+
+func (api *Api) RecordHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	if !api.LoggedIn() {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
 	}
-	compositionId := req.PostFormValue("compositionId")
-	artistIds := req.PostForm["artistId"]
-	duration := req.PostFormValue("duration")
 	file, _, err := req.FormFile("recording")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	isrcCode := req.PostFormValue("isrcCode")
-	licenseId := req.PostFormValue("licenseId")
-	recordLabelId := req.PostFormValue("recordLabelId")
-	splits := req.PostForm["splits"]
-	var percentShares []int = nil
-	if len(splits) > 1 {
-		percentShares = make([]int, len(splits))
-		for i, split := range splits {
-			percentShares[i] = MustAtoi(split)
-		}
+	percentShares, err := PercentSharesFromRequest(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
-	thresholdSignature := req.PostFormValue("thresholdSignature")
-	url := req.PostFormValue("url")
-	recording, err := api.Recording(
-		file,
-		percentShares,
-		spec.NewRecording(artistIds, compositionId, duration, isrcCode, licenseId, recordLabelId, thresholdSignature, url),
-		true,
-	)
+	recording := RecordingFromRequest(req)
+	signatures, err := SignaturesFromRequest(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	recording, err = api.Record(file, percentShares, recording, signatures, true)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -318,6 +349,39 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request, params h
 	WriteJSON(w, models)
 }
 
+func (api *Api) SearchNameHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
+	if !api.LoggedIn() {
+		http.Error(w, "Not logged in", http.StatusUnauthorized)
+		return
+	}
+	var models []Data
+	name := params.ByName("name")
+	_type := params.ByName("type")
+	userId := params.ByName("userId")
+	tx, err := ld.QueryAndValidateSchema(userId, "user")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	pubkey := bigchain.DefaultTxOwnerBefore(tx)
+	if _type == "composition" {
+		models, err = bigchain.HttpGetFilter(func(id string) (Data, error) {
+			return CompositionFilter(id, name)
+		}, pubkey)
+	} else if _type == "recording" {
+		models, err = bigchain.HttpGetFilter(func(id string) (Data, error) {
+			return RecordingFilter(id, name)
+		}, pubkey)
+	} else {
+		err = ErrorAppend(ErrInvalidType, _type)
+	}
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	WriteJSON(w, models)
+}
+
 func CompositionFilter(compositionId, name string) (Data, error) {
 	composition, err := ld.ValidateCompositionId(compositionId)
 	if err != nil {
@@ -350,19 +414,19 @@ func (api *Api) ProveHandler(w http.ResponseWriter, req *http.Request, params ht
 	}
 	var err error
 	challenge := params.ByName("challenge")
-	dataId := params.ByName("dataId")
+	txId := params.ByName("txId")
 	var sig crypto.Signature
 	_type := params.ByName("type")
 	userId := params.ByName("userId")
 	switch _type {
 	case "composition":
-		sig, err = ld.ProveComposer(challenge, userId, dataId, api.privkey)
+		sig, err = ld.ProveComposer(challenge, userId, txId, api.privkey)
 	case "license":
-		sig, err = ld.ProveLicenseHolder(challenge, userId, dataId, api.privkey)
+		sig, err = ld.ProveLicenseHolder(challenge, userId, txId, api.privkey)
 	case "recording":
-		sig, err = ld.ProveArtist(userId, challenge, api.privkey, dataId)
+		sig, err = ld.ProveArtist(userId, challenge, api.privkey, txId)
 	case "right":
-		sig, err = ld.ProveRightHolder(challenge, api.privkey, userId, dataId)
+		sig, err = ld.ProveRightHolder(challenge, api.privkey, userId, txId)
 	default:
 		err = ErrorAppend(ErrInvalidType, _type)
 	}
@@ -380,7 +444,7 @@ func (api *Api) VerifyHandler(w http.ResponseWriter, req *http.Request, params h
 	}
 	var err error
 	challenge := params.ByName("challenge")
-	dataId := params.ByName("dataId")
+	txId := params.ByName("txId")
 	userId := params.ByName("userId")
 	sig := new(ed25519.Signature)
 	signature := params.ByName("signature")
@@ -388,13 +452,13 @@ func (api *Api) VerifyHandler(w http.ResponseWriter, req *http.Request, params h
 		_type := params.ByName("type")
 		switch _type {
 		case "composition":
-			err = ld.VerifyComposer(challenge, userId, dataId, sig)
+			err = ld.VerifyComposer(challenge, userId, txId, sig)
 		case "license":
-			err = ld.VerifyLicenseHolder(challenge, userId, dataId, sig)
+			err = ld.VerifyLicenseHolder(challenge, userId, txId, sig)
 		case "recording":
-			err = ld.VerifyArtist(userId, challenge, dataId, sig)
+			err = ld.VerifyArtist(userId, challenge, txId, sig)
 		case "right":
-			err = ld.VerifyRightHolder(challenge, dataId, userId, sig)
+			err = ld.VerifyRightHolder(challenge, txId, userId, sig)
 		default:
 			err = ErrorAppend(ErrInvalidType, _type)
 		}
@@ -406,96 +470,47 @@ func (api *Api) VerifyHandler(w http.ResponseWriter, req *http.Request, params h
 	WriteJSON(w, "Verified proof!")
 }
 
-func (api *Api) Sign(id string) (cc.Fulfillment, error) {
-	tx, err := bigchain.HttpGetTx(id)
-	if err != nil {
-		return nil, err
+func (api *Api) SignHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
+	if !api.LoggedIn() {
+		http.Error(w, "Not logged in", http.StatusUnauthorized)
+		return
 	}
-	sig := api.privkey.Sign(Checksum256(MustMarshalJSON(bigchain.GetTxAssetData(tx))))
-	return cc.DefaultFulfillmentEd25519(
-		api.pubkey.(*ed25519.PublicKey),
-		sig.(*ed25519.Signature),
-	), nil
+	var data Data
+	_type := params.ByName("type")
+	if _type == "composition" {
+		data = CompositionFromRequest(req)
+	} else if _type == "recording" {
+		data = RecordingFromRequest(req)
+	} else {
+		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
+		return
+	}
+	WriteJSON(w, api.Sign(data))
 }
 
-func Threshold(thresholdSignatures []string) (cc.Fulfillment, error) {
-	var err error
-	subs := make(cc.Fulfillments, len(thresholdSignatures))
-	for i, thresholdSignature := range thresholdSignatures {
-		subs[i], err = cc.DefaultUnmarshalURI(thresholdSignature)
-		if err != nil {
+func (api *Api) Sign(data Data) crypto.Signature {
+	return api.privkey.Sign(Checksum256(MustMarshalJSON(data)))
+}
+
+func Threshold(data Data, pubkeys []crypto.PublicKey, signatures []string) (cc.Fulfillment, error) {
+	n := len(pubkeys)
+	if n != len(signatures) {
+		return nil, ErrorAppend(ErrInvalidSize, "slices are different sizes")
+	}
+	p := Checksum256(MustMarshalJSON(data))
+	sig := new(ed25519.Signature)
+	subs := make(cc.Fulfillments, n)
+	for i, pubkey := range pubkeys {
+		if err := sig.FromString(signatures[i]); err != nil {
 			return nil, err
 		}
+		if !pubkey.Verify(p, sig) {
+			return nil, ErrorAppend(ErrInvalidSignature, sig.String())
+		}
+		subs[i] = cc.DefaultFulfillmentEd25519(pubkey.(*ed25519.PublicKey), sig)
 	}
 	return cc.DefaultFulfillmentThreshold(subs), nil
 }
-
-/*
-
-func (api *Api) ReleaseHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodPost {
-		http.Error(w, ErrExpectedPost.Error(), http.StatusBadRequest)
-		return
-	}
-	if !api.LoggedIn() {
-		http.Error(w, "Not logged in", http.StatusUnauthorized)
-		return
-	}
-	name := req.PostFormValue("name")
-	recordingIds := SplitStr(req.PostFormValue("recordingIds"), ",")
-	recordLabelId := req.PostFormValue("recordLabelId")
-	rightIds := SplitStr(req.PostFormValue("rightIds"), ",")
-	url := req.PostFormValue("url")
-	release, err := api.DefaultSendIndividualCreateTx(spec.NewRelease(name, recordingIds, recordLabelId, rightIds, url))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	WriteJSON(w, release)
-}
-
-func (api *Api) SignHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		http.Error(w, ErrExpectedGet.Error(), http.StatusBadRequest)
-		return
-	}
-	if !api.LoggedIn() {
-		http.Error(w, "Not logged in", http.StatusUnauthorized)
-		return
-	}
-	pg, _ := LoadPage("sign")
-	RenderTemplate(w, "sign.html", pg)
-	params := req.URL.Query()
-	txId := params.ByName("txId")
-	ful, err := api.Sign(txId)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	WriteJSON(w, ful.String())
-}
-
-func (api *Api) ThresholdHandler(w http.ResponseWriter, req *http.Request) {
-	if req.Method != http.MethodGet {
-		http.Error(w, ErrExpectedGet.Error(), http.StatusBadRequest)
-		return
-	}
-	if !api.LoggedIn() {
-		http.Error(w, "Not logged in", http.StatusUnauthorized)
-		return
-	}
-	pg, _ := LoadPage("threshold")
-	RenderTemplate(w, "threshold.html", pg)
-	thresholdSignatures := SplitStr(params.ByName("thresholdSignatures"), ",")
-	ful, err := Threshold(thresholdSignatures)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	WriteJSON(w, ful.String())
-}
-
-*/
 
 func (api *Api) LoggedIn() bool {
 	switch {
@@ -617,7 +632,7 @@ func (api *Api) Register(password string, user Data) (Data, error) {
 	return credentials, nil
 }
 
-func (api *Api) Composition(composition Data, percentShares []int, validate bool) (Data, error) {
+func (api *Api) Compose(composition Data, percentShares []int, signatures []string, validate bool) (Data, error) {
 	composers := spec.GetComposers(composition)
 	n := len(composers)
 	composerKeys := make([]crypto.PublicKey, n)
@@ -627,6 +642,13 @@ func (api *Api) Composition(composition Data, percentShares []int, validate bool
 			return nil, err
 		}
 		composerKeys[i] = bigchain.DefaultTxOwnerBefore(tx)
+	}
+	if signatures != nil {
+		thresholdFulfillment, err := Threshold(composition, composerKeys, signatures)
+		if err != nil {
+			return nil, err
+		}
+		composition.Set("thresholdSignature", thresholdFulfillment.String())
 	}
 	var validateTx func(Data) error
 	if validate {
@@ -638,7 +660,7 @@ func (api *Api) Composition(composition Data, percentShares []int, validate bool
 	return api.SendMultipleOwnersCreateTx(percentShares, composition, composerKeys, validateTx)
 }
 
-func (api *Api) Recording(file io.Reader, percentShares []int, recording Data, validate bool) (Data, error) {
+func (api *Api) Record(file io.Reader, percentShares []int, recording Data, signatures []string, validate bool) (Data, error) {
 	// rs := MustReadSeeker(file)
 	// meta, err := tag.ReadFrom(rs)
 	// if err != nil {
@@ -654,6 +676,13 @@ func (api *Api) Recording(file io.Reader, percentShares []int, recording Data, v
 			return nil, err
 		}
 		artistKeys[i] = bigchain.DefaultTxOwnerBefore(tx)
+	}
+	if signatures != nil {
+		thresholdFulfillment, err := Threshold(recording, artistKeys, signatures)
+		if err != nil {
+			return nil, err
+		}
+		recording.Set("thresholdSignature", thresholdFulfillment.String())
 	}
 	var validateTx func(Data) error
 	if validate {

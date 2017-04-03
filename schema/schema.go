@@ -132,10 +132,6 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 				}
 			]
 		},
-		"hfaCode": {
-			"type": "string",
-			"pattern": "%s"
-		},
 		"inLanguage": {
 			"type": "string",
 			"pattern": "%s"
