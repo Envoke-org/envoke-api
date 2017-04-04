@@ -93,7 +93,11 @@ func TestApi(t *testing.T) {
 	if err := api.Login(composerPrivKey.String(), composerId); err != nil {
 		t.Fatal(err)
 	}
-	composition, err := api.Compose(spec.NewComposition([]string{composerId}, "T-034.524.680-1", "EN", "composition_title", publisherId, "", "www.composition_url.com"), nil, true)
+	composition, err := spec.NewComposition([]string{composerId}, "T-034.524.680-1", "EN", "composition_title", publisherId, "www.composition_url.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	composition, err = api.Compose(composition, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,11 +111,15 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	SleepSeconds(2)
-	transferId, rightHolderIds, err := api.Transfer(compositionId, compositionId, publisherPrivKey.Public(), publisherId, 20)
+	rightHolderIds, transferId, err := api.Transfer(compositionId, compositionId, publisherPrivKey.Public(), publisherId, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
-	compositionRight, err := api.SendMultipleOwnersCreateTx([]int{1, 1}, spec.NewRight(rightHolderIds, compositionId, transferId), []crypto.PublicKey{composerPrivKey.Public(), publisherPrivKey.Public()}, ld.ValidateRightTx)
+	compositionRight, err := spec.NewRight(rightHolderIds, compositionId, transferId)
+	if err != nil {
+		t.Fatal(err)
+	}
+	compositionRight, err = api.SendMultipleOwnersCreateTx([]int{1, 1}, compositionRight, []crypto.PublicKey{composerPrivKey.Public(), publisherPrivKey.Public()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +142,11 @@ func TestApi(t *testing.T) {
 	if err = api.Login(publisherPrivKey.String(), publisherId); err != nil {
 		t.Fatal(err)
 	}
-	mechanicalLicense, err := api.SendMultipleOwnersCreateTx([]int{1, 1, 1}, spec.NewLicense([]string{compositionId}, []string{performerId, producerId, recordLabelId}, publisherId, []string{compositionRightId}, "2020-01-01", "2024-01-01"), []crypto.PublicKey{performerPrivKey.Public(), producerPrivKey.Public(), recordLabelPrivKey.Public()}, ld.ValidateLicenseTx)
+	mechanicalLicense, err := spec.NewLicense([]string{compositionId}, []string{performerId, producerId, recordLabelId}, publisherId, []string{compositionRightId}, "2020-01-01", "2024-01-01")
+	if err != nil {
+		t.Fatal(err)
+	}
+	mechanicalLicense, err = api.SendMultipleOwnersCreateTx([]int{1, 1, 1}, mechanicalLicense, []crypto.PublicKey{performerPrivKey.Public(), producerPrivKey.Public(), recordLabelPrivKey.Public()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -184,8 +196,11 @@ func TestApi(t *testing.T) {
 	if err = api.Login(performerPrivKey.String(), performerId); err != nil {
 		t.Fatal(err)
 	}
-	signRecording := spec.NewRecording([]string{performerId, producerId}, compositionId, "PT2M43S", "US-S1Z-99-00001", mechanicalLicenseId, recordLabelId, "", "www.recording_url.com")
-	recording, err := api.Record(file, []int{80, 20}, signRecording, false)
+	signRecording, err := spec.NewRecording([]string{performerId, producerId}, compositionId, "PT2M43S", "US-S1Z-99-00001", mechanicalLicenseId, recordLabelId, "www.recording_url.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	recording, err := api.Record(file, []int{80, 20}, signRecording, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -198,12 +213,7 @@ func TestApi(t *testing.T) {
 	if err = api.Login(performerPrivKey.String(), performerId); err != nil {
 		t.Fatal(err)
 	}
-	thresholdFulfillment, err := Threshold(signRecording, []string{performerSig.String(), producerSig.String()}, []string{performerId, producerId})
-	if err != nil {
-		t.Fatal(err)
-	}
-	signRecording.Set("thresholdSignature", thresholdFulfillment.String())
-	recording, err = api.Record(file, []int{80, 20}, signRecording, true)
+	recording, err = api.Record(file, []int{80, 20}, signRecording, []string{performerSig.String(), producerSig.String()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -224,11 +234,15 @@ func TestApi(t *testing.T) {
 	if err = ld.VerifyArtist(producerId, CHALLENGE, recordingId, sig); err != nil {
 		t.Fatal(err)
 	}
-	transferId, rightHolderIds, err = api.Transfer(recordingId, recordingId, recordLabelPrivKey.Public(), recordLabelId, 20)
+	rightHolderIds, transferId, err = api.Transfer(recordingId, recordingId, recordLabelPrivKey.Public(), recordLabelId, 20)
 	if err != nil {
 		t.Fatal(err)
 	}
-	recordingRight, err := api.SendMultipleOwnersCreateTx([]int{1, 1}, spec.NewRight(rightHolderIds, recordingId, transferId), []crypto.PublicKey{performerPrivKey.Public(), recordLabelPrivKey.Public()}, ld.ValidateRightTx)
+	recordingRight, err := spec.NewRight(rightHolderIds, recordingId, transferId)
+	if err != nil {
+		t.Fatal(err)
+	}
+	recordingRight, err = api.SendMultipleOwnersCreateTx([]int{1, 1}, recordingRight, []crypto.PublicKey{performerPrivKey.Public(), recordLabelPrivKey.Public()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -266,7 +280,11 @@ func TestApi(t *testing.T) {
 			t.Fatal(err)
 		}
 	*/
-	masterLicense, err := api.SendIndividualCreateTx(1, spec.NewLicense([]string{recordingId}, []string{radioId}, recordLabelId, []string{recordingRightId}, "2020-01-01", "2022-01-01"), radioPrivKey.Public(), ld.ValidateLicenseTx)
+	masterLicense, err := spec.NewLicense([]string{recordingId}, []string{radioId}, recordLabelId, []string{recordingRightId}, "2020-01-01", "2022-01-01")
+	if err != nil {
+		t.Fatal(err)
+	}
+	masterLicense, err = api.SendIndividualCreateTx(1, masterLicense, radioPrivKey.Public())
 	if err != nil {
 		t.Fatal(err)
 	}
