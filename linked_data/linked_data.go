@@ -97,7 +97,7 @@ func ValidateCompositionTx(tx Data) (err error) {
 OUTER:
 	for i, composer := range composers {
 		// TODO: check for repeat pubkeys
-		tx, err = QueryAndValidateSchema(spec.GetId(composer), "user")
+		tx, err = ValidateUserId(spec.GetId(composer))
 		if err != nil {
 			return err
 		}
@@ -136,7 +136,7 @@ OUTER:
 	}
 	publisherId := spec.GetPublisherId(composition)
 	if !EmptyStr(publisherId) {
-		if _, err = QueryAndValidateSchema(publisherId, "user"); err != nil {
+		if _, err = ValidateUserId(publisherId); err != nil {
 			return err
 		}
 	}
@@ -161,7 +161,7 @@ func ProveComposer(challenge, composerId string, compositionId string, priv cryp
 			return priv.Sign(Checksum256([]byte(challenge))), nil
 		}
 	}
-	return nil, ErrorAppend(ErrInvalidId, "could not match composerId")
+	return nil, ErrorAppend(ErrInvalidId, "could not match composer id")
 }
 
 func VerifyComposer(challenge, composerId, compositionId string, sig crypto.Signature) error {
@@ -215,7 +215,7 @@ func ValidateRightTx(tx Data) (err error) {
 	var recipientKey crypto.PublicKey
 	senderKey := bigchain.DefaultTxOwnerBefore(tx)
 	for i, rightHolderId := range rightHolderIds {
-		tx, err = QueryAndValidateSchema(rightHolderId, "user")
+		tx, err = ValidateUserId(rightHolderId)
 		if err != nil {
 			return err
 		}
@@ -322,7 +322,7 @@ func CheckRightHolder(rightHolderId, rightId string) (crypto.PublicKey, Data, er
 			return rightHolderKey, tx, nil
 		}
 	}
-	return nil, nil, ErrorAppend(ErrInvalidId, "could not match rightHolderId")
+	return nil, nil, ErrorAppend(ErrInvalidId, "could not match right-holder id")
 }
 
 func ProveRightHolder(challenge string, priv crypto.PrivateKey, rightHolderId, rightId string) (crypto.Signature, error) {
@@ -368,7 +368,7 @@ func ValidateLicenseTx(tx Data) (err error) {
 		if licenserId == licenseHolderId {
 			return Error("licenser cannot be license-holder")
 		}
-		tx, err = QueryAndValidateSchema(licenseHolderId, "user")
+		tx, err = ValidateUserId(licenseHolderId)
 		if err != nil {
 			return err
 		}
@@ -377,7 +377,7 @@ func ValidateLicenseTx(tx Data) (err error) {
 			return ErrorAppend(ErrInvalidKey, licenseHolderKey.String())
 		}
 	}
-	tx, err = QueryAndValidateSchema(licenserId, "user")
+	tx, err = ValidateUserId(licenserId)
 	if err != nil {
 		return err
 	}
@@ -412,7 +412,7 @@ OUTER:
 			}
 			right := bigchain.GetTxAssetData(tx)
 			if licenseForId != spec.GetRightToId(right) {
-				return ErrorAppend(ErrInvalidId, "right has wrong compositionId/recordingId")
+				return ErrorAppend(ErrInvalidId, "right has wrong composition/recording id")
 			}
 			rightHolderIds := spec.GetRightHolderIds(right)
 			for _, rightHolderId := range rightHolderIds {
@@ -527,7 +527,7 @@ func ValidateRecordingTx(tx Data) (err error) {
 				goto NEXT
 			}
 		}
-		return ErrorAppend(ErrInvalidId, "license does not have compositionId")
+		return ErrorAppend(ErrInvalidId, "license does not have composition id")
 	}
 NEXT:
 	artistKeys := make([]crypto.PublicKey, n)
@@ -599,7 +599,7 @@ OUTER:
 				goto END
 			}
 		}
-		return ErrorAppend(ErrInvalidId, "wrong licenseHolderId")
+		return ErrorAppend(ErrInvalidId, "wrong licenseHolder id")
 	}
 END:
 	return nil
@@ -623,7 +623,7 @@ func ProveArtist(artistId, challenge string, priv crypto.PrivateKey, recordingId
 			return priv.Sign(Checksum256([]byte(challenge))), nil
 		}
 	}
-	return nil, ErrorAppend(ErrInvalidId, "could not match artistId")
+	return nil, ErrorAppend(ErrInvalidId, "could not match artist id")
 }
 
 func VerifyArtist(artistId, challenge string, recordingId string, sig crypto.Signature) error {
@@ -645,5 +645,5 @@ func VerifyArtist(artistId, challenge string, recordingId string, sig crypto.Sig
 			return nil
 		}
 	}
-	return ErrorAppend(ErrInvalidId, "could not match artistId")
+	return ErrorAppend(ErrInvalidId, "could not match artist id")
 }
