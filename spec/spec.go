@@ -101,14 +101,14 @@ func GetSameAs(data Data) string {
 	return data.GetStr("sameAs")
 }
 
-func NewComposition(composerIds []string, inLanguage, iswcCode, name, publisherId, url string) Data {
+func NewComposition(composerIds []string, inLanguage, iswcCode, name, publisherId, url string) (Data, error) {
 	composition := Data{
 		"@context": CONTEXT,
 		"@type":    "MusicComposition",
 		"name":     name,
 	}
 	if n := len(composerIds); n == 0 {
-		panic("No composers")
+		return nil, Error("No composer ids")
 	} else if n == 1 {
 		composition.Set("composer", NewLink(composerIds[0]))
 	} else {
@@ -130,7 +130,7 @@ func NewComposition(composerIds []string, inLanguage, iswcCode, name, publisherI
 	if MatchUrlRelaxed(url) {
 		composition.Set("url", url)
 	}
-	return composition
+	return composition, nil
 }
 
 func GetComposers(data Data) []Data {
@@ -162,14 +162,14 @@ func GetPublisherId(data Data) string {
 	return GetId(publisher)
 }
 
-func NewRecording(artistIds []string, compositionId, duration, isrcCode, licenseId, recordLabelId, url string) Data {
+func NewRecording(artistIds []string, compositionId, duration, isrcCode, licenseId, recordLabelId, url string) (Data, error) {
 	recording := Data{
 		"@context":    CONTEXT,
 		"@type":       "MusicRecording",
 		"recordingOf": NewLink(compositionId),
 	}
 	if n := len(artistIds); n == 0 {
-		panic("No artists")
+		return nil, Error("No artist ids")
 	} else if n == 1 {
 		recording.Set("byArtist", NewLink(artistIds[0]))
 	} else {
@@ -194,7 +194,7 @@ func NewRecording(artistIds []string, compositionId, duration, isrcCode, license
 	if MatchUrlRelaxed(url) {
 		recording.Set("url", url)
 	}
-	return recording
+	return recording, nil
 }
 
 func GetArtists(data Data) []Data {
@@ -227,60 +227,13 @@ func GetRecordLabelId(data Data) string {
 	return GetId(recordLabel)
 }
 
-// TODO: addition release fields
-
-func NewRelease(name string, recordingIds []string, recordLabelId string, rightIds []string, url string) Data {
-	release := Data{
-		"@context":    CONTEXT,
-		"@type":       "MusicRelease",
-		"name":        name,
-		"recordLabel": NewLink(recordLabelId),
-	}
-	if n, m := len(recordingIds), len(rightIds); n == 0 {
-		panic("No recordingIds")
-	} else if n == 1 && m == 1 {
-		release.Set("recording", Data{
-			"@id":      recordingIds[0],
-			"hasRight": NewLink(rightIds[0]),
-		})
-	} else if n == m {
-		recordings := make([]Data, n)
-		for i := range recordings {
-			recordings[i] = Data{
-				"@id":      recordingIds[i],
-				"hasRight": NewLink(rightIds[i]),
-			}
-		}
-		release.Set("recording", recordings)
-	} else {
-		panic("Invalid number of recordingIds/rightIds")
-	}
-	if MatchUrlRelaxed(url) {
-		release.Set("url", url)
-	}
-	return release
-}
-
-func GetRightId(data Data) string {
-	right := data.GetData("hasRight")
-	return GetId(right)
-}
-
-func GetRecordings(data Data) []Data {
-	v := data.Get("recordings")
-	if recording := AssertData(v); recording != nil {
-		return []Data{recording}
-	}
-	return AssertDataSlice(v)
-}
-
 // Note: transferId is the hex id of a TRANSFER tx in BigchainDB/IPDB
 // the output amount(s) will specify shares kept/transferred
 
-func NewRight(rightHolderIds []string, rightTo, transferId string) Data {
+func NewRight(rightHolderIds []string, rightTo, transferId string) (Data, error) {
 	n := len(rightHolderIds)
 	if n == 0 {
-		panic("No rightHolderIds")
+		return nil, Error("No right-holder ids")
 	}
 	rightHolders := make([]Data, n)
 	for i, rightHolderId := range rightHolderIds {
@@ -292,7 +245,7 @@ func NewRight(rightHolderIds []string, rightTo, transferId string) Data {
 		"rightHolder": rightHolders,
 		"rightTo":     NewLink(rightTo),
 		"transfer":    NewLink(transferId),
-	}
+	}, nil
 }
 
 func GetRightToId(data Data) string {
@@ -314,10 +267,10 @@ func GetTransferId(data Data) string {
 	return GetId(transfer)
 }
 
-func NewLicense(licenseForIds, licenseHolderIds []string, licenserId string, rightIds []string, validFrom, validThrough string) Data {
+func NewLicense(licenseForIds, licenseHolderIds []string, licenserId string, rightIds []string, validFrom, validThrough string) (Data, error) {
 	n := len(licenseHolderIds)
 	if n == 0 {
-		panic("No licenseHolderIds")
+		return nil, Error("No license-holder ids")
 	}
 	licenseHolders := make([]Data, n)
 	for i, licenseHolderId := range licenseHolderIds {
@@ -332,7 +285,7 @@ func NewLicense(licenseForIds, licenseHolderIds []string, licenserId string, rig
 		"validThrough":  validThrough,
 	}
 	if n, m := len(licenseForIds), len(rightIds); n == 0 {
-		panic("No licenseForIds")
+		return nil, Error("No composition/recording ids")
 	} else if n == m || m == 0 {
 		licenseFor := make([]Data, n)
 		for i, licenseForId := range licenseForIds {
@@ -348,9 +301,9 @@ func NewLicense(licenseForIds, licenseHolderIds []string, licenserId string, rig
 		}
 		license.Set("licenseFor", licenseFor)
 	} else {
-		panic("Invalid number of licenseForIds/rightIds")
+		return nil, Error("Invalid number of licenseForIds/rightIds")
 	}
-	return license
+	return license, nil
 }
 
 func GetLicenseFor(data Data) []Data {
@@ -369,6 +322,11 @@ func GetLicenseHolderIds(data Data) []string {
 func GetLicenserId(data Data) string {
 	licenser := data.GetData("licenser")
 	return GetId(licenser)
+}
+
+func GetRightId(data Data) string {
+	right := data.GetData("hasRight")
+	return GetId(right)
 }
 
 func GetValidFrom(data Data) string {
