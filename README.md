@@ -1,27 +1,25 @@
-## envoke-cli
+## envoke-api
 
-A demo client-side application for persisting, querying, and validating music metadata in BigchainDB/IPDB.
+Demo API for persisting, querying, and validating music metadata in BigchainDB/IPDB.
 
 ### Install 
 
 Download and install [Go](https://golang.org/dl/).
 
-In a terminal window, `go get github.com/Envoke-org/envoke-cli/cmd/envoke`
+In a terminal window, `go get github.com/Envoke-org/envoke-api/cmd/envoke`
 
 ### Usage
 
-In a terminal window, `cd ~/go/src/github.com/Envoke-org/envoke-cli`...
+In a terminal window, `cd ~/go/src/github.com/Envoke-org/envoke-api`...
 
-* **Demo app**
+* **API**
 	
-	`sh start_app.sh` 
+	`sh api.sh` 
 
-	You will be prompted to enter an endpoint to the BigchainDB/IPDB http-api. 
+	You will be prompted to enter an endpoint to the BigchainDB/IPDB http-api.  
 
-	In your browser, go to `http://localhost:8888/<endpoint>`
+* **Tests**
 
-*  **Run tests**
-
-	`sh run_tests.sh`
+	`sh tests.sh`
 
 	You will be prompted to enter an endpoint to the BigchainDB/IPDB http-api and a path to an audio file
