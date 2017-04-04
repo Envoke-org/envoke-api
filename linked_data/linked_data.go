@@ -3,7 +3,6 @@ package linked_data
 import (
 	"bytes"
 
-	"github.com/zbo14/balloon"
 	"github.com/zbo14/envoke/bigchain"
 	. "github.com/zbo14/envoke/common"
 	cc "github.com/zbo14/envoke/crypto/conditions"
@@ -21,17 +20,6 @@ func QueryAndValidateSchema(id string, _type string) (Data, error) {
 		return nil, err
 	}
 	return tx, nil
-}
-
-var SALT = balloon.GenerateSalt()
-
-func DefaultBalloonHash(challenge string) ([]byte, error) {
-	p, err := Base64UrlDecode(challenge)
-	if err != nil {
-		return nil, err
-	}
-	// TODO: adjust params
-	return balloon.BalloonHash(p, SALT, 256, 32, 2), nil
 }
 
 func ValidateUserId(id string) (Data, error) {
@@ -170,11 +158,7 @@ func ProveComposer(challenge, composerId string, compositionId string, priv cryp
 			if pub := priv.Public(); !pub.Equals(bigchain.DefaultTxOwnerBefore(tx)) {
 				return nil, ErrorAppend(ErrInvalidKey, pub.String())
 			}
-			hash, err := DefaultBalloonHash(challenge)
-			if err != nil {
-				return nil, err
-			}
-			return priv.Sign(hash), nil
+			return priv.Sign(Checksum256([]byte(challenge))), nil
 		}
 	}
 	return nil, ErrorAppend(ErrInvalidId, "could not match composerId")
@@ -199,12 +183,8 @@ func VerifyComposer(challenge, composerId, compositionId string, sig crypto.Sign
 	if err != nil {
 		return err
 	}
-	hash, err := DefaultBalloonHash(challenge)
-	if err != nil {
-		return err
-	}
 	pubkey := bigchain.DefaultTxOwnerBefore(tx)
-	if !pubkey.Verify(hash, sig) {
+	if !pubkey.Verify(Checksum256([]byte(challenge)), sig) {
 		return ErrorAppend(ErrInvalidSignature, sig.String())
 	}
 	return nil
@@ -353,11 +333,7 @@ func ProveRightHolder(challenge string, priv crypto.PrivateKey, rightHolderId, r
 	if pub := priv.Public(); !rightHolderKey.Equals(pub) {
 		return nil, ErrorAppend(ErrInvalidKey, pub.String())
 	}
-	hash, err := DefaultBalloonHash(challenge)
-	if err != nil {
-		return nil, err
-	}
-	return priv.Sign(hash), nil
+	return priv.Sign(Checksum256([]byte(challenge))), nil
 }
 
 func VerifyRightHolder(challenge string, rightHolderId, rightId string, sig crypto.Signature) error {
@@ -365,11 +341,7 @@ func VerifyRightHolder(challenge string, rightHolderId, rightId string, sig cryp
 	if err != nil {
 		return err
 	}
-	hash, err := DefaultBalloonHash(challenge)
-	if err != nil {
-		return err
-	}
-	if !rightHolderKey.Verify(hash, sig) {
+	if !rightHolderKey.Verify(Checksum256([]byte(challenge)), sig) {
 		return ErrorAppend(ErrInvalidSignature, sig.String())
 	}
 	return nil
@@ -487,11 +459,7 @@ func ProveLicenseHolder(challenge, licenseHolderId, licenseId string, priv crypt
 			if pubkey := priv.Public(); !licenseHolderKey.Equals(pubkey) {
 				return nil, ErrorAppend(ErrInvalidKey, pubkey.String())
 			}
-			hash, err := DefaultBalloonHash(challenge)
-			if err != nil {
-				return nil, err
-			}
-			return priv.Sign(hash), nil
+			return priv.Sign(Checksum256([]byte(challenge))), nil
 		}
 	}
 	return nil, ErrorAppend(ErrInvalidId, licenseHolderId)
@@ -510,11 +478,7 @@ func VerifyLicenseHolder(challenge, licenseHolderId, licenseId string, sig crypt
 				return err
 			}
 			licenseHolderKey := bigchain.DefaultTxOwnerBefore(tx)
-			hash, err := DefaultBalloonHash(challenge)
-			if err != nil {
-				return err
-			}
-			if !licenseHolderKey.Verify(hash, sig) {
+			if !licenseHolderKey.Verify(Checksum256([]byte(challenge)), sig) {
 				return ErrorAppend(ErrInvalidSignature, sig.String())
 			}
 			return nil
@@ -656,11 +620,7 @@ func ProveArtist(artistId, challenge string, priv crypto.PrivateKey, recordingId
 			if pubkey := priv.Public(); !pubkey.Equals(bigchain.DefaultTxOwnerBefore(tx)) {
 				return nil, ErrorAppend(ErrInvalidKey, pubkey.String())
 			}
-			hash, err := DefaultBalloonHash(challenge)
-			if err != nil {
-				return nil, err
-			}
-			return priv.Sign(hash), nil
+			return priv.Sign(Checksum256([]byte(challenge))), nil
 		}
 	}
 	return nil, ErrorAppend(ErrInvalidId, "could not match artistId")
@@ -679,11 +639,7 @@ func VerifyArtist(artistId, challenge string, recordingId string, sig crypto.Sig
 				return err
 			}
 			artistKey := bigchain.DefaultTxOwnerBefore(tx)
-			hash, err := DefaultBalloonHash(challenge)
-			if err != nil {
-				return err
-			}
-			if !artistKey.Verify(hash, sig) {
+			if !artistKey.Verify(Checksum256([]byte(challenge)), sig) {
 				return ErrorAppend(ErrInvalidSignature, sig.String())
 			}
 			return nil

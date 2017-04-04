@@ -29,18 +29,20 @@ func NewApi() *Api {
 }
 
 func (api *Api) AddRoutes(router *httprouter.Router) {
-	router.POST("/compose", api.ComposeHandler)
 	router.POST("/license", api.LicenseHandler)
 	router.POST("/login", api.LoginHandler)
-	router.POST("/record/release", api.RecordHandler)
+	router.POST("/publish", api.PublishHandler)
+	router.POST("/release", api.ReleaseHandler)
 	router.POST("/register", api.RegisterHandler)
 	router.POST("/right", api.RightHandler)
 	router.POST("/sign/:type", api.SignHandler)
 
-	router.GET("/prove/:challenge/:txId/:type/:userId", api.ProveHandler)
 	router.GET("/search/:type/:userId", api.SearchHandler)
 	router.GET("/search/:type/:userId/:name", api.SearchNameHandler)
-	router.GET("/verify/:challenge/:txId/:signature/:type/:userId", api.VerifyHandler)
+
+	// should these be POST..?
+	router.GET("/prove/:challenge/:txId/:type/:userId", api.ProveHandler)
+	router.GET("/verify/:challenge/:signature/:txId/:type/:userId", api.VerifyHandler)
 }
 
 func (api *Api) LoginHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
@@ -163,8 +165,8 @@ func (api *Api) Transfer(assetId, consumeId string, owner crypto.PublicKey, owne
 }
 
 func CompositionFromRequest(req *http.Request) (Data, error) {
-	composerIds := req.PostForm["composerId"]
 	inLanguage := req.PostFormValue("inLanguage")
+	composerIds := req.PostForm["composerId"]
 	iswcCode := req.PostFormValue("iswcCode")
 	name := req.PostFormValue("name")
 	publisherId := req.PostFormValue("publisherId")
@@ -203,7 +205,7 @@ func SignaturesFromRequest(req *http.Request) ([]string, error) {
 	return signatures, nil
 }
 
-func (api *Api) ComposeHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+func (api *Api) PublishHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	if !api.LoggedIn() {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
@@ -223,7 +225,7 @@ func (api *Api) ComposeHandler(w http.ResponseWriter, req *http.Request, _ httpr
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	composition, err = api.Compose(composition, percentShares, signatures)
+	composition, err = api.Publish(composition, percentShares, signatures)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -242,7 +244,7 @@ func RecordingFromRequest(req *http.Request) (Data, error) {
 	return spec.NewRecording(artistIds, compositionId, duration, isrcCode, licenseId, recordLabelId, url)
 }
 
-func (api *Api) RecordHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+func (api *Api) ReleaseHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	if !api.LoggedIn() {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
@@ -267,7 +269,7 @@ func (api *Api) RecordHandler(w http.ResponseWriter, req *http.Request, _ httpro
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	recording, err = api.Record(file, percentShares, recording, signatures)
+	recording, err = api.Release(file, percentShares, recording, signatures)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -642,7 +644,7 @@ func (api *Api) Register(password string, user Data) (Data, error) {
 	return credentials, nil
 }
 
-func (api *Api) Compose(composition Data, percentShares []int, signatures []string) (Data, error) {
+func (api *Api) Publish(composition Data, percentShares []int, signatures []string) (Data, error) {
 	composers := spec.GetComposers(composition)
 	n := len(composers)
 	composerKeys := make([]crypto.PublicKey, n)
@@ -666,7 +668,7 @@ func (api *Api) Compose(composition Data, percentShares []int, signatures []stri
 	return api.SendMultipleOwnersCreateTx(percentShares, composition, composerKeys)
 }
 
-func (api *Api) Record(file io.Reader, percentShares []int, recording Data, signatures []string) (Data, error) {
+func (api *Api) Release(file io.Reader, percentShares []int, recording Data, signatures []string) (Data, error) {
 	// rs := MustReadSeeker(file)
 	// meta, err := tag.ReadFrom(rs)
 	// if err != nil {

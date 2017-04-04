@@ -97,7 +97,7 @@ func TestApi(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	composition, err = api.Compose(composition, nil, nil)
+	composition, err = api.Publish(composition, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -200,7 +200,7 @@ func TestApi(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	recording, err := api.Record(file, []int{80, 20}, signRecording, nil)
+	recording, err := api.Release(file, []int{80, 20}, signRecording, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -213,7 +213,7 @@ func TestApi(t *testing.T) {
 	if err = api.Login(performerPrivKey.String(), performerId); err != nil {
 		t.Fatal(err)
 	}
-	recording, err = api.Record(file, []int{80, 20}, signRecording, []string{performerSig.String(), producerSig.String()})
+	recording, err = api.Release(file, []int{80, 20}, signRecording, []string{performerSig.String(), producerSig.String()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -265,21 +265,6 @@ func TestApi(t *testing.T) {
 	if err = api.Login(recordLabelPrivKey.String(), recordLabelId); err != nil {
 		t.Fatal(err)
 	}
-	/*
-		release, err := api.DefaultSendIndividualCreateTx(spec.NewRelease("release_title", []string{recordingId}, recordLabelId, []string{recordingRightId}, "www.release_url.com"))
-		if err != nil {
-			t.Fatal(err)
-		}
-		releaseId := GetId(release)
-		WriteJSON(output, release)
-		sig, err = ld.ProveRecordLabel(CHALLENGE, recordLabelPrivKey, releaseId)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if err = ld.VerifyRecordLabel(CHALLENGE, releaseId, sig); err != nil {
-			t.Fatal(err)
-		}
-	*/
 	masterLicense, err := spec.NewLicense([]string{recordingId}, []string{radioId}, recordLabelId, []string{recordingRightId}, "2020-01-01", "2022-01-01")
 	if err != nil {
 		t.Fatal(err)

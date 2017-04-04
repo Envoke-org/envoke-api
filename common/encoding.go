@@ -52,8 +52,12 @@ func BytesToHex(p []byte) string {
 	return hex.EncodeToString(p)
 }
 
-func BytesFromHex(hexstr string) []byte {
-	p, err := hex.DecodeString(hexstr)
+func BytesFromHex(hexstr string) ([]byte, error) {
+	return hex.DecodeString(hexstr)
+}
+
+func MustBytesFromHex(hexstr string) []byte {
+	p, err := BytesFromHex(hexstr)
 	Check(err)
 	return p
 }
