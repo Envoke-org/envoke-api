@@ -196,11 +196,9 @@ func NewTx(asset Data, inputs []Data, metadata Data, operation string, outputs [
 	return tx
 }
 
-func FulfillTx(tx Data, priv crypto.PrivateKey) {
-	json := MustMarshalJSON(tx)
-	inputs := tx.Get("inputs").([]Data)
-	for _, input := range inputs {
-		input.Set("fulfillment", cc.DefaultFulfillmentFromPrivKey(json, priv).String())
+func FulfillTx(tx Data, privkey crypto.PrivateKey) {
+	for _, input := range GetTxInputs(tx) {
+		input.Set("fulfillment", cc.DefaultFulfillmentFromPrivKey(MustMarshalJSON(tx), privkey).String())
 	}
 }
 

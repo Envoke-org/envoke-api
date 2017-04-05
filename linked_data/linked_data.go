@@ -7,9 +7,53 @@ import (
 	. "github.com/zbo14/envoke/common"
 	cc "github.com/zbo14/envoke/crypto/conditions"
 	"github.com/zbo14/envoke/crypto/crypto"
+	"github.com/zbo14/envoke/crypto/ed25519"
 	"github.com/zbo14/envoke/schema"
 	"github.com/zbo14/envoke/spec"
 )
+
+func BuildThreshold(data Data, pubkeys []crypto.PublicKey, signatures []string) (cc.Fulfillment, error) {
+	n := len(pubkeys)
+	if n != len(signatures) {
+		return nil, ErrorAppend(ErrInvalidSize, "slices are different sizes")
+	}
+	p := Checksum256(MustMarshalJSON(data))
+	sig := new(ed25519.Signature)
+	subs := make(cc.Fulfillments, n)
+	for i, pubkey := range pubkeys {
+		if err := sig.FromString(signatures[i]); err != nil {
+			return nil, err
+		}
+		if !pubkey.Verify(p, sig) {
+			return nil, ErrorAppend(ErrInvalidSignature, sig.String())
+		}
+		subs[i] = cc.DefaultFulfillmentEd25519(pubkey.(*ed25519.PublicKey), sig)
+	}
+	return cc.DefaultFulfillmentThreshold(subs), nil
+}
+
+func ValidateThreshold(data Data, pubkeys []crypto.PublicKey) error {
+	thresholdSignature := spec.GetThresholdSignature(data)
+	ful, err := cc.DefaultUnmarshalURI(thresholdSignature)
+	if err != nil {
+		return err
+	}
+	thresholdFulfillment := cc.DefaultFulfillmentThresholdFromPubKeys(pubkeys)
+	if cc.GetCondition(ful).String() != cc.GetCondition(thresholdFulfillment).String() {
+		return ErrInvalidCondition
+	}
+	data.Delete("thresholdSignature")
+	buf := new(bytes.Buffer)
+	checksum := Checksum256(MustMarshalJSON(data))
+	for i := 0; i < len(pubkeys); i++ {
+		WriteVarOctet(buf, checksum)
+	}
+	if !ful.Validate(buf.Bytes()) {
+		return ErrorAppend(ErrInvalidFulfillment, ful.String())
+	}
+	data.Set("thresholdSignature", thresholdSignature)
+	return nil
+}
 
 func QueryAndValidateSchema(id string, _type string) (Data, error) {
 	tx, err := bigchain.HttpGetTx(id)
@@ -34,6 +78,7 @@ func ValidateUserId(id string) (Data, error) {
 }
 
 func ValidateUserTx(tx Data) (err error) {
+	// Check that owner before == owner after
 	return schema.ValidateSchema(bigchain.GetTxAssetData(tx), "user")
 }
 
@@ -71,6 +116,56 @@ func CheckComposerArtist(composerArtistId, workId string) (Data, error) {
 		return nil, ErrorAppend(ErrInvalidType, _type)
 	}
 	return nil, Error("could not match composer/artist id")
+}
+
+func BuildCompositionTx(composerKey crypto.PublicKey, composition Data, signatures []string, splits []int) (Data, error) {
+	composers := spec.GetComposers(composition)
+	n := len(composers)
+	if n == 0 {
+		return nil, Error("no composers")
+	}
+	if n > 1 {
+		if signatures != nil {
+			if n != len(signatures) {
+				return nil, Error("number of composers doesn't equal number of signatures")
+			}
+		}
+		if n != len(splits) {
+			return nil, Error("number of composers doesn't equal number of splits")
+		}
+	}
+	composerKeys := make([]crypto.PublicKey, n)
+	totalShares := 0
+	for i, composer := range composers {
+		tx, err := ValidateUserId(spec.GetId(composer))
+		if err != nil {
+			return nil, err
+		}
+		composerKeys[i] = bigchain.DefaultTxOwnerBefore(tx)
+		if totalShares += splits[i]; totalShares > 100 {
+			return nil, Error("total shares exceed 100")
+		}
+	}
+	if totalShares != 100 {
+		return nil, Error("total shares do not equal 100")
+	}
+	publisherId := spec.GetPublisherId(composition)
+	if !EmptyStr(publisherId) {
+		if _, err := ValidateUserId(publisherId); err != nil {
+			return nil, err
+		}
+	}
+	if n == 1 {
+		return bigchain.IndividualCreateTx(100, composition, composerKeys[0], composerKey), nil
+	}
+	if signatures != nil {
+		thresholdFulfillment, err := BuildThreshold(composition, composerKeys, signatures)
+		if err != nil {
+			return nil, err
+		}
+		composition.Set("thresholdSignature", thresholdFulfillment.String())
+	}
+	return bigchain.MultipleOwnersCreateTx(splits, composition, composerKeys, composerKey), nil
 }
 
 func ValidateCompositionId(id string) (Data, error) {
@@ -114,25 +209,9 @@ OUTER:
 		return Error("total shares do not equal 100")
 	}
 	if n > 1 {
-		thresholdSignature := spec.GetThresholdSignature(composition)
-		ful, err := cc.DefaultUnmarshalURI(thresholdSignature)
-		if err != nil {
+		if err = ValidateThreshold(composition, composerKeys); err != nil {
 			return err
 		}
-		thresholdFulfillment := cc.DefaultFulfillmentThresholdFromPubKeys(composerKeys)
-		if cc.GetCondition(ful).String() != cc.GetCondition(thresholdFulfillment).String() {
-			return ErrInvalidCondition
-		}
-		composition.Delete("thresholdSignature")
-		buf := new(bytes.Buffer)
-		checksum := Checksum256(MustMarshalJSON(composition))
-		for i := 0; i < n; i++ {
-			WriteVarOctet(buf, checksum)
-		}
-		if !ful.Validate(buf.Bytes()) {
-			return ErrorAppend(ErrInvalidFulfillment, ful.String())
-		}
-		composition.Set("thresholdSignature", thresholdSignature)
 	}
 	publisherId := spec.GetPublisherId(composition)
 	if !EmptyStr(publisherId) {
@@ -188,6 +267,83 @@ func VerifyComposer(challenge, composerId, compositionId string, sig crypto.Sign
 		return ErrorAppend(ErrInvalidSignature, sig.String())
 	}
 	return nil
+}
+
+func BuildRightTransferTx(consumeId string, recipientId string, recipientKey crypto.PublicKey, rightToId, senderId string, senderKey crypto.PublicKey, transferAmount int) (Data, []string, error) {
+	tx, err := bigchain.HttpGetTx(consumeId)
+	if err != nil {
+		return nil, nil, err
+	}
+	if consumeId != rightToId {
+		if bigchain.TRANSFER != bigchain.GetTxOperation(tx) {
+			return nil, nil, Error("Expected TRANSFER tx")
+		}
+		if rightToId != bigchain.GetTxAssetId(tx) {
+			return nil, nil, ErrorAppend(ErrInvalidId, rightToId)
+		}
+	}
+	for idx, output := range bigchain.GetTxOutputs(tx) {
+		if senderKey.Equals(bigchain.DefaultOutputOwnerAfter(output)) {
+			totalAmount := bigchain.GetOutputAmount(output)
+			keepAmount := totalAmount - transferAmount
+			if keepAmount == 0 {
+				return bigchain.IndividualTransferTx(transferAmount, rightToId, consumeId, idx, recipientKey, senderKey), []string{recipientId}, nil
+			}
+			if keepAmount > 0 {
+				return bigchain.DivisibleTransferTx([]int{keepAmount, transferAmount}, rightToId, consumeId, idx, []crypto.PublicKey{senderKey, recipientKey}, senderKey), []string{senderId, recipientId}, nil
+			}
+			return nil, nil, Error("right-issuer cannot transfer that many shares")
+		}
+	}
+	return nil, nil, Error("right-issuer does not own output in consume tx")
+}
+
+func BuildRightTx(percentShares int, prevRightId string, privkey crypto.PrivateKey, recipientId, rightToId, senderId string, senderKey crypto.PublicKey) (Data, error) {
+	tx, err := ValidateUserId(recipientId)
+	if err != nil {
+		return nil, err
+	}
+	recipientKey := bigchain.DefaultTxOwnerBefore(tx)
+	tx, err = bigchain.HttpGetTx(rightToId)
+	if err != nil {
+		return nil, err
+	}
+	rightToType := spec.GetType(bigchain.GetTxAssetData(tx))
+	if rightToType == "MusicComposition" {
+		err = ValidateCompositionTx(tx)
+	} else if rightToType == "MusicRecording" {
+		err = ValidateRecordingTx(tx)
+	} else {
+		err = ErrorAppend(ErrInvalidType, "Expected MusicComposition or MusicRecording; got "+rightToType)
+	}
+	if err != nil {
+		return nil, err
+	}
+	consumeId := rightToId
+	if !EmptyStr(prevRightId) {
+		tx, _, err = CheckRightHolder(senderId, prevRightId)
+		if err != nil {
+			return nil, err
+		}
+		consumeId = spec.GetTransferId(bigchain.GetTxAssetData(tx))
+	}
+	tx, rightHolderIds, err := BuildRightTransferTx(consumeId, recipientId, recipientKey, rightToId, senderId, senderKey, percentShares)
+	if err != nil {
+		return nil, err
+	}
+	bigchain.FulfillTx(tx, privkey)
+	transferId, err := bigchain.HttpPostTx(tx)
+	if err != nil {
+		return nil, err
+	}
+	right, err := spec.NewRight(rightHolderIds, rightToId, transferId)
+	if err != nil {
+		return nil, err
+	}
+	if len(rightHolderIds) == 1 {
+		return bigchain.IndividualCreateTx(1, right, recipientKey, senderKey), nil
+	}
+	return bigchain.MultipleOwnersCreateTx([]int{1, 1}, right, []crypto.PublicKey{senderKey, recipientKey}, senderKey), nil
 }
 
 func ValidateRightId(id string) (Data, error) {
@@ -296,7 +452,7 @@ func ValidateRightTx(tx Data) (err error) {
 	return nil
 }
 
-func CheckRightHolder(rightHolderId, rightId string) (crypto.PublicKey, Data, error) {
+func CheckRightHolder(rightHolderId, rightId string) (Data, crypto.PublicKey, error) {
 	tx, err := ValidateRightId(rightId)
 	if err != nil {
 		return nil, nil, err
@@ -319,14 +475,14 @@ func CheckRightHolder(rightHolderId, rightId string) (crypto.PublicKey, Data, er
 					}
 				}
 			}
-			return rightHolderKey, tx, nil
+			return tx, rightHolderKey, nil
 		}
 	}
 	return nil, nil, ErrorAppend(ErrInvalidId, "could not match right-holder id")
 }
 
 func ProveRightHolder(challenge string, priv crypto.PrivateKey, rightHolderId, rightId string) (crypto.Signature, error) {
-	rightHolderKey, _, err := CheckRightHolder(rightHolderId, rightId)
+	_, rightHolderKey, err := CheckRightHolder(rightHolderId, rightId)
 	if err != nil {
 		return nil, err
 	}
@@ -337,7 +493,7 @@ func ProveRightHolder(challenge string, priv crypto.PrivateKey, rightHolderId, r
 }
 
 func VerifyRightHolder(challenge string, rightHolderId, rightId string, sig crypto.Signature) error {
-	rightHolderKey, _, err := CheckRightHolder(rightHolderId, rightId)
+	_, rightHolderKey, err := CheckRightHolder(rightHolderId, rightId)
 	if err != nil {
 		return err
 	}
@@ -356,6 +512,85 @@ func ValidateLicenseId(id string) (Data, error) {
 		return nil, err
 	}
 	return tx, nil
+}
+
+func BuildLicenseTx(license Data, licenserKey crypto.PublicKey) (Data, error) {
+	licenseHolderIds := spec.GetLicenseHolderIds(license)
+	n := len(licenseHolderIds)
+	amounts := make([]int, n)
+	licenseHolderKeys := make([]crypto.PublicKey, n)
+	licenserId := spec.GetLicenserId(license)
+	for i, licenseHolderId := range licenseHolderIds {
+		if licenserId == licenseHolderId {
+			return nil, Error("licenser cannot be license-holder")
+		}
+		tx, err := ValidateUserId(licenseHolderId)
+		if err != nil {
+			return nil, err
+		}
+		amounts[i] = 1
+		licenseHolderKeys[i] = bigchain.DefaultTxOwnerBefore(tx)
+	}
+	licenseFor := spec.GetLicenseFor(license)
+OUTER:
+	for i := range licenseFor {
+		licenseForId := spec.GetId(licenseFor[i])
+		tx, err := bigchain.HttpGetTx(licenseForId)
+		if err != nil {
+			return nil, err
+		}
+		licensed := bigchain.GetTxAssetData(tx)
+		licensedType := spec.GetType(licensed)
+		if licensedType == "MusicComposition" {
+			err = ValidateCompositionTx(tx)
+		} else if licensedType == "MusicRecording" {
+			err = ValidateRecordingTx(tx)
+		} else {
+			err = ErrorAppend(ErrInvalidType, "Expected MusicComposition or MusicRecording; got "+licensedType)
+		}
+		if err != nil {
+			return nil, err
+		}
+		rightId := spec.GetRightId(licenseFor[i])
+		if !EmptyStr(rightId) {
+			tx, _, err = CheckRightHolder(licenserId, rightId)
+			if err != nil {
+				return nil, err
+			}
+			right := bigchain.GetTxAssetData(tx)
+			if licenseForId != spec.GetRightToId(right) {
+				return nil, ErrorAppend(ErrInvalidId, "right has wrong composition/recording id")
+			}
+			rightHolderIds := spec.GetRightHolderIds(right)
+			for _, rightHolderId := range rightHolderIds {
+				if licenserId == rightHolderId {
+					continue OUTER
+				}
+			}
+		} else {
+			if licensedType == "MusicComposition" {
+				composers := spec.GetComposers(licensed)
+				for _, composer := range composers {
+					if licenserId != spec.GetId(composer) {
+						continue OUTER
+					}
+				}
+			}
+			if licensedType == "MusicRecording" {
+				artists := spec.GetArtists(licensed)
+				for _, artist := range artists {
+					if licenserId != spec.GetId(artist) {
+						continue OUTER
+					}
+				}
+			}
+		}
+		return nil, Error("licenser is not artist/composer or right-holder")
+	}
+	if n == 1 {
+		return bigchain.IndividualCreateTx(amounts[0], license, licenseHolderKeys[0], licenserKey), nil
+	}
+	return bigchain.MultipleOwnersCreateTx(amounts, license, licenseHolderKeys, licenserKey), nil
 }
 
 func ValidateLicenseTx(tx Data) (err error) {
@@ -406,7 +641,7 @@ OUTER:
 		}
 		rightId := spec.GetRightId(licenseFor[i])
 		if !EmptyStr(rightId) {
-			_, tx, err = CheckRightHolder(licenserId, rightId)
+			tx, _, err = CheckRightHolder(licenserId, rightId)
 			if err != nil {
 				return err
 			}
@@ -498,6 +733,108 @@ func ValidateRecordingId(id string) (Data, error) {
 	return tx, nil
 }
 
+func BuildRecordingTx(artistKey crypto.PublicKey, recording Data, signatures []string, splits []int) (Data, error) {
+	artists := spec.GetArtists(recording)
+	n := len(artists)
+	if n == 0 {
+		return nil, Error("no artists")
+	}
+	if n > 1 {
+		if signatures != nil {
+			if n != len(signatures) {
+				return nil, Error("number of artists doesn't equal number of signatures")
+			}
+		}
+		if n != len(splits) {
+			return nil, Error("number of artists doesn't equal number of splits")
+		}
+	}
+	recordingOf := spec.GetRecordingOf(recording)
+	compositionId := spec.GetId(recordingOf)
+	tx, err := ValidateCompositionId(compositionId)
+	if err != nil {
+		return nil, err
+	}
+	composition := bigchain.GetTxAssetData(tx)
+	var licenseHolderIds []string
+	licenseId := spec.GetLicenseId(recordingOf)
+	if !EmptyStr(licenseId) {
+		tx, err = ValidateLicenseId(licenseId)
+		if err != nil {
+			return nil, err
+		}
+		license := bigchain.GetTxAssetData(tx)
+		licenseFor := spec.GetLicenseFor(license)
+		for i := range licenseFor {
+			if compositionId == spec.GetId(licenseFor[i]) {
+				licenseHolderIds = spec.GetLicenseHolderIds(license)
+				goto NEXT
+			}
+		}
+		return nil, ErrorAppend(ErrInvalidId, "license does not have composition id")
+	}
+NEXT:
+	artistKeys := make([]crypto.PublicKey, n)
+	composers := spec.GetComposers(composition)
+	totalShares := 0
+OUTER:
+	for i, artist := range artists {
+		// TODO: check for repeat pubkeys
+		artistId := spec.GetId(artist)
+		tx, err = ValidateUserId(artistId)
+		if err != nil {
+			return nil, err
+		}
+		artistKeys[i] = bigchain.DefaultTxOwnerBefore(tx)
+		if n > 1 {
+			if totalShares += splits[i]; totalShares > 100 {
+				return nil, Error("total shares exceed 100")
+			}
+		}
+		for j, composer := range composers {
+			if artistId == spec.GetId(composer) {
+				composers = append(composers[:j], composers[j+1:]...)
+				continue OUTER
+			}
+		}
+		for j, licenseHolderId := range licenseHolderIds {
+			if artistId == licenseHolderId {
+				licenseHolderIds = append(licenseHolderIds[:j], licenseHolderIds[j+1:]...)
+				continue OUTER
+			}
+		}
+		return nil, Error("artist is not composer/does not have mechanical")
+	}
+	if totalShares != 100 {
+		return nil, Error("total shares do not equal 100")
+	}
+	recordLabelId := spec.GetRecordLabelId(recording)
+	if !EmptyStr(recordLabelId) {
+		if _, err = ValidateUserId(recordLabelId); err != nil {
+			return nil, err
+		}
+		for i, licenseHolderId := range licenseHolderIds {
+			if recordLabelId == licenseHolderId {
+				licenseHolderIds = append(licenseHolderIds[:i], licenseHolderIds[i+1:]...)
+				goto END
+			}
+		}
+		return nil, ErrorAppend(ErrInvalidId, "wrong license-holder id")
+	}
+END:
+	if n == 1 {
+		return bigchain.IndividualCreateTx(100, recording, artistKey, artistKey), nil
+	}
+	if signatures != nil {
+		thresholdFulfilment, err := BuildThreshold(recording, artistKeys, signatures)
+		if err != nil {
+			return nil, err
+		}
+		recording.Set("thresholdSignature", thresholdFulfilment.String())
+	}
+	return bigchain.MultipleOwnersCreateTx(splits, recording, artistKeys, artistKey), nil
+}
+
 func ValidateRecordingTx(tx Data) (err error) {
 	outputs := bigchain.GetTxOutputs(tx)
 	recording := bigchain.GetTxAssetData(tx)
@@ -554,12 +891,10 @@ OUTER:
 				continue OUTER
 			}
 		}
-		if len(licenseHolderIds) > 0 {
-			for j, licenseHolderId := range licenseHolderIds {
-				if artistId == licenseHolderId {
-					licenseHolderIds = append(licenseHolderIds[:j], licenseHolderIds[j+1:]...)
-					continue OUTER
-				}
+		for j, licenseHolderId := range licenseHolderIds {
+			if artistId == licenseHolderId {
+				licenseHolderIds = append(licenseHolderIds[:j], licenseHolderIds[j+1:]...)
+				continue OUTER
 			}
 		}
 		return Error("artist is not composer/does not have mechanical")
@@ -568,25 +903,9 @@ OUTER:
 		return Error("total shares do not equal 100")
 	}
 	if n > 1 {
-		thresholdSignature := spec.GetThresholdSignature(recording)
-		ful, err := cc.DefaultUnmarshalURI(thresholdSignature)
-		if err != nil {
+		if err = ValidateThreshold(recording, artistKeys); err != nil {
 			return err
 		}
-		thresholdFulfillment := cc.DefaultFulfillmentThresholdFromPubKeys(artistKeys)
-		if cc.GetCondition(ful).String() != cc.GetCondition(thresholdFulfillment).String() {
-			return ErrInvalidCondition
-		}
-		recording.Delete("thresholdSignature")
-		buf := new(bytes.Buffer)
-		checksum := Checksum256(MustMarshalJSON(recording))
-		for i := 0; i < n; i++ {
-			WriteVarOctet(buf, checksum)
-		}
-		if !ful.Validate(buf.Bytes()) {
-			return ErrorAppend(ErrInvalidFulfillment, ful.String())
-		}
-		recording.Set("thresholdSignature", thresholdSignature)
 	}
 	recordLabelId := spec.GetRecordLabelId(recording)
 	if !EmptyStr(recordLabelId) {
