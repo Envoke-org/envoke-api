@@ -118,7 +118,7 @@ func CheckComposerArtist(composerArtistId, workId string) (Data, error) {
 	return nil, Error("could not match composer/artist id")
 }
 
-func BuildCompositionTx(composerKey crypto.PublicKey, composition Data, signatures []string, splits []int) (Data, error) {
+func BuildCompositionTx(composition Data, senderId string, signatures []string, splits []int) (Data, error) {
 	composers := spec.GetComposers(composition)
 	n := len(composers)
 	if n == 0 {
@@ -135,13 +135,18 @@ func BuildCompositionTx(composerKey crypto.PublicKey, composition Data, signatur
 		}
 	}
 	composerKeys := make([]crypto.PublicKey, n)
+	var senderKey crypto.PublicKey
 	totalShares := 0
 	for i, composer := range composers {
-		tx, err := ValidateUserId(spec.GetId(composer))
+		composerId := spec.GetId(composer)
+		tx, err := ValidateUserId(composerId)
 		if err != nil {
 			return nil, err
 		}
 		composerKeys[i] = bigchain.DefaultTxOwnerBefore(tx)
+		if composerId == senderId {
+			senderKey = composerKeys[i]
+		}
 		if totalShares += splits[i]; totalShares > 100 {
 			return nil, Error("total shares exceed 100")
 		}
@@ -156,7 +161,7 @@ func BuildCompositionTx(composerKey crypto.PublicKey, composition Data, signatur
 		}
 	}
 	if n == 1 {
-		return bigchain.IndividualCreateTx(100, composition, composerKeys[0], composerKey), nil
+		return bigchain.IndividualCreateTx(100, composition, composerKeys[0], composerKeys[0]), nil
 	}
 	if signatures != nil {
 		thresholdFulfillment, err := BuildThreshold(composition, composerKeys, signatures)
@@ -165,7 +170,7 @@ func BuildCompositionTx(composerKey crypto.PublicKey, composition Data, signatur
 		}
 		composition.Set("thresholdSignature", thresholdFulfillment.String())
 	}
-	return bigchain.MultipleOwnersCreateTx(splits, composition, composerKeys, composerKey), nil
+	return bigchain.MultipleOwnersCreateTx(splits, composition, composerKeys, senderKey), nil
 }
 
 func ValidateCompositionId(id string) (Data, error) {
@@ -733,7 +738,7 @@ func ValidateRecordingId(id string) (Data, error) {
 	return tx, nil
 }
 
-func BuildRecordingTx(artistKey crypto.PublicKey, recording Data, signatures []string, splits []int) (Data, error) {
+func BuildRecordingTx(recording Data, senderId string, signatures []string, splits []int) (Data, error) {
 	artists := spec.GetArtists(recording)
 	n := len(artists)
 	if n == 0 {
@@ -776,6 +781,7 @@ func BuildRecordingTx(artistKey crypto.PublicKey, recording Data, signatures []s
 NEXT:
 	artistKeys := make([]crypto.PublicKey, n)
 	composers := spec.GetComposers(composition)
+	var senderKey crypto.PublicKey
 	totalShares := 0
 OUTER:
 	for i, artist := range artists {
@@ -786,6 +792,9 @@ OUTER:
 			return nil, err
 		}
 		artistKeys[i] = bigchain.DefaultTxOwnerBefore(tx)
+		if artistId == senderId {
+			senderKey = artistKeys[i]
+		}
 		if n > 1 {
 			if totalShares += splits[i]; totalShares > 100 {
 				return nil, Error("total shares exceed 100")
@@ -823,7 +832,7 @@ OUTER:
 	}
 END:
 	if n == 1 {
-		return bigchain.IndividualCreateTx(100, recording, artistKey, artistKey), nil
+		return bigchain.IndividualCreateTx(100, recording, artistKeys[0], artistKeys[0]), nil
 	}
 	if signatures != nil {
 		thresholdFulfilment, err := BuildThreshold(recording, artistKeys, signatures)
@@ -832,7 +841,7 @@ END:
 		}
 		recording.Set("thresholdSignature", thresholdFulfilment.String())
 	}
-	return bigchain.MultipleOwnersCreateTx(splits, recording, artistKeys, artistKey), nil
+	return bigchain.MultipleOwnersCreateTx(splits, recording, artistKeys, senderKey), nil
 }
 
 func ValidateRecordingTx(tx Data) (err error) {
