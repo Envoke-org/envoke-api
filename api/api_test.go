@@ -11,11 +11,7 @@ import (
 	"github.com/zbo14/envoke/spec"
 )
 
-var CHALLENGE = "Y2hhbGxlbmdl"
-
-func GetId(data Data) string {
-	return data.GetStr("id")
-}
+var CHALLENGE = "abc"
 
 func GetPrivateKey(data Data) crypto.PrivateKey {
 	privkey := new(ed25519.PrivateKey)
@@ -38,7 +34,7 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	composerId := GetUserId(composer)
-	composerPrivKey := GetPrivateKey(composer)
+	composerPrivkey := GetPrivateKey(composer)
 	WriteJSON(output, composer)
 	recordLabel, err := api.Register(
 		"shhhh",
@@ -48,7 +44,7 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	recordLabelId := GetUserId(recordLabel)
-	recordLabelPrivKey := GetPrivateKey(recordLabel)
+	recordLabelPrivkey := GetPrivateKey(recordLabel)
 	WriteJSON(output, recordLabel)
 	performer, err := api.Register(
 		"makeitup",
@@ -58,7 +54,7 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	performerId := GetUserId(performer)
-	performerPrivKey := GetPrivateKey(performer)
+	performerPrivkey := GetPrivateKey(performer)
 	WriteJSON(output, performer)
 	producer, err := api.Register(
 		"1234",
@@ -68,7 +64,7 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	producerId := GetUserId(producer)
-	producerPrivKey := GetPrivateKey(producer)
+	producerPrivkey := GetPrivateKey(producer)
 	WriteJSON(output, producer)
 	publisher, err := api.Register(
 		"didyousaysomething?",
@@ -78,7 +74,7 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	publisherId := GetUserId(publisher)
-	publisherPrivKey := GetPrivateKey(publisher)
+	publisherPrivkey := GetPrivateKey(publisher)
 	WriteJSON(output, publisher)
 	radio, err := api.Register(
 		"waves",
@@ -88,22 +84,21 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	radioId := GetUserId(radio)
-	radioPrivKey := GetPrivateKey(radio)
+	radioPrivkey := GetPrivateKey(radio)
 	WriteJSON(output, radio)
-	if err := api.Login(composerPrivKey.String(), composerId); err != nil {
+	if err := api.Login(composerPrivkey.String(), composerId); err != nil {
 		t.Fatal(err)
 	}
 	composition, err := spec.NewComposition([]string{composerId}, "T-034.524.680-1", "EN", "composition_title", publisherId, "www.composition_url.com")
 	if err != nil {
 		t.Fatal(err)
 	}
-	composition, err = api.Publish(composition, nil, nil)
+	compositionId, err := api.Publish(composition, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	compositionId := GetId(composition)
-	WriteJSON(output, composition)
-	sig, err := ld.ProveComposer(CHALLENGE, composerId, compositionId, composerPrivKey)
+	WriteJSON(output, Data{"compositionId": compositionId})
+	sig, err := ld.ProveComposer(CHALLENGE, composerId, compositionId, composerPrivkey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -111,171 +106,129 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	SleepSeconds(2)
-	rightHolderIds, transferId, err := api.Transfer(compositionId, compositionId, publisherPrivKey.Public(), publisherId, 20)
+	compositionRightId, err := api.Right(20, "", publisherId, compositionId)
 	if err != nil {
 		t.Fatal(err)
 	}
-	compositionRight, err := spec.NewRight(rightHolderIds, compositionId, transferId)
-	if err != nil {
-		t.Fatal(err)
-	}
-	compositionRight, err = api.SendMultipleOwnersCreateTx([]int{1, 1}, compositionRight, []crypto.PublicKey{composerPrivKey.Public(), publisherPrivKey.Public()})
-	if err != nil {
-		t.Fatal(err)
-	}
-	compositionRightId := GetId(compositionRight)
-	WriteJSON(output, compositionRight)
-	sig, err = ld.ProveRightHolder(CHALLENGE, composerPrivKey, composerId, compositionRightId)
+	WriteJSON(output, Data{"compositionRightId": compositionRightId})
+	sig, err = ld.ProveRightHolder(CHALLENGE, composerPrivkey, composerId, compositionRightId)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err = ld.VerifyRightHolder(CHALLENGE, composerId, compositionRightId, sig); err != nil {
 		t.Fatal(err)
 	}
-	sig, err = ld.ProveRightHolder(CHALLENGE, publisherPrivKey, publisherId, compositionRightId)
+	sig, err = ld.ProveRightHolder(CHALLENGE, publisherPrivkey, publisherId, compositionRightId)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err = ld.VerifyRightHolder(CHALLENGE, publisherId, compositionRightId, sig); err != nil {
 		t.Fatal(err)
 	}
-	if err = api.Login(publisherPrivKey.String(), publisherId); err != nil {
+	if err = api.Login(publisherPrivkey.String(), publisherId); err != nil {
 		t.Fatal(err)
 	}
 	mechanicalLicense, err := spec.NewLicense([]string{compositionId}, []string{performerId, producerId, recordLabelId}, publisherId, []string{compositionRightId}, "2020-01-01", "2024-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
-	mechanicalLicense, err = api.SendMultipleOwnersCreateTx([]int{1, 1, 1}, mechanicalLicense, []crypto.PublicKey{performerPrivKey.Public(), producerPrivKey.Public(), recordLabelPrivKey.Public()})
+	mechanicalLicenseId, err := api.License(mechanicalLicense)
 	if err != nil {
 		t.Fatal(err)
 	}
-	mechanicalLicenseId := GetId(mechanicalLicense)
-	WriteJSON(output, mechanicalLicense)
-	sig, err = ld.ProveLicenseHolder(CHALLENGE, performerId, mechanicalLicenseId, performerPrivKey)
+	WriteJSON(output, Data{"mechanicalLicenseId": mechanicalLicenseId})
+	sig, err = ld.ProveLicenseHolder(CHALLENGE, performerId, mechanicalLicenseId, performerPrivkey)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err = ld.VerifyLicenseHolder(CHALLENGE, performerId, mechanicalLicenseId, sig); err != nil {
 		t.Fatal(err)
 	}
-	sig, err = ld.ProveLicenseHolder(CHALLENGE, producerId, mechanicalLicenseId, producerPrivKey)
+	sig, err = ld.ProveLicenseHolder(CHALLENGE, producerId, mechanicalLicenseId, producerPrivkey)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err = ld.VerifyLicenseHolder(CHALLENGE, producerId, mechanicalLicenseId, sig); err != nil {
 		t.Fatal(err)
 	}
-	sig, err = ld.ProveLicenseHolder(CHALLENGE, recordLabelId, mechanicalLicenseId, recordLabelPrivKey)
+	sig, err = ld.ProveLicenseHolder(CHALLENGE, recordLabelId, mechanicalLicenseId, recordLabelPrivkey)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err = ld.VerifyLicenseHolder(CHALLENGE, recordLabelId, mechanicalLicenseId, sig); err != nil {
 		t.Fatal(err)
 	}
-	/*
-		transferId, err = api.Transfer(compositionId, transferId, composerPrivKey.Public(), 10)
-		if err != nil {
-			t.Fatal(err)
-		}
-		compositionRight, err = api.DefaultSendIndividualCreateTx(spec.NewCompositionRight([]string{publisherId, composerId}, compositionId, transferId))
-		if err != nil {
-			t.Fatal(err)
-		}
-		WriteJSON(output, compositionRight)
-		if _, err = ld.ValidateRight(publisherId, compositionRightId); err == nil {
-			t.Error("TRANSFER tx output should be spent")
-		} else {
-			t.Log(err.Error())
-		}
-	*/
-	file, err := OpenFile(Getenv("PATH_TO_AUDIO_FILE"))
+
+	if err = api.Login(performerPrivkey.String(), performerId); err != nil {
+		t.Fatal(err)
+	}
+	recording, err := spec.NewRecording([]string{performerId, producerId}, compositionId, "PT2M43S", "US-S1Z-99-00001", mechanicalLicenseId, recordLabelId, "www.recording_url.com")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = api.Login(performerPrivKey.String(), performerId); err != nil {
-		t.Fatal(err)
-	}
-	signRecording, err := spec.NewRecording([]string{performerId, producerId}, compositionId, "PT2M43S", "US-S1Z-99-00001", mechanicalLicenseId, recordLabelId, "www.recording_url.com")
+	perfomerSignature, err := api.SignRecording(recording, performerId, []int{80, 20})
 	if err != nil {
 		t.Fatal(err)
 	}
-	recording, err := api.Release(file, []int{80, 20}, signRecording, nil)
+	if err = api.Login(producerPrivkey.String(), producerId); err != nil {
+		t.Fatal(err)
+	}
+	producerSignature, err := api.SignRecording(recording, performerId, []int{80, 20})
 	if err != nil {
 		t.Fatal(err)
 	}
-	recordingId := GetId(recording)
-	performerSig := api.Sign(signRecording)
-	if err = api.Login(producerPrivKey.String(), producerId); err != nil {
+	if err = api.Login(performerPrivkey.String(), performerId); err != nil {
 		t.Fatal(err)
 	}
-	producerSig := api.Sign(signRecording)
-	if err = api.Login(performerPrivKey.String(), performerId); err != nil {
-		t.Fatal(err)
-	}
-	recording, err = api.Release(file, []int{80, 20}, signRecording, []string{performerSig.String(), producerSig.String()})
+	recordingId, err := api.Release(recording, []string{perfomerSignature, producerSignature}, []int{80, 20})
 	if err != nil {
 		t.Fatal(err)
 	}
-	recordingId = GetId(recording)
-	WriteJSON(output, recording)
+	WriteJSON(output, Data{"recordingId": recordingId})
 	SleepSeconds(2)
-	sig, err = ld.ProveArtist(performerId, CHALLENGE, performerPrivKey, recordingId)
+	sig, err = ld.ProveArtist(performerId, CHALLENGE, performerPrivkey, recordingId)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err = ld.VerifyArtist(performerId, CHALLENGE, recordingId, sig); err != nil {
 		t.Fatal(err)
 	}
-	sig, err = ld.ProveArtist(producerId, CHALLENGE, producerPrivKey, recordingId)
+	sig, err = ld.ProveArtist(producerId, CHALLENGE, producerPrivkey, recordingId)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err = ld.VerifyArtist(producerId, CHALLENGE, recordingId, sig); err != nil {
 		t.Fatal(err)
 	}
-	rightHolderIds, transferId, err = api.Transfer(recordingId, recordingId, recordLabelPrivKey.Public(), recordLabelId, 20)
-	if err != nil {
-		t.Fatal(err)
-	}
-	recordingRight, err := spec.NewRight(rightHolderIds, recordingId, transferId)
-	if err != nil {
-		t.Fatal(err)
-	}
-	recordingRight, err = api.SendMultipleOwnersCreateTx([]int{1, 1}, recordingRight, []crypto.PublicKey{performerPrivKey.Public(), recordLabelPrivKey.Public()})
-	if err != nil {
-		t.Fatal(err)
-	}
-	recordingRightId := GetId(recordingRight)
-	WriteJSON(output, recordingRight)
-	sig, err = ld.ProveRightHolder(CHALLENGE, performerPrivKey, performerId, recordingRightId)
+	recordingRightId, err := api.Right(20, "", recordLabelId, recordingId)
+	WriteJSON(output, Data{"recordingRightId": recordingRightId})
+	sig, err = ld.ProveRightHolder(CHALLENGE, performerPrivkey, performerId, recordingRightId)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err = ld.VerifyRightHolder(CHALLENGE, performerId, recordingRightId, sig); err != nil {
 		t.Fatal(err)
 	}
-	sig, err = ld.ProveRightHolder(CHALLENGE, recordLabelPrivKey, recordLabelId, recordingRightId)
+	sig, err = ld.ProveRightHolder(CHALLENGE, recordLabelPrivkey, recordLabelId, recordingRightId)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err = ld.VerifyRightHolder(CHALLENGE, recordLabelId, recordingRightId, sig); err != nil {
 		t.Fatal(err)
 	}
-	if err = api.Login(recordLabelPrivKey.String(), recordLabelId); err != nil {
+	if err = api.Login(recordLabelPrivkey.String(), recordLabelId); err != nil {
 		t.Fatal(err)
 	}
 	masterLicense, err := spec.NewLicense([]string{recordingId}, []string{radioId}, recordLabelId, []string{recordingRightId}, "2020-01-01", "2022-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
-	masterLicense, err = api.SendIndividualCreateTx(1, masterLicense, radioPrivKey.Public())
+	masterLicenseId, err := api.License(masterLicense)
 	if err != nil {
 		t.Fatal(err)
 	}
-	masterLicenseId := GetId(masterLicense)
-	WriteJSON(output, masterLicense)
-	sig, err = ld.ProveLicenseHolder(CHALLENGE, radioId, masterLicenseId, radioPrivKey)
+	WriteJSON(output, Data{"masterLicenseId": masterLicenseId})
+	sig, err = ld.ProveLicenseHolder(CHALLENGE, radioId, masterLicenseId, radioPrivkey)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -284,7 +237,7 @@ func TestApi(t *testing.T) {
 	}
 	txs, err := bigchain.HttpGetFilter(func(txId string) (Data, error) {
 		return ld.ValidateCompositionId(txId)
-	}, composerPrivKey.Public())
+	}, composerPrivkey.Public())
 	if err != nil {
 		t.Fatal(err)
 	}

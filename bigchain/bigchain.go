@@ -84,11 +84,10 @@ func HttpPostTx(tx Data) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	data := make(Data)
-	if err := ReadJSON(response.Body, &data); err != nil {
+	if err := ReadJSON(response.Body, &tx); err != nil {
 		return "", err
 	}
-	return tx.GetStr("id"), nil
+	return GetTxId(tx), nil
 }
 
 // BigchainDB transaction type
@@ -202,6 +201,12 @@ func FulfillTx(tx Data, privkey crypto.PrivateKey) {
 	}
 }
 
+func UnfulfillTx(tx Data) {
+	for _, input := range GetTxInputs(tx) {
+		input.Clear("fulfillment")
+	}
+}
+
 func FulfilledTx(tx Data) bool {
 	var err error
 	inputs := tx.GetDataSlice("inputs")
@@ -301,6 +306,10 @@ func GetTxAssetData(tx Data) Data {
 
 func GetTxAssetId(tx Data) string {
 	return tx.GetData("asset").GetStr("id")
+}
+
+func GetTxId(tx Data) string {
+	return tx.GetStr("id")
 }
 
 func GetTxInput(tx Data, inputIdx int) Data {

@@ -5,7 +5,7 @@ import (
 	"github.com/zbo14/envoke/regex"
 )
 
-const CONTEXT = "http://localhost:8888/spec#Context"
+const CONTEXT = "CONTEXT"
 
 func NewLink(id string) Data {
 	return Data{"@id": id}

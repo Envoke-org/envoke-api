@@ -269,65 +269,6 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"required": ["@context", "@type", "byArtist", "recordingOf"]
 }`, SCHEMA, link, spec.CONTEXT, regex.ISRC, regex.FULFILLMENT))
 
-var ReleaseLoader = jsonschema.NewStringLoader(Sprintf(`{
-	"$schema":  "%s",
-	"title": "MusicRelease",
-	"type": "object",
-	"definitions": {
-		"recording": {
-			"allOf": [
-				{
-					"$ref": "#/definitions/link"
-				},
-				{
-					"properties": {
-						"hasRight": {
-							"$ref": "#/definitions/link"
-						}
-					},
-					"required": ["hasRight"]
-				}
-			]
-		},
-		"link": %s
-	},
-	"properties": {
-		"@context": {
-			"type": "string",
-			"pattern": "^%s$"
-		},
-		"@type": {
-			"type": "string",
-			"pattern": "^MusicRelease$"
-		},
-		"name": {
-			"type": "string"
-		},
-		"recording": {
-			"oneOf": [
-				{
-					"$ref": "#/definitions/recording"
-				},	
-				{
-					"type": "array",
-					"items": {
-						"$ref": "#/definitions/recording"
-					},
-					"minItems": 2,
-					"uniqueItems": true
-				}
-			]
-		},
-		"recordLabel": {
-			"$ref": "#/definitions/link"
-		},
-		"sameAs": {
-			"type": "string"
-		}
-	},
-	"required": ["@context", "@type", "name", "recording", "recordLabel"]
-}`, SCHEMA, link, spec.CONTEXT))
-
 var RightLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"$schema": "%s",
 	"title": "Right",

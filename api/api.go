@@ -88,17 +88,24 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request, _ httprou
 	prevRightId := req.PostFormValue("prevRightId")
 	recipientId := req.PostFormValue("recipientId")
 	rightToId := req.PostFormValue("rightToId")
-	tx, err := ld.BuildRightTx(percentShares, prevRightId, api.privkey, recipientId, rightToId, api.userId, api.pubkey)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	id, err := api.SignAndSendTx(tx)
+	id, err := api.Right(percentShares, prevRightId, recipientId, rightToId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	w.Write([]byte(id))
+}
+
+func (api *Api) Right(percentShares int, prevRightId, recipientId, rightToId string) (string, error) {
+	tx, err := ld.BuildRightTx(percentShares, prevRightId, api.privkey, recipientId, rightToId, api.userId, api.pubkey)
+	if err != nil {
+		return "", err
+	}
+	id, err := api.SignAndSendTx(tx)
+	if err != nil {
+		return "", err
+	}
+	return id, nil
 }
 
 func CompositionFromRequest(req *http.Request) (Data, error) {
@@ -142,6 +149,18 @@ func SignaturesFromRequest(req *http.Request) ([]string, error) {
 	return signatures, nil
 }
 
+func (api *Api) Publish(composition Data, signatures []string, splits []int) (string, error) {
+	tx, err := ld.BuildCompositionTx(composition, api.userId, signatures, splits)
+	if err != nil {
+		return "", err
+	}
+	id, err := api.SignAndSendTx(tx)
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
 func (api *Api) PublishHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	if !api.LoggedIn() {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
@@ -162,12 +181,7 @@ func (api *Api) PublishHandler(w http.ResponseWriter, req *http.Request, _ httpr
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	tx, err := ld.BuildCompositionTx(composition, api.userId, signatures, splits)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	id, err := api.SignAndSendTx(tx)
+	id, err := api.Publish(composition, signatures, splits)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -206,17 +220,36 @@ func (api *Api) ReleaseHandler(w http.ResponseWriter, req *http.Request, _ httpr
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	tx, err := ld.BuildRecordingTx(recording, api.userId, signatures, splits)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	id, err := api.SignAndSendTx(tx)
+	id, err := api.Release(recording, signatures, splits)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	w.Write([]byte(id))
+}
+
+func (api *Api) Release(recording Data, signatures []string, splits []int) (string, error) {
+	tx, err := ld.BuildRecordingTx(recording, api.userId, signatures, splits)
+	if err != nil {
+		return "", err
+	}
+	id, err := api.SignAndSendTx(tx)
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
+func (api *Api) License(license Data) (string, error) {
+	tx, err := ld.BuildLicenseTx(license, api.pubkey)
+	if err != nil {
+		return "", nil
+	}
+	id, err := api.SignAndSendTx(tx)
+	if err != nil {
+		return "", nil
+	}
+	return id, nil
 }
 
 func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
@@ -234,12 +267,7 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request, _ httpr
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	tx, err := ld.BuildLicenseTx(license, api.pubkey)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	id, err := api.SignAndSendTx(tx)
+	id, err := api.License(license)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -255,7 +283,7 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request, params h
 	var datas []Data
 	_type := params.ByName("type")
 	userId := params.ByName("userId")
-	tx, err := ld.QueryAndValidateSchema(userId, "user")
+	tx, err := ld.ValidateUserId(userId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -353,8 +381,8 @@ func (api *Api) ProveHandler(w http.ResponseWriter, req *http.Request, params ht
 	}
 	var err error
 	challenge := params.ByName("challenge")
-	txId := params.ByName("txId")
 	var sig crypto.Signature
+	txId := params.ByName("txId")
 	_type := params.ByName("type")
 	userId := params.ByName("userId")
 	switch _type {
@@ -373,7 +401,7 @@ func (api *Api) ProveHandler(w http.ResponseWriter, req *http.Request, params ht
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	WriteJSON(w, sig)
+	w.Write([]byte(sig.String()))
 }
 
 func (api *Api) VerifyHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
@@ -406,7 +434,7 @@ func (api *Api) VerifyHandler(w http.ResponseWriter, req *http.Request, params h
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	WriteJSON(w, "Verified proof!")
+	w.WriteHeader(http.StatusOK)
 }
 
 func (api *Api) SignHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
@@ -415,12 +443,12 @@ func (api *Api) SignHandler(w http.ResponseWriter, req *http.Request, params htt
 		return
 	}
 	senderId := params.ByName("senderId")
+	var signature string
 	splits, err := SplitsFromRequest(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	var tx Data
 	_type := params.ByName("type")
 	if _type == "composition" {
 		composition, err := CompositionFromRequest(req)
@@ -428,14 +456,14 @@ func (api *Api) SignHandler(w http.ResponseWriter, req *http.Request, params htt
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		tx, err = ld.BuildCompositionTx(composition, senderId, nil, splits)
+		signature, err = api.SignComposition(composition, senderId, splits)
 	} else if _type == "recording" {
 		recording, err := RecordingFromRequest(req)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		tx, err = ld.BuildRecordingTx(recording, senderId, nil, splits)
+		signature, err = api.SignRecording(recording, senderId, splits)
 	} else {
 		err = ErrorAppend(ErrInvalidType, _type)
 	}
@@ -443,11 +471,27 @@ func (api *Api) SignHandler(w http.ResponseWriter, req *http.Request, params htt
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	w.Write([]byte(api.Sign(tx).String()))
+	w.Write([]byte(signature))
 }
 
-func (api *Api) Sign(data Data) crypto.Signature {
-	return api.privkey.Sign(Checksum256(MustMarshalJSON(data)))
+func (api *Api) SignComposition(composition Data, senderId string, splits []int) (string, error) {
+	tx, err := ld.BuildCompositionTx(composition, senderId, nil, splits)
+	if err != nil {
+		return "", err
+	}
+	return api.Sign(tx), nil
+}
+
+func (api *Api) SignRecording(recording Data, senderId string, splits []int) (string, error) {
+	tx, err := ld.BuildRecordingTx(recording, senderId, nil, splits)
+	if err != nil {
+		return "", err
+	}
+	return api.Sign(tx), nil
+}
+
+func (api *Api) Sign(data Data) string {
+	return api.privkey.Sign(Checksum256(MustMarshalJSON(data))).String()
 }
 
 func (api *Api) LoggedIn() bool {
@@ -467,6 +511,9 @@ func (api *Api) LoggedIn() bool {
 
 func (api *Api) SignAndSendTx(tx Data) (string, error) {
 	bigchain.FulfillTx(tx, api.privkey)
+	if !bigchain.FulfilledTx(tx) {
+		return "", ErrInvalidFulfillment
+	}
 	id, err := bigchain.HttpPostTx(tx)
 	if err != nil {
 		return "", err
@@ -491,12 +538,11 @@ func (api *Api) Login(privstr, userId string) error {
 	if err != nil {
 		return err
 	}
-	user := bigchain.GetTxAssetData(tx)
 	pubkey := bigchain.DefaultTxOwnerBefore(tx)
 	if !pubkey.Equals(privkey.Public()) {
 		return ErrorAppend(ErrInvalidKey, pubkey.String())
 	}
-	api.logger.Info(Sprintf("SUCCESS %s is logged in", spec.GetName(user)))
+	api.logger.Info(Sprintf("SUCCESS %s is logged in", spec.GetName(bigchain.GetTxAssetData(tx))))
 	api.privkey, api.pubkey = privkey, pubkey
 	api.userId = userId
 	return nil
