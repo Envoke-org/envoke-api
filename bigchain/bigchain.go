@@ -100,11 +100,11 @@ const (
 	VERSION  = "0.9"
 )
 
-func DefaultIndividualCreateTx(data Data, owner crypto.PublicKey) Data {
+func DefaultIndividualCreateTx(data Data, owner crypto.PublicKey) (Data, error) {
 	return IndividualCreateTx(1, data, owner, owner)
 }
 
-func IndividualCreateTx(amount int, data Data, ownerAfter, ownerBefore crypto.PublicKey) Data {
+func IndividualCreateTx(amount int, data Data, ownerAfter, ownerBefore crypto.PublicKey) (Data, error) {
 	amounts := []int{amount}
 	asset := Data{"data": data}
 	fulfills := []Data{nil}
@@ -113,24 +113,24 @@ func IndividualCreateTx(amount int, data Data, ownerAfter, ownerBefore crypto.Pu
 	return CreateTx(amounts, asset, fulfills, ownersAfter, ownersBefore)
 }
 
-func DefaultMultipleOwnersCreateTx(data Data, ownersAfter []crypto.PublicKey, ownerBefore crypto.PublicKey) Data {
+func DefaultMultipleOwnersCreateTx(data Data, ownersAfter []crypto.PublicKey, ownerBefore crypto.PublicKey) (Data, error) {
 	return MultipleOwnersCreateTx([]int{1}, data, ownersAfter, ownerBefore)
 }
 
-func MultipleOwnersCreateTx(amounts []int, data Data, ownersAfter []crypto.PublicKey, ownerBefore crypto.PublicKey) Data {
+func MultipleOwnersCreateTx(amounts []int, data Data, ownersAfter []crypto.PublicKey, ownerBefore crypto.PublicKey) (Data, error) {
 	asset := Data{"data": data}
 	fulfills := []Data{nil}
 	ownersBefore := []crypto.PublicKey{ownerBefore}
-	n := len(amounts)
+	n := len(ownersAfter)
 	if n == 0 {
-		panic(Error("no amounts"))
+		return nil, Error("no ownersAfter")
 	}
 	owners := make([][]crypto.PublicKey, n)
 	if n == 1 {
 		owners[0] = ownersAfter
 	} else {
-		if n != len(ownersAfter) {
-			panic(Error("must have same number of amounts as owners if number > 1"))
+		if n != len(amounts) {
+			return nil, Error("different number of ownersAfter and amounts")
 		}
 		for i, owner := range ownersAfter {
 			owners[i] = []crypto.PublicKey{owner}
@@ -139,11 +139,11 @@ func MultipleOwnersCreateTx(amounts []int, data Data, ownersAfter []crypto.Publi
 	return CreateTx(amounts, asset, fulfills, owners, [][]crypto.PublicKey{ownersBefore})
 }
 
-func DefaultIndividualTransferTx(assetId, consumeId string, outputIdx int, ownerAfter, ownerBefore crypto.PublicKey) Data {
+func DefaultIndividualTransferTx(assetId, consumeId string, outputIdx int, ownerAfter, ownerBefore crypto.PublicKey) (Data, error) {
 	return IndividualTransferTx(1, assetId, consumeId, outputIdx, ownerAfter, ownerBefore)
 }
 
-func IndividualTransferTx(amount int, assetId, consumeId string, outputIdx int, ownerAfter, ownerBefore crypto.PublicKey) Data {
+func IndividualTransferTx(amount int, assetId, consumeId string, outputIdx int, ownerAfter, ownerBefore crypto.PublicKey) (Data, error) {
 	amounts := []int{amount}
 	asset := Data{"id": assetId}
 	fulfills := []Data{Data{"txid": consumeId, "output": outputIdx}}
@@ -152,10 +152,13 @@ func IndividualTransferTx(amount int, assetId, consumeId string, outputIdx int, 
 	return TransferTx(amounts, asset, fulfills, ownersAfter, ownersBefore)
 }
 
-func DivisibleTransferTx(amounts []int, assetId, consumeId string, outputIdx int, ownersAfter []crypto.PublicKey, ownerBefore crypto.PublicKey) Data {
-	n := len(amounts)
-	if n <= 1 || n != len(ownersAfter) {
-		panic(ErrInvalidSize)
+func DivisibleTransferTx(amounts []int, assetId, consumeId string, outputIdx int, ownersAfter []crypto.PublicKey, ownerBefore crypto.PublicKey) (Data, error) {
+	n := len(ownersAfter)
+	if n <= 1 {
+		return nil, Error("must be multiple ownersAfter")
+	}
+	if n != len(amounts) {
+		return nil, Error("different number of ownersAfter and amounts")
 	}
 	asset := Data{"id": assetId}
 	fulfills := []Data{Data{"txid": consumeId, "output": outputIdx}}
@@ -167,18 +170,21 @@ func DivisibleTransferTx(amounts []int, assetId, consumeId string, outputIdx int
 	return TransferTx(amounts, asset, fulfills, owners, ownersBefore)
 }
 
-func CreateTx(amounts []int, asset Data, fulfills []Data, ownersAfter, ownersBefore [][]crypto.PublicKey) Data {
+func CreateTx(amounts []int, asset Data, fulfills []Data, ownersAfter, ownersBefore [][]crypto.PublicKey) (Data, error) {
 	return GenerateTx(amounts, asset, fulfills, nil, CREATE, ownersAfter, ownersBefore)
 }
 
-func TransferTx(amounts []int, asset Data, fulfills []Data, ownersAfter, ownersBefore [][]crypto.PublicKey) Data {
+func TransferTx(amounts []int, asset Data, fulfills []Data, ownersAfter, ownersBefore [][]crypto.PublicKey) (Data, error) {
 	return GenerateTx(amounts, asset, fulfills, nil, TRANSFER, ownersAfter, ownersBefore)
 }
 
-func GenerateTx(amounts []int, asset Data, fulfills []Data, metadata Data, operation string, ownersAfter, ownersBefore [][]crypto.PublicKey) Data {
+func GenerateTx(amounts []int, asset Data, fulfills []Data, metadata Data, operation string, ownersAfter, ownersBefore [][]crypto.PublicKey) (Data, error) {
 	inputs := NewInputs(fulfills, ownersBefore)
-	outputs := NewOutputs(amounts, ownersAfter)
-	return NewTx(asset, inputs, metadata, operation, outputs)
+	outputs, err := NewOutputs(amounts, ownersAfter)
+	if err != nil {
+		return nil, err
+	}
+	return NewTx(asset, inputs, metadata, operation, outputs), nil
 }
 
 func NewTx(asset Data, inputs []Data, metadata Data, operation string, outputs []Data) Data {
@@ -190,8 +196,7 @@ func NewTx(asset Data, inputs []Data, metadata Data, operation string, outputs [
 		"outputs":   outputs,
 		"version":   VERSION,
 	}
-	sum := Checksum256(MustMarshalJSON(tx))
-	tx.Set("id", BytesToHex(sum))
+	tx.Set("id", BytesToHex(Checksum256(MustMarshalJSON(tx))))
 	return tx
 }
 
@@ -251,16 +256,16 @@ func NewInput(fulfills Data, ownersBefore []crypto.PublicKey) Data {
 	}
 }
 
-func NewOutputs(amounts []int, ownersAfter [][]crypto.PublicKey) []Data {
-	n := len(amounts)
-	if n != len(ownersAfter) {
-		panic(ErrorAppend(ErrInvalidSize, "slices are different sizes"))
+func NewOutputs(amounts []int, ownersAfter [][]crypto.PublicKey) ([]Data, error) {
+	n := len(ownersAfter)
+	if n != len(amounts) {
+		return nil, Error("different number of ownersAfter and amounts")
 	}
 	outputs := make([]Data, n)
 	for i, owner := range ownersAfter {
 		outputs[i] = NewOutput(amounts[i], owner)
 	}
-	return outputs
+	return outputs, nil
 }
 
 func NewOutput(amount int, ownersAfter []crypto.PublicKey) Data {

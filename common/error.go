@@ -33,3 +33,7 @@ func Panicf(format string, args ...interface{}) {
 func ErrorAppend(err error, msg string) error {
 	return Error(err.Error() + ": " + msg)
 }
+
+func ErrorPrepend(msg string, err error) error {
+	return ErrorAppend(Error(msg), err.Error())
+}
