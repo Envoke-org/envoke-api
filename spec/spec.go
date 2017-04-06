@@ -186,7 +186,7 @@ func NewRecording(artistIds []string, compositionId, duration, isrcCode, license
 		recording.Set("isrcCode", isrcCode)
 	}
 	if MatchId(licenseId) {
-		recording.GetData("recordingOf").Set("hasLicense", NewLink(licenseId))
+		recording.GetData("recordingOf").Set("license", NewLink(licenseId))
 	}
 	if MatchId(recordLabelId) {
 		recording.Set("recordLabel", NewLink(recordLabelId))
@@ -295,7 +295,7 @@ func NewLicense(licenseForIds, licenseHolderIds []string, licenserId string, rig
 			licenseFor[i] = NewLink(licenseForId)
 			if m > 0 {
 				if MatchId(rightIds[i]) {
-					licenseFor[i].Set("hasRight", NewLink(rightIds[i]))
+					licenseFor[i].Set("right", NewLink(rightIds[i]))
 				}
 			}
 		}
@@ -325,7 +325,7 @@ func GetLicenserId(data Data) string {
 }
 
 func GetRightId(data Data) string {
-	right := data.GetData("hasRight")
+	right := data.GetData("right")
 	return GetId(right)
 }
 

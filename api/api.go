@@ -32,7 +32,7 @@ func (api *Api) AddRoutes(router *httprouter.Router) {
 	router.POST("/release", api.ReleaseHandler)
 	router.POST("/register", api.RegisterHandler)
 	router.POST("/right", api.RightHandler)
-	router.POST("/sign/:senderId/:type", api.SignHandler)
+	router.POST("/sign/:type", api.SignHandler)
 
 	router.GET("/search/:type/:userId", api.SearchHandler)
 	router.GET("/search/:type/:userId/:name", api.SearchNameHandler)
