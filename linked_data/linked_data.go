@@ -692,6 +692,24 @@ OUTER:
 		}
 		return Error("licenser is not artist/composer or right-holder")
 	}
+	dateFrom, err := ParseDate(spec.GetValidFrom(license))
+	if err != nil {
+		return err
+	}
+	dateThrough, err := ParseDate(spec.GetValidThrough(license))
+	if err != nil {
+		return err
+	}
+	if !dateThrough.After(dateFrom) {
+		return Error("Invalid timeframe")
+	}
+	today := Today()
+	if dateFrom.After(today) {
+		return Error("License is not yet valid")
+	}
+	if dateThrough.Before(today) {
+		return Error("License is no longer valid")
+	}
 	return nil
 }
 

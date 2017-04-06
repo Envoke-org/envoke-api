@@ -14,12 +14,10 @@ In a terminal window, `cd ~/go/src/github.com/Envoke-org/envoke-api`...
 
 * **API**
 	
-	`sh api.sh` 
-
-	You will be prompted to enter an endpoint to the BigchainDB/IPDB http-api.  
+	`sh api.sh`  
 
 * **Tests**
 
 	`sh tests.sh`
 
-	You will be prompted to enter an endpoint to the BigchainDB/IPDB http-api and a path to an audio file
+...you will be prompted to enter an endpoint to the BigchainDB/IPDB http-api. 

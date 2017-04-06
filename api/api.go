@@ -52,7 +52,7 @@ func (api *Api) LoginHandler(w http.ResponseWriter, req *http.Request, _ httprou
 	w.WriteHeader(http.StatusOK)
 }
 
-func UserFromRequest(req *http.Request) Data {
+func UserFromRequest(req *http.Request) (Data, error) {
 	email := req.PostFormValue("email")
 	ipiNumer := req.PostFormValue("ipiNumber")
 	isniNumber := req.PostFormValue("isniNumber")
@@ -66,7 +66,11 @@ func UserFromRequest(req *http.Request) Data {
 
 func (api *Api) RegisterHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	password := req.PostFormValue("password")
-	user := UserFromRequest(req)
+	user, err := UserFromRequest(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	credentials, err := api.Register(password, user)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

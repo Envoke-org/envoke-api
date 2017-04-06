@@ -189,7 +189,7 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 				},
 				{
 					"properties": {
-						"hasLicense": {
+						"license": {
 							"$ref": "#/definitions/link"
 						}
 					}
@@ -224,9 +224,6 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 		},
 		"duration": {
 			"type": "string"			
-		},
-		"hasLicense": {
-			"$ref": "#/definitions/link"
 		},
 		"isrcCode": {
 			"type": "string",
@@ -316,7 +313,7 @@ var LicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 				},
 				{
 					"properties": {
-						"hasRight": {
+						"right": {
 							"$ref": "#/definitions/link"
 						}
 					}

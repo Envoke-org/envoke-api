@@ -13,10 +13,6 @@ const (
 	PRO       = `^ASCAP|BMI|SESAC$`
 	PUBKEY    = `^[1-9A-HJ-NP-Za-km-z]{43,44}$` // base58
 	SIGNATURE = `^[1-9A-HJ-NP-Za-km-z]{87,88}$` // base58
-	TERRITORY = `^[A-Z]{2}$`
-
-	// FINGERPRINT_STD = `^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$` // base64 std
-	// FINGERPRINT_URL = `^(?:[A-Za-z0-9-_]{4})*(?:[A-Za-z0-9-_]{2}==|[A-Za-z0-9-_]{3})?$`  // base64 url-safe
 
 	CONDITION        = `^cc:([1-9a-f][0-9a-f]{0,3}|0):[1-9a-f][0-9a-f]{0,15}:[a-zA-Z0-9_-]{0,86}:([1-9][0-9]{0,17}|0)$`
 	CONDITION_STRICT = `^cc:([1-9a-f][0-9a-f]{0,3}|0):[1-9a-f][0-9a-f]{0,7}:[a-zA-Z0-9_-]{0,86}:([1-9][0-9]{0,17}|0)$`

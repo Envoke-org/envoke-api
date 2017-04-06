@@ -23,7 +23,7 @@ func GetType(data Data) string {
 	return data.GetStr("@type")
 }
 
-func NewUser(email, ipi, isni string, memberIds []string, name, pro, sameAs, _type string) Data {
+func NewUser(email, ipi, isni string, memberIds []string, name, pro, sameAs, _type string) (Data, error) {
 	user := Data{
 		"@context": CONTEXT,
 		"@type":    _type,
@@ -35,7 +35,7 @@ func NewUser(email, ipi, isni string, memberIds []string, name, pro, sameAs, _ty
 			member := make([]Data, n)
 			for i, memberId := range memberIds {
 				if !MatchId(memberId) {
-					panic("Invalid memberId")
+					return nil, Error("Invalid member id")
 				}
 				member[i] = NewLink(memberId)
 			}
@@ -44,7 +44,7 @@ func NewUser(email, ipi, isni string, memberIds []string, name, pro, sameAs, _ty
 	case "Person":
 		//..
 	default:
-		panic(ErrorAppend(ErrInvalidType, _type))
+		return nil, ErrorAppend(ErrInvalidType, _type)
 	}
 	if MatchStr(regex.EMAIL, email) {
 		user.Set("email", email)
@@ -61,7 +61,7 @@ func NewUser(email, ipi, isni string, memberIds []string, name, pro, sameAs, _ty
 	if MatchUrlRelaxed(sameAs) {
 		user.Set("sameAs", sameAs)
 	}
-	return user
+	return user, nil
 }
 
 func GetDescription(data Data) string {
@@ -214,7 +214,7 @@ func GetISRC(data Data) string {
 }
 
 func GetLicenseId(data Data) string {
-	license := data.GetData("hasLicense")
+	license := data.GetData("license")
 	return GetId(license)
 }
 
@@ -272,6 +272,20 @@ func NewLicense(licenseForIds, licenseHolderIds []string, licenserId string, rig
 	if n == 0 {
 		return nil, Error("No license-holder ids")
 	}
+	dateFrom, err := ParseDate(validFrom)
+	if err != nil {
+		return nil, err
+	}
+	// if dateFrom.Before(Today()) {
+	//	return nil, Error("Invalid timeframe")
+	// }
+	dateThrough, err := ParseDate(validThrough)
+	if err != nil {
+		return nil, err
+	}
+	if !dateThrough.After(dateFrom) {
+		return nil, Error("Invalid timeframe")
+	}
 	licenseHolders := make([]Data, n)
 	for i, licenseHolderId := range licenseHolderIds {
 		licenseHolders[i] = NewLink(licenseHolderId)
@@ -290,7 +304,7 @@ func NewLicense(licenseForIds, licenseHolderIds []string, licenserId string, rig
 		licenseFor := make([]Data, n)
 		for i, licenseForId := range licenseForIds {
 			if !MatchId(licenseForId) {
-				panic(ErrorAppend(ErrInvalidId, licenseForId))
+				return nil, ErrorAppend(ErrInvalidId, licenseForId)
 			}
 			licenseFor[i] = NewLink(licenseForId)
 			if m > 0 {
@@ -301,7 +315,7 @@ func NewLicense(licenseForIds, licenseHolderIds []string, licenserId string, rig
 		}
 		license.Set("licenseFor", licenseFor)
 	} else {
-		return nil, Error("Invalid number of licenseForIds/rightIds")
+		return nil, Error("Invalid number of composition/recording/right ids")
 	}
 	return license, nil
 }
@@ -333,6 +347,6 @@ func GetValidFrom(data Data) string {
 	return data.GetStr("validFrom")
 }
 
-func GetValidTo(data Data) string {
-	return data.GetStr("validTo")
+func GetValidThrough(data Data) string {
+	return data.GetStr("validThrough")
 }
