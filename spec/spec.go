@@ -35,7 +35,7 @@ func NewUser(email, ipi, isni string, memberIds []string, name, pro, sameAs, _ty
 			member := make([]Data, n)
 			for i, memberId := range memberIds {
 				if !MatchId(memberId) {
-					return nil, Error("Invalid member id")
+					return nil, Error("invalid member id")
 				}
 				member[i] = NewLink(memberId)
 			}
@@ -108,7 +108,7 @@ func NewComposition(composerIds []string, inLanguage, iswcCode, name, publisherI
 		"name":     name,
 	}
 	if n := len(composerIds); n == 0 {
-		return nil, Error("No composer ids")
+		return nil, Error("no composer ids")
 	} else if n == 1 {
 		composition.Set("composer", NewLink(composerIds[0]))
 	} else {
@@ -169,7 +169,7 @@ func NewRecording(artistIds []string, compositionId, duration, isrcCode, license
 		"recordingOf": NewLink(compositionId),
 	}
 	if n := len(artistIds); n == 0 {
-		return nil, Error("No artist ids")
+		return nil, Error("no artist ids")
 	} else if n == 1 {
 		recording.Set("byArtist", NewLink(artistIds[0]))
 	} else {
@@ -233,7 +233,7 @@ func GetRecordLabelId(data Data) string {
 func NewRight(rightHolderIds []string, rightTo, transferId string) (Data, error) {
 	n := len(rightHolderIds)
 	if n == 0 {
-		return nil, Error("No right-holder ids")
+		return nil, Error("no right-holder ids")
 	}
 	rightHolders := make([]Data, n)
 	for i, rightHolderId := range rightHolderIds {
@@ -270,7 +270,7 @@ func GetTransferId(data Data) string {
 func NewLicense(licenseForIds, licenseHolderIds []string, licenserId string, rightIds []string, validFrom, validThrough string) (Data, error) {
 	n := len(licenseHolderIds)
 	if n == 0 {
-		return nil, Error("No license-holder ids")
+		return nil, Error("no license-holder ids")
 	}
 	dateFrom, err := ParseDate(validFrom)
 	if err != nil {
@@ -284,7 +284,7 @@ func NewLicense(licenseForIds, licenseHolderIds []string, licenserId string, rig
 		return nil, err
 	}
 	if !dateThrough.After(dateFrom) {
-		return nil, Error("Invalid timeframe")
+		return nil, Error("invalid license timeframe")
 	}
 	licenseHolders := make([]Data, n)
 	for i, licenseHolderId := range licenseHolderIds {
@@ -299,7 +299,7 @@ func NewLicense(licenseForIds, licenseHolderIds []string, licenserId string, rig
 		"validThrough":  validThrough,
 	}
 	if n, m := len(licenseForIds), len(rightIds); n == 0 {
-		return nil, Error("No composition/recording ids")
+		return nil, Error("no composition/recording ids")
 	} else if n == m || m == 0 {
 		licenseFor := make([]Data, n)
 		for i, licenseForId := range licenseForIds {
@@ -315,7 +315,7 @@ func NewLicense(licenseForIds, licenseHolderIds []string, licenserId string, rig
 		}
 		license.Set("licenseFor", licenseFor)
 	} else {
-		return nil, Error("Invalid number of composition/recording/right ids")
+		return nil, Error("invalid number of composition/recording/right ids")
 	}
 	return license, nil
 }

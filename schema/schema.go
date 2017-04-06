@@ -32,9 +32,8 @@ func ValidateSchema(data Data, _type string) error {
 		return err
 	}
 	if !result.Valid() {
-		// Println(result.Errors())
 		// PrintJSON(data)
-		return Error(_type + " validation failed")
+		return Errorf("%v", result.Errors())
 	}
 	return nil
 }

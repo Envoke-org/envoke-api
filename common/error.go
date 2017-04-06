@@ -34,6 +34,6 @@ func ErrorAppend(err error, msg string) error {
 	return Error(err.Error() + ": " + msg)
 }
 
-func ErrorPrepend(msg string, err error) error {
-	return ErrorAppend(Error(msg), err.Error())
+func ErrorJoin(err1, err2 error) error {
+	return ErrorAppend(err1, err2.Error())
 }
