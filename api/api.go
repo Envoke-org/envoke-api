@@ -190,12 +190,12 @@ func (api *Api) PublishHandler(w http.ResponseWriter, req *http.Request, _ httpr
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	splits, err := SplitsFromRequest(req)
+	signatures, err := SignaturesFromRequest(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	signatures, err := SignaturesFromRequest(req)
+	splits, err := SplitsFromRequest(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -228,17 +228,17 @@ func (api *Api) ReleaseHandler(w http.ResponseWriter, req *http.Request, _ httpr
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
 	}
-	splits, err := SplitsFromRequest(req)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
 	recording, err := RecordingFromRequest(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 	signatures, err := SignaturesFromRequest(req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	splits, err := SplitsFromRequest(req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -469,35 +469,43 @@ func (api *Api) SignHandler(w http.ResponseWriter, req *http.Request, params htt
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
 	}
-	var signature string
-	splits, err := SplitsFromRequest(req)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	_type := params.ByName("type")
-	if _type == "composition" {
+	if _type := params.ByName("type"); _type == "composition" {
 		composition, err := CompositionFromRequest(req)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		signature, err = api.SignComposition(composition, splits)
+		splits, err := SplitsFromRequest(req)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		signature, err := api.SignComposition(composition, splits)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Write([]byte(signature))
 	} else if _type == "recording" {
 		recording, err := RecordingFromRequest(req)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		signature, err = api.SignRecording(recording, splits)
+		splits, err := SplitsFromRequest(req)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		signature, err := api.SignRecording(recording, splits)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		w.Write([]byte(signature))
 	} else {
-		err = ErrorAppend(ErrInvalidType, _type)
+		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
 	}
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	w.Write([]byte(signature))
 }
 
 func (api *Api) SignComposition(composition Data, splits []int) (string, error) {
