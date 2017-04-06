@@ -63,17 +63,6 @@ func ValidateThreshold(data Data, pubkeys []crypto.PublicKey, tx Data) error {
 	return nil
 }
 
-func QueryAndValidateSchema(id string, _type string) (Data, error) {
-	tx, err := bigchain.HttpGetTx(id)
-	if err != nil {
-		return nil, err
-	}
-	if err = schema.ValidateSchema(bigchain.GetTxAssetData(tx), _type); err != nil {
-		return nil, err
-	}
-	return tx, nil
-}
-
 func ValidateUserId(id string) (Data, error) {
 	tx, err := bigchain.HttpGetTx(id)
 	if err != nil {
@@ -86,44 +75,29 @@ func ValidateUserId(id string) (Data, error) {
 }
 
 func ValidateUserTx(tx Data) (err error) {
-	//..
-	return schema.ValidateSchema(bigchain.GetTxAssetData(tx), "user")
-}
-
-func CheckComposerArtist(composerArtistId, workId string) (Data, error) {
-	tx, err := bigchain.HttpGetTx(workId)
-	if err != nil {
-		return nil, err
+	if err := schema.ValidateSchema(bigchain.GetTxAssetData(tx), "user"); err != nil {
+		return err
 	}
-	work := bigchain.GetTxAssetData(tx)
-	if _type := spec.GetType(work); _type == "MusicComposition" {
-		if err = schema.ValidateSchema(work, "composition"); err != nil {
-			return nil, err
-		}
-		if err = ValidateCompositionTx(tx); err != nil {
-			return nil, err
-		}
-		for _, composer := range spec.GetComposers(work) {
-			if composerArtistId == spec.GetId(composer) {
-				return tx, nil
-			}
-		}
-	} else if _type == "MusicRecording" {
-		if err = schema.ValidateSchema(work, "recording"); err != nil {
-			return nil, err
-		}
-		if err = ValidateRecordingTx(tx); err != nil {
-			return nil, err
-		}
-		for _, artist := range spec.GetArtists(work) {
-			if composerArtistId == spec.GetId(artist) {
-				return tx, nil
-			}
-		}
-	} else {
-		return nil, ErrorAppend(ErrInvalidType, _type)
+	inputs := bigchain.GetTxInputs(tx)
+	if len(inputs) != 1 {
+		return Error("user must have 1 input")
 	}
-	return nil, Error("couldn't match composer/artist id")
+	ownersBefore := bigchain.GetInputOwnersBefore(inputs[0])
+	if len(ownersBefore) != 1 {
+		return Error("user must have 1 ownerBefore")
+	}
+	outputs := bigchain.GetTxOutputs(tx)
+	if len(outputs) != 1 {
+		return Error("user must have 1 output")
+	}
+	ownersAfter := bigchain.GetOutputOwnersAfter(outputs[0])
+	if len(ownersAfter) != 1 {
+		return Error("user must have 1 ownerAfter")
+	}
+	if !ownersBefore[0].Equals(ownersAfter[0]) {
+		return Error("user has different ownerBefore and ownerAfter")
+	}
+	return nil
 }
 
 func BuildCompositionTx(composition Data, signatures []string, splits []int) (Data, error) {
@@ -191,7 +165,7 @@ func BuildCompositionTx(composition Data, signatures []string, splits []int) (Da
 }
 
 func ValidateCompositionId(id string) (Data, error) {
-	tx, err := QueryAndValidateSchema(id, "composition")
+	tx, err := bigchain.HttpGetTx(id)
 	if err != nil {
 		return nil, err
 	}
@@ -203,6 +177,9 @@ func ValidateCompositionId(id string) (Data, error) {
 
 func ValidateCompositionTx(compositionTx Data) (err error) {
 	composition := bigchain.GetTxAssetData(compositionTx)
+	if err := schema.ValidateSchema(composition, "composition"); err != nil {
+		return err
+	}
 	composers := spec.GetComposers(composition)
 	outputs := bigchain.GetTxOutputs(compositionTx)
 	n := len(composers)
@@ -375,7 +352,7 @@ func BuildRightTx(percentShares int, prevRightId string, privkey crypto.PrivateK
 }
 
 func ValidateRightId(id string) (Data, error) {
-	tx, err := QueryAndValidateSchema(id, "right")
+	tx, err := bigchain.HttpGetTx(id)
 	if err != nil {
 		return nil, err
 	}
@@ -387,6 +364,9 @@ func ValidateRightId(id string) (Data, error) {
 
 func ValidateRightTx(tx Data) (err error) {
 	right := bigchain.GetTxAssetData(tx)
+	if err := schema.ValidateSchema(right, "right"); err != nil {
+		return err
+	}
 	rightHolderIds := spec.GetRightHolderIds(right)
 	n := len(rightHolderIds)
 	if n != 1 && n != 2 {
@@ -532,7 +512,7 @@ func VerifyRightHolder(challenge string, rightHolderId, rightId string, sig cryp
 }
 
 func ValidateLicenseId(id string) (Data, error) {
-	tx, err := QueryAndValidateSchema(id, "license")
+	tx, err := bigchain.HttpGetTx(id)
 	if err != nil {
 		return nil, err
 	}
@@ -623,6 +603,9 @@ OUTER:
 
 func ValidateLicenseTx(tx Data) (err error) {
 	license := bigchain.GetTxAssetData(tx)
+	if err := schema.ValidateSchema(license, "license"); err != nil {
+		return err
+	}
 	licenseHolderIds := spec.GetLicenseHolderIds(license)
 	licenserId := spec.GetLicenserId(license)
 	licenserKey := bigchain.DefaultTxOwnerBefore(tx)
@@ -769,7 +752,7 @@ func VerifyLicenseHolder(challenge, licenseHolderId, licenseId string, sig crypt
 }
 
 func ValidateRecordingId(id string) (Data, error) {
-	tx, err := QueryAndValidateSchema(id, "recording")
+	tx, err := bigchain.HttpGetTx(id)
 	if err != nil {
 		return nil, err
 	}
@@ -893,8 +876,11 @@ END:
 }
 
 func ValidateRecordingTx(recordingTx Data) (err error) {
-	outputs := bigchain.GetTxOutputs(recordingTx)
 	recording := bigchain.GetTxAssetData(recordingTx)
+	if err := schema.ValidateSchema(recording, "recording"); err != nil {
+		return err
+	}
+	outputs := bigchain.GetTxOutputs(recordingTx)
 	artists := spec.GetArtists(recording)
 	n := len(artists)
 	if n != len(outputs) {

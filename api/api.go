@@ -15,8 +15,8 @@ import (
 var (
 	ErrBigchain   = Error("Bigchain Error")
 	ErrCrypto     = Error("Crypto Error")
-	ErrLinkedData = Error("Linked-Data error")
 	ErrSpec       = Error("Spec Error")
+	ErrValidation = Error("Validation Error")
 )
 
 type Api struct {
@@ -41,6 +41,7 @@ func (api *Api) AddRoutes(router *httprouter.Router) {
 	router.POST("/right", api.RightHandler)
 	router.POST("/sign/:type", api.SignHandler)
 
+	router.GET("/query/:id", api.QueryHandler)
 	router.GET("/search/:type/:userId", api.SearchHandler)
 	router.GET("/search/:type/:userId/:name", api.SearchNameHandler)
 
@@ -114,7 +115,7 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request, _ httprou
 func (api *Api) Right(percentShares int, prevRightId, recipientId, rightToId string) (string, error) {
 	tx, err := ld.BuildRightTx(percentShares, prevRightId, api.privkey, recipientId, rightToId, api.userId, api.pubkey)
 	if err != nil {
-		return "", ErrorJoin(ErrLinkedData, err)
+		return "", ErrorJoin(ErrValidation, err)
 	}
 	id, err := api.SignAndSendTx(tx)
 	if err != nil {
@@ -171,7 +172,7 @@ func SignaturesFromRequest(req *http.Request) ([]string, error) {
 func (api *Api) Publish(composition Data, signatures []string, splits []int) (string, error) {
 	tx, err := ld.BuildCompositionTx(composition, signatures, splits)
 	if err != nil {
-		return "", ErrorJoin(ErrLinkedData, err)
+		return "", ErrorJoin(ErrValidation, err)
 	}
 	id, err := api.SignAndSendTx(tx)
 	if err != nil {
@@ -254,7 +255,7 @@ func (api *Api) ReleaseHandler(w http.ResponseWriter, req *http.Request, _ httpr
 func (api *Api) Release(recording Data, signatures []string, splits []int) (string, error) {
 	tx, err := ld.BuildRecordingTx(recording, signatures, splits)
 	if err != nil {
-		return "", ErrorJoin(ErrLinkedData, err)
+		return "", ErrorJoin(ErrValidation, err)
 	}
 	id, err := api.SignAndSendTx(tx)
 	if err != nil {
@@ -266,7 +267,7 @@ func (api *Api) Release(recording Data, signatures []string, splits []int) (stri
 func (api *Api) License(license Data) (string, error) {
 	tx, err := ld.BuildLicenseTx(license, api.pubkey)
 	if err != nil {
-		return "", ErrorJoin(ErrLinkedData, err)
+		return "", ErrorJoin(ErrValidation, err)
 	}
 	id, err := api.SignAndSendTx(tx)
 	if err != nil {
@@ -298,6 +299,44 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request, _ httpr
 	w.Write([]byte(id))
 }
 
+func (api *Api) QueryHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
+	if !api.LoggedIn() {
+		http.Error(w, "Not logged in", http.StatusUnauthorized)
+		return
+	}
+	id := params.ByName("id")
+	if !spec.MatchId(id) {
+		http.Error(w, ErrorAppend(ErrInvalidId, id).Error(), http.StatusBadRequest)
+		return
+	}
+	tx, err := bigchain.HttpGetTx(id)
+	if err != nil {
+		http.Error(w, ErrorJoin(ErrBigchain, err).Error(), http.StatusBadRequest)
+		return
+	}
+	data := bigchain.GetTxAssetData(tx)
+	switch _type := spec.GetType(data); _type {
+	case "License":
+		err = ld.ValidateLicenseTx(tx)
+	case "MusicComposition":
+		err = ld.ValidateCompositionTx(tx)
+	case "MusicRecording":
+		err = ld.ValidateRecordingTx(tx)
+	case "Right":
+		err = ld.ValidateRightTx(tx)
+	case "User":
+		err = ld.ValidateUserTx(tx)
+	default:
+		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
+		return
+	}
+	if err != nil {
+		http.Error(w, ErrorJoin(ErrValidation, err).Error(), http.StatusBadRequest)
+		return
+	}
+	WriteJSON(w, data)
+}
+
 func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request, params httprouter.Params) {
 	if !api.LoggedIn() {
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
@@ -308,7 +347,7 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request, params h
 	userId := params.ByName("userId")
 	tx, err := ld.ValidateUserId(userId)
 	if err != nil {
-		http.Error(w, ErrorJoin(ErrLinkedData, err).Error(), http.StatusBadRequest)
+		http.Error(w, ErrorJoin(ErrValidation, err).Error(), http.StatusBadRequest)
 		return
 	}
 	pubkey := bigchain.DefaultTxOwnerBefore(tx)
@@ -379,7 +418,7 @@ func (api *Api) SearchNameHandler(w http.ResponseWriter, req *http.Request, para
 func CompositionFilter(compositionId, name string) (Data, error) {
 	tx, err := ld.ValidateCompositionId(compositionId)
 	if err != nil {
-		return nil, ErrorJoin(ErrLinkedData, err)
+		return nil, ErrorJoin(ErrValidation, err)
 	}
 	if !MatchStr(name, spec.GetName(bigchain.GetTxAssetData(tx))) {
 		return nil, Error("name does not match")
@@ -390,7 +429,7 @@ func CompositionFilter(compositionId, name string) (Data, error) {
 func RecordingFilter(name, recordingId string) (Data, error) {
 	tx, err := ld.ValidateRecordingId(recordingId)
 	if err != nil {
-		return nil, ErrorJoin(ErrLinkedData, err)
+		return nil, ErrorJoin(ErrValidation, err)
 	}
 	compositionId := spec.GetId(spec.GetRecordingOf(bigchain.GetTxAssetData(tx)))
 	if _, err = CompositionFilter(compositionId, name); err != nil {
@@ -424,7 +463,7 @@ func (api *Api) ProveHandler(w http.ResponseWriter, req *http.Request, params ht
 		return
 	}
 	if err != nil {
-		http.Error(w, ErrorJoin(ErrLinkedData, err).Error(), http.StatusBadRequest)
+		http.Error(w, ErrorJoin(ErrValidation, err).Error(), http.StatusBadRequest)
 		return
 	}
 	w.Write([]byte(sig.String()))
@@ -458,7 +497,7 @@ func (api *Api) VerifyHandler(w http.ResponseWriter, req *http.Request, params h
 		}
 	}
 	if err != nil {
-		http.Error(w, ErrorJoin(ErrLinkedData, err).Error(), http.StatusBadRequest)
+		http.Error(w, ErrorJoin(ErrValidation, err).Error(), http.StatusBadRequest)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -511,7 +550,7 @@ func (api *Api) SignHandler(w http.ResponseWriter, req *http.Request, params htt
 func (api *Api) SignComposition(composition Data, splits []int) (string, error) {
 	tx, err := ld.BuildCompositionTx(composition, nil, splits)
 	if err != nil {
-		return "", ErrorJoin(ErrLinkedData, err)
+		return "", ErrorJoin(ErrValidation, err)
 	}
 	return api.Sign(tx), nil
 }
@@ -519,7 +558,7 @@ func (api *Api) SignComposition(composition Data, splits []int) (string, error) 
 func (api *Api) SignRecording(recording Data, splits []int) (string, error) {
 	tx, err := ld.BuildRecordingTx(recording, nil, splits)
 	if err != nil {
-		return "", ErrorJoin(ErrLinkedData, err)
+		return "", ErrorJoin(ErrValidation, err)
 	}
 	return api.Sign(tx), nil
 }
@@ -570,7 +609,7 @@ func (api *Api) Login(privstr, userId string) error {
 	}
 	tx, err := ld.ValidateUserId(userId)
 	if err != nil {
-		return ErrorJoin(ErrLinkedData, err)
+		return ErrorJoin(ErrValidation, err)
 	}
 	pubkey := bigchain.DefaultTxOwnerBefore(tx)
 	if !pubkey.Equals(privkey.Public()) {
