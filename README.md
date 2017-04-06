@@ -12,12 +12,8 @@ In a terminal window, `go get github.com/Envoke-org/envoke-api/cmd/envoke`
 
 In a terminal window, `cd ~/go/src/github.com/Envoke-org/envoke-api`...
 
-* **API**
-	
-	`sh api.sh`  
+* **API**: `sh api.sh`  
 
-* **Tests**
+* **Tests**: `sh tests.sh`
 
-	`sh tests.sh`
-
-...you will be prompted to enter an endpoint to the BigchainDB/IPDB http-api. 
+... you will be prompted to enter an endpoint to the BigchainDB/IPDB http-api. 

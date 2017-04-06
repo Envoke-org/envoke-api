@@ -62,7 +62,7 @@ func TestApi(t *testing.T) {
 	}
 	publisherId := GetUserId(credentials)
 	publisherPrivkey := GetPrivateKey(credentials)
-	WriteJSON(output, publisher)
+	WriteJSON(output, credentials)
 	credentials, err = api.Register("waves", radio)
 	if err != nil {
 		t.Fatal(err)
@@ -84,11 +84,17 @@ func TestApi(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err = api.Login(publisherPrivkey.String(), publisherId); err != nil {
+		t.Fatal(err)
+	}
 	compositionId, err := api.Publish(composition, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, Data{"compositionId": compositionId})
+	if err := api.Login(composerPrivkey.String(), composerId); err != nil {
+		t.Fatal(err)
+	}
 	sig, err := ld.ProveComposer(CHALLENGE, composerId, compositionId, composerPrivkey)
 	if err != nil {
 		t.Fatal(err)
@@ -149,7 +155,6 @@ func TestApi(t *testing.T) {
 	if err = ld.VerifyLicenseHolder(CHALLENGE, recordLabelId, mechanicalLicenseId, sig); err != nil {
 		t.Fatal(err)
 	}
-
 	if err = api.Login(performerPrivkey.String(), performerId); err != nil {
 		t.Fatal(err)
 	}
@@ -157,18 +162,18 @@ func TestApi(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	perfomerSignature, err := api.SignRecording(recording, performerId, []int{80, 20})
+	perfomerSignature, err := api.SignRecording(recording, []int{80, 20})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err = api.Login(producerPrivkey.String(), producerId); err != nil {
 		t.Fatal(err)
 	}
-	producerSignature, err := api.SignRecording(recording, performerId, []int{80, 20})
+	producerSignature, err := api.SignRecording(recording, []int{80, 20})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = api.Login(performerPrivkey.String(), performerId); err != nil {
+	if err = api.Login(recordLabelPrivkey.String(), recordLabelId); err != nil {
 		t.Fatal(err)
 	}
 	recordingId, err := api.Release(recording, []string{perfomerSignature, producerSignature}, []int{80, 20})
@@ -189,6 +194,9 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err = ld.VerifyArtist(producerId, CHALLENGE, recordingId, sig); err != nil {
+		t.Fatal(err)
+	}
+	if err = api.Login(performerPrivkey.String(), performerId); err != nil {
 		t.Fatal(err)
 	}
 	recordingRightId, err := api.Right(20, "", recordLabelId, recordingId)

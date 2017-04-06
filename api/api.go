@@ -154,7 +154,7 @@ func SignaturesFromRequest(req *http.Request) ([]string, error) {
 }
 
 func (api *Api) Publish(composition Data, signatures []string, splits []int) (string, error) {
-	tx, err := ld.BuildCompositionTx(composition, api.userId, signatures, splits)
+	tx, err := ld.BuildCompositionTx(composition, signatures, splits)
 	if err != nil {
 		return "", err
 	}
@@ -233,7 +233,7 @@ func (api *Api) ReleaseHandler(w http.ResponseWriter, req *http.Request, _ httpr
 }
 
 func (api *Api) Release(recording Data, signatures []string, splits []int) (string, error) {
-	tx, err := ld.BuildRecordingTx(recording, api.userId, signatures, splits)
+	tx, err := ld.BuildRecordingTx(recording, signatures, splits)
 	if err != nil {
 		return "", err
 	}
@@ -446,7 +446,6 @@ func (api *Api) SignHandler(w http.ResponseWriter, req *http.Request, params htt
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
 	}
-	senderId := params.ByName("senderId")
 	var signature string
 	splits, err := SplitsFromRequest(req)
 	if err != nil {
@@ -460,14 +459,14 @@ func (api *Api) SignHandler(w http.ResponseWriter, req *http.Request, params htt
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		signature, err = api.SignComposition(composition, senderId, splits)
+		signature, err = api.SignComposition(composition, splits)
 	} else if _type == "recording" {
 		recording, err := RecordingFromRequest(req)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		signature, err = api.SignRecording(recording, senderId, splits)
+		signature, err = api.SignRecording(recording, splits)
 	} else {
 		err = ErrorAppend(ErrInvalidType, _type)
 	}
@@ -478,16 +477,16 @@ func (api *Api) SignHandler(w http.ResponseWriter, req *http.Request, params htt
 	w.Write([]byte(signature))
 }
 
-func (api *Api) SignComposition(composition Data, senderId string, splits []int) (string, error) {
-	tx, err := ld.BuildCompositionTx(composition, senderId, nil, splits)
+func (api *Api) SignComposition(composition Data, splits []int) (string, error) {
+	tx, err := ld.BuildCompositionTx(composition, nil, splits)
 	if err != nil {
 		return "", err
 	}
 	return api.Sign(tx), nil
 }
 
-func (api *Api) SignRecording(recording Data, senderId string, splits []int) (string, error) {
-	tx, err := ld.BuildRecordingTx(recording, senderId, nil, splits)
+func (api *Api) SignRecording(recording Data, splits []int) (string, error) {
+	tx, err := ld.BuildRecordingTx(recording, nil, splits)
 	if err != nil {
 		return "", err
 	}
