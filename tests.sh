@@ -2,11 +2,11 @@
 
 source init.sh
 
-cd ~/go/src/github.com/zbo14/envoke/crypto
+cd ~/go/src/github.com/Envoke-org/envoke-api/crypto
 go test -v
 
-cd ~/go/src/github.com/zbo14/envoke/bigchain 
+cd ~/go/src/github.com/Envoke-org/envoke-api/bigchain 
 go test -v
 
-cd ~/go/src/github.com/zbo14/envoke/api
+cd ~/go/src/github.com/Envoke-org/envoke-api/api
 go test -v

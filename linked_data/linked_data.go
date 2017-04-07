@@ -63,6 +63,26 @@ func ValidateThreshold(data Data, pubkeys []crypto.PublicKey, tx Data) error {
 	return nil
 }
 
+func CheckTxOwnerBefore(tx Data) (crypto.PublicKey, error) {
+	inputs := bigchain.GetTxInputs(tx)
+	if len(inputs) != 1 {
+		return nil, Error("should be 1 input")
+	}
+	ownersBefore := bigchain.GetInputOwnersBefore(inputs[0])
+	if len(ownersBefore) != 1 {
+		return nil, Error("should be 1 ownerBefore")
+	}
+	return ownersBefore[0], nil
+}
+
+func CheckOutputOwnerAfter(output Data) (crypto.PublicKey, error) {
+	ownersAfter := bigchain.GetOutputOwnersAfter(output)
+	if len(ownersAfter) != 1 {
+		return nil, Error("should be 1 ownerAfter")
+	}
+	return ownersAfter[0], nil
+}
+
 func ValidateUserId(id string) (Data, error) {
 	tx, err := bigchain.HttpGetTx(id)
 	if err != nil {

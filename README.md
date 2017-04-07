@@ -17,3 +17,4 @@ In a terminal window, `cd ~/go/src/github.com/Envoke-org/envoke-api`...
 * **Tests**:	`sh tests.sh`
 
 ... you will be prompted to enter an endpoint to the BigchainDB/IPDB http-api. 
+

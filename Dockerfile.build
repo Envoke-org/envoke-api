@@ -1,0 +1,12 @@
+FROM golang:1.7.1
+
+ARG endpoint
+ENV ENDPOINT $endpoint
+
+ADD Makefile /
+WORKDIR /
+
+RUN go get github.com/Envoke-org/envoke-api
+RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s" -a -installsuffix cgo -o main ./go/src/github.com/Envoke-org/envoke-api
+
+CMD ["/bin/bash"]
