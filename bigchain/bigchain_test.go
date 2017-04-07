@@ -21,7 +21,10 @@ func TestBigchain(t *testing.T) {
 	// Data
 	data := Data{"bees": "knees"}
 	// Individual create tx
-	tx := IndividualCreateTx(100, data, pubAlice, pubAlice)
+	tx, err := IndividualCreateTx(100, data, pubAlice, pubAlice)
+	if err != nil {
+		t.Fatal(err)
+	}
 	FulfillTx(tx, privAlice)
 	// Check that it's fulfilled
 	if !FulfilledTx(tx) {
@@ -33,7 +36,10 @@ func TestBigchain(t *testing.T) {
 		t.Fatal(err)
 	}
 	// Divisible transfer tx
-	tx = DivisibleTransferTx([]int{40, 60}, createTxId, createTxId, 0, []crypto.PublicKey{pubAlice, pubBob}, pubAlice)
+	tx, err = DivisibleTransferTx([]int{40, 60}, createTxId, createTxId, 0, []crypto.PublicKey{pubAlice, pubBob}, pubAlice)
+	if err != nil {
+		t.Fatal(err)
+	}
 	FulfillTx(tx, privAlice)
 	if !FulfilledTx(tx) {
 		t.Fatal(ErrInvalidFulfillment)
@@ -44,7 +50,10 @@ func TestBigchain(t *testing.T) {
 	}
 	WriteJSON(output, Data{"transfer1Tx": tx})
 	// Transfer Bob's output of divisible transfer to Alice
-	tx = IndividualTransferTx(60, createTxId, transferTxId, 1, pubAlice, pubBob)
+	tx, err = IndividualTransferTx(60, createTxId, transferTxId, 1, pubAlice, pubBob)
+	if err != nil {
+		t.Fatal(err)
+	}
 	FulfillTx(tx, privBob)
 	if !FulfilledTx(tx) {
 		t.Fatal(ErrInvalidFulfillment)
@@ -54,7 +63,10 @@ func TestBigchain(t *testing.T) {
 	}
 	WriteJSON(output, Data{"transfer2Tx": tx})
 	// Multiple owners create tx
-	tx = MultipleOwnersCreateTx([]int{2, 3}, data, []crypto.PublicKey{pubAlice, pubBob}, pubAlice)
+	tx, err = MultipleOwnersCreateTx([]int{2, 3}, data, []crypto.PublicKey{pubAlice, pubBob}, pubAlice)
+	if err != nil {
+		t.Fatal(err)
+	}
 	FulfillTx(tx, privAlice)
 	if !FulfilledTx(tx) {
 		t.Fatal(ErrInvalidFulfillment)
@@ -64,7 +76,10 @@ func TestBigchain(t *testing.T) {
 	}
 	WriteJSON(output, Data{"multipleOwnersTx": tx})
 	// Multiple owners tx with shared output/threshold signature
-	tx = MultipleOwnersCreateTx([]int{100}, data, []crypto.PublicKey{pubAlice, pubBob}, pubAlice)
+	tx, err = MultipleOwnersCreateTx([]int{100}, data, []crypto.PublicKey{pubAlice, pubBob}, pubAlice)
+	if err != nil {
+		t.Fatal(err)
+	}
 	FulfillTx(tx, privAlice)
 	if !FulfilledTx(tx) {
 		t.Fatal(ErrInvalidFulfillment)

@@ -121,16 +121,16 @@ func MultipleOwnersCreateTx(amounts []int, data Data, ownersAfter []crypto.Publi
 	asset := Data{"data": data}
 	fulfills := []Data{nil}
 	ownersBefore := []crypto.PublicKey{ownerBefore}
-	n := len(ownersAfter)
+	n := len(amounts)
 	if n == 0 {
-		return nil, Error("no ownersAfter")
+		return nil, Error("no amounts")
 	}
 	owners := make([][]crypto.PublicKey, n)
 	if n == 1 {
 		owners[0] = ownersAfter
 	} else {
-		if n != len(amounts) {
-			return nil, Error("different number of ownersAfter and amounts")
+		if n != len(ownersAfter) {
+			return nil, Error("different number of amounts and ownersAfter")
 		}
 		for i, owner := range ownersAfter {
 			owners[i] = []crypto.PublicKey{owner}
@@ -153,12 +153,12 @@ func IndividualTransferTx(amount int, assetId, consumeId string, idx int, ownerA
 }
 
 func DivisibleTransferTx(amounts []int, assetId, consumeId string, idx int, ownersAfter []crypto.PublicKey, ownerBefore crypto.PublicKey) (Data, error) {
-	n := len(ownersAfter)
+	n := len(amounts)
 	if n <= 1 {
-		return nil, Error("must be multiple ownersAfter")
+		return nil, Error("should be multiple amounts")
 	}
-	if n != len(amounts) {
-		return nil, Error("different number of ownersAfter and amounts")
+	if n != len(ownersAfter) {
+		return nil, Error("different number of amounts and ownersAfter")
 	}
 	asset := Data{"id": assetId}
 	fulfills := []Data{Data{"txid": consumeId, "output": idx}}
@@ -256,35 +256,41 @@ func NewInput(fulfills Data, ownersBefore []crypto.PublicKey) Data {
 	}
 }
 
-func NewOutputs(amounts []int, ownersAfter [][]crypto.PublicKey) ([]Data, error) {
-	n := len(ownersAfter)
-	if n != len(amounts) {
-		return nil, Error("different number of ownersAfter and amounts")
+func NewOutputs(amounts []int, ownersAfter [][]crypto.PublicKey) (_ []Data, err error) {
+	n := len(amounts)
+	if n == 0 {
+		return nil, Error("no amounts")
+	}
+	if n != len(ownersAfter) {
+		return nil, Error("different number of amounts and ownersAfter")
 	}
 	outputs := make([]Data, n)
 	for i, owner := range ownersAfter {
-		outputs[i] = NewOutput(amounts[i], owner)
+		outputs[i], err = NewOutput(amounts[i], owner)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return outputs, nil
 }
 
-func NewOutput(amount int, ownersAfter []crypto.PublicKey) Data {
+func NewOutput(amount int, ownersAfter []crypto.PublicKey) (Data, error) {
 	n := len(ownersAfter)
 	if n == 0 {
-		return nil
+		return nil, Error("no ownersAfter")
 	}
 	if n == 1 {
 		return Data{
 			"amount":      amount,
 			"condition":   cc.DefaultFulfillmentFromPubKey(ownersAfter[0]).Data(),
 			"public_keys": ownersAfter,
-		}
+		}, nil
 	}
 	return Data{
 		"amount":      amount,
 		"condition":   cc.DefaultFulfillmentThresholdFromPubKeys(ownersAfter).Data(),
 		"public_keys": ownersAfter,
-	}
+	}, nil
 }
 
 //---------------------------------------------------------------------------------------
