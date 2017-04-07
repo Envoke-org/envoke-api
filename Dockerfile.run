@@ -1,3 +1,5 @@
+# From https://joeshaw.org/smaller-docker-containers-for-go-apps/
+
 FROM joeshaw/busybox-nonroot
 EXPOSE 8888
 
