@@ -98,23 +98,19 @@ func ValidateUserTx(tx Data) (err error) {
 	if err := schema.ValidateSchema(bigchain.GetTxAssetData(tx), "user"); err != nil {
 		return err
 	}
-	inputs := bigchain.GetTxInputs(tx)
-	if len(inputs) != 1 {
-		return Error("should be 1 input")
-	}
-	ownersBefore := bigchain.GetInputOwnersBefore(inputs[0])
-	if len(ownersBefore) != 1 {
-		return Error("should be 1 ownerBefore")
+	ownerBefore, err := CheckTxOwnerBefore(tx)
+	if err != nil {
+		return err
 	}
 	outputs := bigchain.GetTxOutputs(tx)
 	if len(outputs) != 1 {
 		return Error("should be 1 output")
 	}
-	ownersAfter := bigchain.GetOutputOwnersAfter(outputs[0])
-	if len(ownersAfter) != 1 {
-		return Error("should be 1 ownerAfter")
+	ownerAfter, err := CheckOutputOwnerAfter(outputs[0])
+	if err != nil {
+		return err
 	}
-	if !ownersBefore[0].Equals(ownersAfter[0]) {
+	if !ownerAfter.Equals(ownerBefore) {
 		return Error("user has different ownerBefore and ownerAfter")
 	}
 	return nil
@@ -202,13 +198,9 @@ func ValidateCompositionTx(compositionTx Data) (err error) {
 	}
 	composers := spec.GetComposers(composition)
 	n := len(composers)
-	inputs := bigchain.GetTxInputs(compositionTx)
-	if len(inputs) != 1 {
-		return Error("should be 1 input")
-	}
-	ownersBefore := bigchain.GetInputOwnersBefore(inputs[0])
-	if len(ownersBefore) != 1 {
-		return Error("should be 1 ownerBefore")
+	ownerBefore, err := CheckTxOwnerBefore(compositionTx)
+	if err != nil {
+		return err
 	}
 	outputs := bigchain.GetTxOutputs(compositionTx)
 	if n != len(outputs) {
@@ -221,17 +213,17 @@ func ValidateCompositionTx(compositionTx Data) (err error) {
 		if err != nil {
 			return err
 		}
-		ownersAfter := bigchain.GetOutputOwnersAfter(outputs[i])
-		if len(ownersAfter) != 1 {
-			return Error("should be 1 ownerAfter")
+		ownerAfter, err := CheckOutputOwnerAfter(outputs[i])
+		if err != nil {
+			return err
 		}
-		if !ownersAfter[0].Equals(bigchain.DefaultTxOwnerBefore(tx)) {
+		if !ownerAfter.Equals(bigchain.DefaultTxOwnerBefore(tx)) {
 			return Error("composer isn't ownerAfter")
 		}
 		if totalShares += bigchain.GetOutputAmount(outputs[i]); totalShares > 100 {
 			return Error("total shares exceed 100")
 		}
-		composerKeys[i] = ownersAfter[0]
+		composerKeys[i] = ownerAfter
 	}
 	if totalShares != 100 {
 		return Error("total shares do not equal 100")
@@ -242,11 +234,11 @@ func ValidateCompositionTx(compositionTx Data) (err error) {
 		if err != nil {
 			return err
 		}
-		if !ownersBefore[0].Equals(bigchain.DefaultTxOwnerBefore(tx)) {
+		if !ownerBefore.Equals(bigchain.DefaultTxOwnerBefore(tx)) {
 			return Error("publisher isn't ownerBefore")
 		}
 	} else {
-		if !ownersBefore[0].Equals(composerKeys[0]) {
+		if !ownerBefore.Equals(composerKeys[0]) {
 			return Error("first composer isn't ownerBefore")
 		}
 	}
@@ -306,13 +298,8 @@ func BuildRightTransferTx(consumeId string, recipientId string, recipientKey cry
 		if bigchain.TRANSFER != bigchain.GetTxOperation(tx) {
 			return nil, nil, Error("expected TRANSFER tx")
 		}
-		inputs := bigchain.GetTxInputs(tx)
-		if len(inputs) != 1 {
-			return nil, nil, Error("inputs should be 1")
-		}
-		ownersBefore := bigchain.GetInputOwnersBefore(inputs[0])
-		if len(ownersBefore) != 1 {
-			return nil, nil, Error("should be 1 ownerBefore")
+		if _, err := CheckTxOwnerBefore(tx); err != nil {
+			return nil, nil, err
 		}
 		if len(outputs) != 1 && len(outputs) != 2 {
 			return nil, nil, Error("should be 1 or 2 outputs")
@@ -420,13 +407,9 @@ func ValidateRightTx(tx Data) (err error) {
 	if n != 1 && n != 2 {
 		return Error("must be 1 or 2 right-holder ids")
 	}
-	inputs := bigchain.GetTxInputs(tx)
-	if len(inputs) != 1 {
-		return Error("should be 1 input")
-	}
-	ownersBefore := bigchain.GetInputOwnersBefore(inputs[0])
-	if len(ownersBefore) != 1 {
-		return Error("should be 1 ownerBefore")
+	ownerBefore, err := CheckTxOwnerBefore(tx)
+	if err != nil {
+		return err
 	}
 	outputs := bigchain.GetTxOutputs(tx)
 	if n != len(outputs) {
@@ -438,15 +421,14 @@ func ValidateRightTx(tx Data) (err error) {
 		if err != nil {
 			return err
 		}
-		ownersAfter := bigchain.GetOutputOwnersAfter(outputs[i])
-		if len(ownersAfter) != 1 {
-			return Error("should be 1 ownerAfter")
+		ownerAfter, err := CheckOutputOwnerAfter(outputs[i])
+		if err != nil {
+			return err
 		}
-		rightHolderKey := bigchain.DefaultTxOwnerBefore(tx)
-		if !ownersAfter[0].Equals(rightHolderKey) {
+		if !ownerAfter.Equals(bigchain.DefaultTxOwnerBefore(tx)) {
 			return Error("right-holder is not ownerAfter")
 		}
-		if ownersBefore[0].Equals(rightHolderKey) {
+		if ownerAfter.Equals(ownerBefore) {
 			if i == 1 || n == 1 {
 				return Error("ownerBefore cannot be only/second right-holder")
 			}
@@ -454,7 +436,7 @@ func ValidateRightTx(tx Data) (err error) {
 			if i == 0 && n == 2 {
 				return Error("ownerBefore isn't first right-holder")
 			}
-			recipientKey = rightHolderKey
+			recipientKey = ownerAfter
 		}
 	}
 	rightToId := spec.GetRightToId(right)
@@ -473,7 +455,6 @@ func ValidateRightTx(tx Data) (err error) {
 	if err != nil {
 		return err
 	}
-	ownerBefore := ownersBefore[0]
 	transferId := spec.GetTransferId(right)
 	tx, err = bigchain.HttpGetTx(transferId)
 	if err != nil {
@@ -482,15 +463,11 @@ func ValidateRightTx(tx Data) (err error) {
 	if bigchain.TRANSFER != bigchain.GetTxOperation(tx) {
 		return Error("expected TRANSFER")
 	}
-	inputs = bigchain.GetTxInputs(tx)
-	if len(inputs) != 1 {
-		return Error("inputs should be 1")
+	transferOwnerBefore, err := CheckTxOwnerBefore(tx)
+	if err != nil {
+		return err
 	}
-	ownersBefore = bigchain.GetInputOwnersBefore(inputs[0])
-	if len(ownersBefore) != 1 {
-		return Error("should be 1 ownerBefore")
-	}
-	if !ownerBefore.Equals(ownersBefore[0]) {
+	if !ownerBefore.Equals(transferOwnerBefore) {
 		return Error("right ownerBefore isn't TRANSFER ownerBefore")
 	}
 	outputs = bigchain.GetTxOutputs(tx)
@@ -499,11 +476,11 @@ func ValidateRightTx(tx Data) (err error) {
 	}
 	idx := 0
 	if n == 2 {
-		ownersAfter := bigchain.GetOutputOwnersAfter(outputs[0])
-		if len(ownersAfter) != 1 {
-			return Error("should be 1 ownerAfter")
+		ownerAfter, err := CheckOutputOwnerAfter(outputs[0])
+		if err != nil {
+			return err
 		}
-		if !ownerBefore.Equals(ownersAfter[0]) {
+		if !ownerAfter.Equals(ownerBefore) {
 			return Error("ownerBefore isn't TRANSFER ownerAfter")
 		}
 		senderShares := bigchain.GetOutputAmount(outputs[0])
@@ -512,11 +489,11 @@ func ValidateRightTx(tx Data) (err error) {
 		}
 		idx = 1
 	}
-	ownersAfter := bigchain.GetOutputOwnersAfter(outputs[idx])
-	if len(ownersAfter) != 1 {
-		return Error("should be 1 ownerAfter")
+	ownerAfter, err := CheckOutputOwnerAfter(outputs[idx])
+	if err != nil {
+		return err
 	}
-	if !recipientKey.Equals(ownersAfter[0]) {
+	if !ownerAfter.Equals(recipientKey) {
 		return Error("right recipient isn't ownerAfter of TRANSFER")
 	}
 	recipientShares := bigchain.GetOutputAmount(outputs[idx])
@@ -678,13 +655,9 @@ func ValidateLicenseTx(tx Data) (err error) {
 	licenseHolderIds := spec.GetLicenseHolderIds(license)
 	n := len(licenseHolderIds)
 	licenserId := spec.GetLicenserId(license)
-	inputs := bigchain.GetTxInputs(tx)
-	if len(inputs) != 1 {
-		return Error("should be 1 input")
-	}
-	ownersBefore := bigchain.GetInputOwnersBefore(inputs[0])
-	if len(ownersBefore) != 1 {
-		return Error("should be 1 ownerBefore")
+	ownerBefore, err := CheckTxOwnerBefore(tx)
+	if err != nil {
+		return err
 	}
 	outputs := bigchain.GetTxOutputs(tx)
 	if n != len(outputs) {
@@ -698,11 +671,11 @@ func ValidateLicenseTx(tx Data) (err error) {
 		if err != nil {
 			return err
 		}
-		ownersAfter := bigchain.GetOutputOwnersAfter(outputs[i])
-		if len(ownersAfter) != 1 {
-			return Error("should be 1 ownerAfter")
+		ownerAfter, err := CheckOutputOwnerAfter(outputs[i])
+		if err != nil {
+			return err
 		}
-		if !ownersAfter[0].Equals(bigchain.DefaultTxOwnerBefore(tx)) {
+		if !ownerAfter.Equals(bigchain.DefaultTxOwnerBefore(tx)) {
 			return Error("license-holder is not ownerAfter")
 		}
 	}
@@ -710,7 +683,7 @@ func ValidateLicenseTx(tx Data) (err error) {
 	if err != nil {
 		return err
 	}
-	if !ownersBefore[0].Equals(bigchain.DefaultTxOwnerBefore(tx)) {
+	if !ownerBefore.Equals(bigchain.DefaultTxOwnerBefore(tx)) {
 		return Error("licenser is not ownerBefore")
 	}
 	licenseFor := spec.GetLicenseFor(license)
@@ -965,13 +938,9 @@ func ValidateRecordingTx(recordingTx Data) (err error) {
 	}
 	artists := spec.GetArtists(recording)
 	n := len(artists)
-	inputs := bigchain.GetTxInputs(recordingTx)
-	if len(inputs) != 1 {
-		return Error("should be 1 input")
-	}
-	ownersBefore := bigchain.GetInputOwnersBefore(inputs[0])
-	if len(ownersBefore) != 1 {
-		return Error("should be 1 ownerBefore")
+	ownerBefore, err := CheckTxOwnerBefore(recordingTx)
+	if err != nil {
+		return err
 	}
 	outputs := bigchain.GetTxOutputs(recordingTx)
 	if n != len(outputs) {
@@ -1012,17 +981,17 @@ OUTER:
 		if err != nil {
 			return err
 		}
-		ownersAfter := bigchain.GetOutputOwnersAfter(outputs[i])
-		if len(ownersAfter) != 1 {
-			return Error("should be 1 ownerAfter")
+		ownerAfter, err := CheckOutputOwnerAfter(outputs[i])
+		if err != nil {
+			return err
 		}
-		if !ownersAfter[0].Equals(bigchain.DefaultTxOwnerBefore(tx)) {
+		if !ownerAfter.Equals(bigchain.DefaultTxOwnerBefore(tx)) {
 			return Error("artist isn't ownerAfter")
 		}
 		if totalShares += bigchain.GetOutputAmount(outputs[i]); totalShares > 100 {
 			return Error("total shares exceed 100")
 		}
-		artistKeys[i] = ownersAfter[0]
+		artistKeys[i] = ownerAfter
 		for j, composer := range composers {
 			if artistId == spec.GetId(composer) {
 				composers = append(composers[:j], composers[j+1:]...)
@@ -1046,7 +1015,7 @@ OUTER:
 		if err != nil {
 			return err
 		}
-		if !ownersBefore[0].Equals(bigchain.DefaultTxOwnerBefore(tx)) {
+		if !ownerBefore.Equals(bigchain.DefaultTxOwnerBefore(tx)) {
 			return Error("record label isn't ownerBefore")
 		}
 		for i, licenseHolderId := range licenseHolderIds {
@@ -1057,7 +1026,7 @@ OUTER:
 		}
 		return Error("record label doesn't have mechanical")
 	} else {
-		if !ownersBefore[0].Equals(artistKeys[0]) {
+		if !ownerBefore.Equals(artistKeys[0]) {
 			return Error("first artist isn't ownerBefore")
 		}
 	}

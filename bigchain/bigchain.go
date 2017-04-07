@@ -45,8 +45,8 @@ func HttpGetTransfers(assetId string) ([]Data, error) {
 	return txs, nil
 }
 
-func HttpGetOutputs(pub crypto.PublicKey) ([]string, error) {
-	url := Getenv("ENDPOINT") + Sprintf("outputs?public_key=%v", pub)
+func HttpGetOutputs(pubkey crypto.PublicKey) ([]string, error) {
+	url := Getenv("ENDPOINT") + Sprintf("outputs?public_key=%v", pubkey)
 	response, err := HttpGet(url)
 	if err != nil {
 		return nil, err
@@ -58,8 +58,8 @@ func HttpGetOutputs(pub crypto.PublicKey) ([]string, error) {
 	return links, nil
 }
 
-func HttpGetFilter(fn func(string) (Data, error), pub crypto.PublicKey) ([]Data, error) {
-	links, err := HttpGetOutputs(pub)
+func HttpGetFilter(fn func(string) (Data, error), pubkey crypto.PublicKey) ([]Data, error) {
+	links, err := HttpGetOutputs(pubkey)
 	if err != nil {
 		return nil, err
 	}
