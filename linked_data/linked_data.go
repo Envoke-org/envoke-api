@@ -80,19 +80,19 @@ func ValidateUserTx(tx Data) (err error) {
 	}
 	inputs := bigchain.GetTxInputs(tx)
 	if len(inputs) != 1 {
-		return Error("user must have 1 input")
+		return Error("should be 1 input")
 	}
 	ownersBefore := bigchain.GetInputOwnersBefore(inputs[0])
 	if len(ownersBefore) != 1 {
-		return Error("user must have 1 ownerBefore")
+		return Error("should be 1 ownerBefore")
 	}
 	outputs := bigchain.GetTxOutputs(tx)
 	if len(outputs) != 1 {
-		return Error("user must have 1 output")
+		return Error("should be 1 output")
 	}
 	ownersAfter := bigchain.GetOutputOwnersAfter(outputs[0])
 	if len(ownersAfter) != 1 {
-		return Error("user must have 1 ownerAfter")
+		return Error("should be 1 ownerAfter")
 	}
 	if !ownersBefore[0].Equals(ownersAfter[0]) {
 		return Error("user has different ownerBefore and ownerAfter")
@@ -279,16 +279,36 @@ func BuildRightTransferTx(consumeId string, recipientId string, recipientKey cry
 	if err != nil {
 		return nil, nil, err
 	}
+	outputs := bigchain.GetTxOutputs(tx)
+	// rightTo already validated..
+	// check inputs, outputs, owners if consume id different
 	if consumeId != rightToId {
 		if bigchain.TRANSFER != bigchain.GetTxOperation(tx) {
 			return nil, nil, Error("expected TRANSFER tx")
+		}
+		inputs := bigchain.GetTxInputs(tx)
+		if len(inputs) != 1 {
+			return nil, nil, Error("inputs should be 1")
+		}
+		ownersBefore := bigchain.GetInputOwnersBefore(inputs[0])
+		if len(ownersBefore) != 1 {
+			return nil, nil, Error("should be 1 ownerBefore")
+		}
+		if len(outputs) != 1 && len(outputs) != 2 {
+			return nil, nil, Error("should be 1 or 2 outputs")
 		}
 		if rightToId != bigchain.GetTxAssetId(tx) {
 			return nil, nil, Error("TRANSFER tx doesn't link to " + rightToId)
 		}
 	}
-	for idx, output := range bigchain.GetTxOutputs(tx) {
-		if senderKey.Equals(bigchain.DefaultOutputOwnerAfter(output)) {
+	for idx, output := range outputs {
+		ownersAfter := bigchain.GetOutputOwnersAfter(output)
+		if consumeId != rightToId {
+			if len(ownersAfter) != 1 {
+				return nil, nil, Error("should be 1 ownerAfter")
+			}
+		}
+		if senderKey.Equals(ownersAfter[0]) {
 			totalAmount := bigchain.GetOutputAmount(output)
 			keepAmount := totalAmount - transferAmount
 			if keepAmount == 0 {
@@ -308,7 +328,7 @@ func BuildRightTransferTx(consumeId string, recipientId string, recipientKey cry
 			return nil, nil, Error("sender cannot transfer that many shares")
 		}
 	}
-	return nil, nil, Error("sender doesn't have output in consume tx")
+	return nil, nil, Error("sender not ownerAfter of consume tx")
 }
 
 func BuildRightTx(percentShares int, prevRightId string, privkey crypto.PrivateKey, recipientId, rightToId, senderId string, senderKey crypto.PublicKey) (Data, error) {
@@ -380,28 +400,39 @@ func ValidateRightTx(tx Data) (err error) {
 	if n != 1 && n != 2 {
 		return Error("must be 1 or 2 right-holder ids")
 	}
+	inputs := bigchain.GetTxInputs(tx)
+	if len(inputs) != 1 {
+		return Error("should be 1 input")
+	}
+	ownersBefore := bigchain.GetInputOwnersBefore(inputs[0])
+	if len(ownersBefore) != 1 {
+		return Error("should be 1 ownerBefore")
+	}
 	outputs := bigchain.GetTxOutputs(tx)
 	if n != len(outputs) {
 		return Error("different number of right outputs and right-holder ids")
 	}
 	var recipientKey crypto.PublicKey
-	senderKey := bigchain.DefaultTxOwnerBefore(tx)
 	for i, rightHolderId := range rightHolderIds {
 		tx, err = ValidateUserId(rightHolderId)
 		if err != nil {
 			return err
 		}
-		rightHolderKey := bigchain.DefaultTxOwnerBefore(tx)
-		if !rightHolderKey.Equals(bigchain.DefaultOutputOwnerAfter(outputs[i])) {
-			return Error("right-holder doesn't have output")
+		ownersAfter := bigchain.GetOutputOwnersAfter(outputs[i])
+		if len(ownersAfter) != 1 {
+			return Error("should be 1 ownerAfter")
 		}
-		if senderKey.Equals(rightHolderKey) {
+		rightHolderKey := bigchain.DefaultTxOwnerBefore(tx)
+		if !ownersAfter[0].Equals(rightHolderKey) {
+			return Error("right-holder is not ownerAfter")
+		}
+		if ownersBefore[0].Equals(rightHolderKey) {
 			if i == 1 || n == 1 {
-				return Error("sender cannot be only/second right-holder")
+				return Error("ownerBefore cannot be only/second right-holder")
 			}
 		} else {
 			if i == 0 && n == 2 {
-				return Error("sender isn't first right-holder")
+				return Error("ownerBefore isn't first right-holder")
 			}
 			recipientKey = rightHolderKey
 		}
@@ -422,45 +453,55 @@ func ValidateRightTx(tx Data) (err error) {
 	if err != nil {
 		return err
 	}
+	ownerBefore := ownersBefore[0]
 	transferId := spec.GetTransferId(right)
 	tx, err = bigchain.HttpGetTx(transferId)
 	if err != nil {
 		return err
 	}
 	if bigchain.TRANSFER != bigchain.GetTxOperation(tx) {
-		return Error("expected TRANSFER tx")
+		return Error("expected TRANSFER")
 	}
-	if !senderKey.Equals(bigchain.DefaultTxOwnerBefore(tx)) {
-		return Error("right sender isn't TRANSFER tx sender")
+	inputs = bigchain.GetTxInputs(tx)
+	if len(inputs) != 1 {
+		return Error("inputs should be 1")
+	}
+	ownersBefore = bigchain.GetInputOwnersBefore(inputs[0])
+	if len(ownersBefore) != 1 {
+		return Error("should be 1 ownerBefore")
+	}
+	if !ownerBefore.Equals(ownersBefore[0]) {
+		return Error("right ownerBefore isn't TRANSFER ownerBefore")
 	}
 	outputs = bigchain.GetTxOutputs(tx)
 	if n != len(outputs) {
 		return Error("different number of TRANSFER tx outputs and right-holder ids")
 	}
-	if n == 1 {
-		if !recipientKey.Equals(bigchain.DefaultOutputOwnerAfter(outputs[0])) {
-			return Error("recipient doesn't have TRANSFER tx output")
-		}
-		recipientShares := bigchain.GetOutputAmount(outputs[0])
-		if recipientShares <= 0 || recipientShares > 100 {
-			return Error("recipient shares must be greater than 0 and less than/equal to 100")
-		}
-	}
+	idx := 0
 	if n == 2 {
-		if !recipientKey.Equals(bigchain.DefaultOutputOwnerAfter(outputs[1])) {
-			return Error("recipient doesn't have TRANSFER tx output")
+		ownersAfter := bigchain.GetOutputOwnersAfter(outputs[0])
+		if len(ownersAfter) != 1 {
+			return Error("should be 1 ownerAfter")
 		}
-		recipientShares := bigchain.GetOutputAmount(outputs[1])
-		if recipientShares <= 0 || recipientShares > 100 {
-			return Error("recipient shares must be greater than 0 and less than/equal to 100")
-		}
-		if !senderKey.Equals(bigchain.DefaultOutputOwnerAfter(outputs[0])) {
-			return Error("sender doesn't have TRANSFER tx output")
+		if !ownerBefore.Equals(ownersAfter[0]) {
+			return Error("ownerBefore isn't TRANSFER ownerAfter")
 		}
 		senderShares := bigchain.GetOutputAmount(outputs[0])
 		if senderShares <= 0 || senderShares >= 100 {
 			return Error("sender shares must be greater than 0 and less than 100")
 		}
+		idx = 1
+	}
+	ownersAfter := bigchain.GetOutputOwnersAfter(outputs[idx])
+	if len(ownersAfter) != 1 {
+		return Error("should be 1 ownerAfter")
+	}
+	if !recipientKey.Equals(ownersAfter[0]) {
+		return Error("right recipient isn't ownerAfter of TRANSFER")
+	}
+	recipientShares := bigchain.GetOutputAmount(outputs[idx])
+	if recipientShares <= 0 || recipientShares > 100 {
+		return Error("recipient shares must be greater than 0 and less than/equal to 100")
 	}
 	if rightToId != bigchain.GetTxAssetId(tx) {
 		return Error("TRANSFER tx doesn't link to " + rightToType)
@@ -615,9 +656,20 @@ func ValidateLicenseTx(tx Data) (err error) {
 		return err
 	}
 	licenseHolderIds := spec.GetLicenseHolderIds(license)
+	n := len(licenseHolderIds)
 	licenserId := spec.GetLicenserId(license)
-	licenserKey := bigchain.DefaultTxOwnerBefore(tx)
+	inputs := bigchain.GetTxInputs(tx)
+	if len(inputs) != 1 {
+		return Error("should be 1 input")
+	}
+	ownersBefore := bigchain.GetInputOwnersBefore(inputs[0])
+	if len(ownersBefore) != 1 {
+		return Error("should be 1 ownerBefore")
+	}
 	outputs := bigchain.GetTxOutputs(tx)
+	if n != len(outputs) {
+		return Error("different number of license-holders and outputs")
+	}
 	for i, licenseHolderId := range licenseHolderIds {
 		if licenserId == licenseHolderId {
 			return Error("licenser cannot be license-holder")
@@ -626,17 +678,20 @@ func ValidateLicenseTx(tx Data) (err error) {
 		if err != nil {
 			return err
 		}
-		licenseHolderKey := bigchain.DefaultTxOwnerBefore(tx)
-		if !licenseHolderKey.Equals(bigchain.DefaultOutputOwnerAfter(outputs[i])) {
-			return ErrInvalidKey
+		ownersAfter := bigchain.GetOutputOwnersAfter(outputs[i])
+		if len(ownersAfter) != 1 {
+			return Error("should be 1 ownerAfter")
+		}
+		if !ownersAfter[0].Equals(bigchain.DefaultTxOwnerBefore(tx)) {
+			return Error("license-holder is not ownerAfter")
 		}
 	}
 	tx, err = ValidateUserId(licenserId)
 	if err != nil {
 		return err
 	}
-	if !licenserKey.Equals(bigchain.DefaultTxOwnerBefore(tx)) {
-		return ErrInvalidKey
+	if !ownersBefore[0].Equals(bigchain.DefaultTxOwnerBefore(tx)) {
+		return Error("licenser is not ownerBefore")
 	}
 	licenseFor := spec.GetLicenseFor(license)
 OUTER:
