@@ -3,9 +3,9 @@ package schema
 import (
 	jsonschema "github.com/xeipuuv/gojsonschema"
 
-	. "github.com/zbo14/envoke/common"
-	"github.com/zbo14/envoke/regex"
-	"github.com/zbo14/envoke/spec"
+	. "github.com/Envoke-org/envoke-api/common"
+	"github.com/Envoke-org/envoke-api/regex"
+	"github.com/Envoke-org/envoke-api/spec"
 )
 
 const SCHEMA = "http://json-schema.org/draft-04/schema#"

@@ -3,13 +3,13 @@ package api
 import (
 	"net/http"
 
+	"github.com/Envoke-org/envoke-api/bigchain"
+	. "github.com/Envoke-org/envoke-api/common"
+	"github.com/Envoke-org/envoke-api/crypto/crypto"
+	"github.com/Envoke-org/envoke-api/crypto/ed25519"
+	ld "github.com/Envoke-org/envoke-api/linked_data"
+	"github.com/Envoke-org/envoke-api/spec"
 	"github.com/julienschmidt/httprouter"
-	"github.com/zbo14/envoke/bigchain"
-	. "github.com/zbo14/envoke/common"
-	"github.com/zbo14/envoke/crypto/crypto"
-	"github.com/zbo14/envoke/crypto/ed25519"
-	ld "github.com/zbo14/envoke/linked_data"
-	"github.com/zbo14/envoke/spec"
 )
 
 var (

@@ -3,8 +3,8 @@ package main
 import (
 	"net/http"
 
+	"github.com/Envoke-org/envoke-api/api"
 	"github.com/julienschmidt/httprouter"
-	"github.com/zbo14/envoke/api"
 )
 
 func main() {

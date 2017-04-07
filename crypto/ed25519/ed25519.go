@@ -2,8 +2,8 @@ package ed25519
 
 import (
 	"bytes"
-	. "github.com/zbo14/envoke/common"
-	"github.com/zbo14/envoke/crypto/crypto"
+	. "github.com/Envoke-org/envoke-api/common"
+	"github.com/Envoke-org/envoke-api/crypto/crypto"
 	"golang.org/x/crypto/ed25519"
 )
 

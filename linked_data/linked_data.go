@@ -3,13 +3,13 @@ package linked_data
 import (
 	"bytes"
 
-	"github.com/zbo14/envoke/bigchain"
-	. "github.com/zbo14/envoke/common"
-	cc "github.com/zbo14/envoke/crypto/conditions"
-	"github.com/zbo14/envoke/crypto/crypto"
-	"github.com/zbo14/envoke/crypto/ed25519"
-	"github.com/zbo14/envoke/schema"
-	"github.com/zbo14/envoke/spec"
+	"github.com/Envoke-org/envoke-api/bigchain"
+	. "github.com/Envoke-org/envoke-api/common"
+	cc "github.com/Envoke-org/envoke-api/crypto/conditions"
+	"github.com/Envoke-org/envoke-api/crypto/crypto"
+	"github.com/Envoke-org/envoke-api/crypto/ed25519"
+	"github.com/Envoke-org/envoke-api/schema"
+	"github.com/Envoke-org/envoke-api/spec"
 )
 
 func SetThreshold(data Data, pubkeys []crypto.PublicKey, signatures []string, tx Data) error {
@@ -181,45 +181,53 @@ func ValidateCompositionTx(compositionTx Data) (err error) {
 		return err
 	}
 	composers := spec.GetComposers(composition)
-	outputs := bigchain.GetTxOutputs(compositionTx)
 	n := len(composers)
+	inputs := bigchain.GetTxInputs(compositionTx)
+	if len(inputs) != 1 {
+		return Error("should be 1 input")
+	}
+	ownersBefore := bigchain.GetInputOwnersBefore(inputs[0])
+	if len(ownersBefore) != 1 {
+		return Error("should be 1 ownerBefore")
+	}
+	outputs := bigchain.GetTxOutputs(compositionTx)
 	if n != len(outputs) {
 		return Error("different number of outputs and composers")
 	}
 	composerKeys := make([]crypto.PublicKey, n)
 	totalShares := 0
-OUTER:
 	for i, composer := range composers {
-		// TODO: check for repeat pubkeys
 		tx, err := ValidateUserId(spec.GetId(composer))
 		if err != nil {
 			return err
 		}
-		composerKeys[i] = bigchain.DefaultTxOwnerBefore(tx)
-		if composerKeys[i].Equals(bigchain.DefaultOutputOwnerAfter(outputs[i])) {
-			if totalShares += bigchain.GetOutputAmount(outputs[i]); totalShares > 100 {
-				return Error("total shares exceed 100")
-			}
-			continue OUTER
+		ownersAfter := bigchain.GetOutputOwnersAfter(outputs[i])
+		if len(ownersAfter) != 1 {
+			return Error("should be 1 ownerAfter")
 		}
-		return Error("couldn't find output with composer pubkey")
+		if !ownersAfter[0].Equals(bigchain.DefaultTxOwnerBefore(tx)) {
+			return Error("composer isn't ownerAfter")
+		}
+		if totalShares += bigchain.GetOutputAmount(outputs[i]); totalShares > 100 {
+			return Error("total shares exceed 100")
+		}
+		composerKeys[i] = ownersAfter[0]
 	}
 	if totalShares != 100 {
 		return Error("total shares do not equal 100")
 	}
 	publisherId := spec.GetPublisherId(composition)
-	senderKey := bigchain.DefaultTxOwnerBefore(compositionTx)
 	if !EmptyStr(publisherId) {
 		tx, err := ValidateUserId(publisherId)
 		if err != nil {
 			return err
 		}
-		if !senderKey.Equals(bigchain.DefaultTxOwnerBefore(tx)) {
-			return Error("publisher isn't sender")
+		if !ownersBefore[0].Equals(bigchain.DefaultTxOwnerBefore(tx)) {
+			return Error("publisher isn't ownerBefore")
 		}
 	} else {
-		if !senderKey.Equals(composerKeys[0]) {
-			return Error("first composer isn't sender")
+		if !ownersBefore[0].Equals(composerKeys[0]) {
+			return Error("first composer isn't ownerBefore")
 		}
 	}
 	if n > 1 {
@@ -880,9 +888,17 @@ func ValidateRecordingTx(recordingTx Data) (err error) {
 	if err := schema.ValidateSchema(recording, "recording"); err != nil {
 		return err
 	}
-	outputs := bigchain.GetTxOutputs(recordingTx)
 	artists := spec.GetArtists(recording)
 	n := len(artists)
+	inputs := bigchain.GetTxInputs(recordingTx)
+	if len(inputs) != 1 {
+		return Error("should be 1 input")
+	}
+	ownersBefore := bigchain.GetInputOwnersBefore(inputs[0])
+	if len(ownersBefore) != 1 {
+		return Error("should be 1 ownerBefore")
+	}
+	outputs := bigchain.GetTxOutputs(recordingTx)
 	if n != len(outputs) {
 		return Error("different number of outputs and artists")
 	}
@@ -921,13 +937,17 @@ OUTER:
 		if err != nil {
 			return err
 		}
-		artistKeys[i] = bigchain.DefaultTxOwnerBefore(tx)
-		if !artistKeys[i].Equals(bigchain.DefaultOutputOwnerAfter(outputs[i])) {
-			return Error("artist doesn't have output")
+		ownersAfter := bigchain.GetOutputOwnersAfter(outputs[i])
+		if len(ownersAfter) != 1 {
+			return Error("should be 1 ownerAfter")
+		}
+		if !ownersAfter[0].Equals(bigchain.DefaultTxOwnerBefore(tx)) {
+			return Error("artist isn't ownerAfter")
 		}
 		if totalShares += bigchain.GetOutputAmount(outputs[i]); totalShares > 100 {
 			return Error("total shares exceed 100")
 		}
+		artistKeys[i] = ownersAfter[0]
 		for j, composer := range composers {
 			if artistId == spec.GetId(composer) {
 				composers = append(composers[:j], composers[j+1:]...)
@@ -946,14 +966,13 @@ OUTER:
 		return Error("total shares do not equal 100")
 	}
 	recordLabelId := spec.GetRecordLabelId(recording)
-	senderKey := bigchain.DefaultTxOwnerBefore(recordingTx)
 	if !EmptyStr(recordLabelId) {
 		tx, err := ValidateUserId(recordLabelId)
 		if err != nil {
 			return err
 		}
-		if !senderKey.Equals(bigchain.DefaultTxOwnerBefore(tx)) {
-			return Error("record label isn't sender")
+		if !ownersBefore[0].Equals(bigchain.DefaultTxOwnerBefore(tx)) {
+			return Error("record label isn't ownerBefore")
 		}
 		for i, licenseHolderId := range licenseHolderIds {
 			if recordLabelId == licenseHolderId {
@@ -963,8 +982,8 @@ OUTER:
 		}
 		return Error("record label doesn't have mechanical")
 	} else {
-		if !senderKey.Equals(artistKeys[0]) {
-			return Error("first artist isn't sender")
+		if !ownersBefore[0].Equals(artistKeys[0]) {
+			return Error("first artist isn't ownerBefore")
 		}
 	}
 END:

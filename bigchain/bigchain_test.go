@@ -3,9 +3,9 @@ package bigchain
 import (
 	"testing"
 
-	. "github.com/zbo14/envoke/common"
-	"github.com/zbo14/envoke/crypto/crypto"
-	"github.com/zbo14/envoke/crypto/ed25519"
+	. "github.com/Envoke-org/envoke-api/common"
+	"github.com/Envoke-org/envoke-api/crypto/crypto"
+	"github.com/Envoke-org/envoke-api/crypto/ed25519"
 )
 
 var (

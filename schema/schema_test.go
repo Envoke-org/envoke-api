@@ -3,8 +3,8 @@ package schema
 import (
 	"testing"
 
-	. "github.com/zbo14/envoke/common"
-	"github.com/zbo14/envoke/spec"
+	. "github.com/Envoke-org/envoke-api/common"
+	"github.com/Envoke-org/envoke-api/spec"
 )
 
 func TestSchema(t *testing.T) {

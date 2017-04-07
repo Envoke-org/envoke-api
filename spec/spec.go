@@ -1,8 +1,8 @@
 package spec
 
 import (
-	. "github.com/zbo14/envoke/common"
-	"github.com/zbo14/envoke/regex"
+	. "github.com/Envoke-org/envoke-api/common"
+	"github.com/Envoke-org/envoke-api/regex"
 )
 
 const CONTEXT = "CONTEXT"

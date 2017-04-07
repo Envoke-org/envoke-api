@@ -3,10 +3,10 @@ package bigchain
 import (
 	"bytes"
 
-	. "github.com/zbo14/envoke/common"
-	cc "github.com/zbo14/envoke/crypto/conditions"
-	"github.com/zbo14/envoke/crypto/crypto"
-	"github.com/zbo14/envoke/crypto/ed25519"
+	. "github.com/Envoke-org/envoke-api/common"
+	cc "github.com/Envoke-org/envoke-api/crypto/conditions"
+	"github.com/Envoke-org/envoke-api/crypto/crypto"
+	"github.com/Envoke-org/envoke-api/crypto/ed25519"
 )
 
 // GET requests

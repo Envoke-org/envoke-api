@@ -6,8 +6,8 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	. "github.com/zbo14/envoke/common"
-	"github.com/zbo14/envoke/crypto/crypto"
+	. "github.com/Envoke-org/envoke-api/common"
+	"github.com/Envoke-org/envoke-api/crypto/crypto"
 )
 
 const (

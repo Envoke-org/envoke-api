@@ -1,7 +1,7 @@
 package crypto
 
 import (
-	. "github.com/zbo14/envoke/common"
+	. "github.com/Envoke-org/envoke-api/common"
 	"golang.org/x/crypto/bcrypt"
 )
 
