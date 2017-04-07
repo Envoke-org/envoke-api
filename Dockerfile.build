@@ -1,14 +1,9 @@
 FROM golang:1.7.1
 
-ARG endpoint
-ENV ENDPOINT $endpoint
-
 ADD Makefile /
 WORKDIR /
 
-# From https://developer.atlassian.com/blog/2015/07/osx-static-golang-binaries-with-docker/
-
-RUN go get github.com/Envoke-org/envoke-api
-RUN CGO_ENABLED=0 GOOS=linux go build -ldflags "-s" -a -installsuffix cgo -o main ./go/src/github.com/Envoke-org/envoke-api
+RUN go get -tags netgo -installsuffix netgo github.com/Envoke-org/envoke-api
+RUN CGO_ENABLED=0 GOOS=linux go build -o main ./go/src/github.com/Envoke-org/envoke-api
 
 CMD ["/bin/bash"]
