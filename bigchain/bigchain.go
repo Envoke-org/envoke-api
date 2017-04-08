@@ -108,16 +108,7 @@ const (
 	VERSION  = "0.9"
 )
 
-func IndividualCreateTx(amount int, data Data, ownerAfter, ownerBefore crypto.PublicKey) (Data, error) {
-	amounts := []int{amount}
-	asset := Data{"data": data}
-	fulfills := []Data{nil}
-	ownersAfter := [][]crypto.PublicKey{[]crypto.PublicKey{ownerAfter}}
-	ownersBefore := [][]crypto.PublicKey{[]crypto.PublicKey{ownerBefore}}
-	return CreateTx(amounts, asset, fulfills, ownersAfter, ownersBefore)
-}
-
-func MultipleOwnersCreateTx(amounts []int, data Data, ownersAfter []crypto.PublicKey, ownersBefore []crypto.PublicKey) (Data, error) {
+func CreateTx(amounts []int, data Data, ownersAfter []crypto.PublicKey, ownersBefore []crypto.PublicKey) (Data, error) {
 	asset := Data{"data": data}
 	fulfills := []Data{nil}
 	n := len(amounts)
@@ -135,19 +126,9 @@ func MultipleOwnersCreateTx(amounts []int, data Data, ownersAfter []crypto.Publi
 			_ownersAfter[i] = []crypto.PublicKey{ownerAfter}
 		}
 	}
-	return CreateTx(amounts, asset, fulfills, _ownersAfter, [][]crypto.PublicKey{ownersBefore})
+	return GenerateTx(amounts, asset, fulfills, nil, CREATE, _ownersAfter, [][]crypto.PublicKey{ownersBefore})
 }
-
-func IndividualTransferTx(amount int, assetId, consumeId string, idx int, ownerAfter, ownerBefore crypto.PublicKey) (Data, error) {
-	amounts := []int{amount}
-	asset := Data{"id": assetId}
-	fulfills := []Data{Data{"txid": consumeId, "output": idx}}
-	ownersAfter := [][]crypto.PublicKey{[]crypto.PublicKey{ownerAfter}}
-	ownersBefore := [][]crypto.PublicKey{[]crypto.PublicKey{ownerBefore}}
-	return TransferTx(amounts, asset, fulfills, ownersAfter, ownersBefore)
-}
-
-func DivisibleTransferTx(amounts []int, assetId, consumeId string, idx int, ownersAfter []crypto.PublicKey, ownerBefore crypto.PublicKey) (Data, error) {
+func TransferTx(amounts []int, assetId, consumeId string, idx int, ownersAfter []crypto.PublicKey, ownersBefore []crypto.PublicKey) (Data, error) {
 	n := len(amounts)
 	if n <= 1 {
 		return nil, Error("should be multiple amounts")
@@ -157,20 +138,11 @@ func DivisibleTransferTx(amounts []int, assetId, consumeId string, idx int, owne
 	}
 	asset := Data{"id": assetId}
 	fulfills := []Data{Data{"txid": consumeId, "output": idx}}
-	owners := make([][]crypto.PublicKey, len(ownersAfter))
-	for i, owner := range ownersAfter {
-		owners[i] = []crypto.PublicKey{owner}
+	_ownersAfter := make([][]crypto.PublicKey, len(ownersAfter))
+	for i, ownerAfter := range ownersAfter {
+		_ownersAfter[i] = []crypto.PublicKey{ownerAfter}
 	}
-	ownersBefore := [][]crypto.PublicKey{[]crypto.PublicKey{ownerBefore}}
-	return TransferTx(amounts, asset, fulfills, owners, ownersBefore)
-}
-
-func CreateTx(amounts []int, asset Data, fulfills []Data, ownersAfter, ownersBefore [][]crypto.PublicKey) (Data, error) {
-	return GenerateTx(amounts, asset, fulfills, nil, CREATE, ownersAfter, ownersBefore)
-}
-
-func TransferTx(amounts []int, asset Data, fulfills []Data, ownersAfter, ownersBefore [][]crypto.PublicKey) (Data, error) {
-	return GenerateTx(amounts, asset, fulfills, nil, TRANSFER, ownersAfter, ownersBefore)
+	return GenerateTx(amounts, asset, fulfills, nil, TRANSFER, _ownersAfter, [][]crypto.PublicKey{ownersBefore})
 }
 
 func GenerateTx(amounts []int, asset Data, fulfills []Data, metadata Data, operation string, ownersAfter, ownersBefore [][]crypto.PublicKey) (Data, error) {
@@ -206,20 +178,21 @@ func IndividualFulfillTx(tx Data, privkey crypto.PrivateKey) error {
 	return FulfillTx(tx, cc.Fulfillments{fulfillment})
 }
 
-func MultipleFulfillTx(tx Data, pubkeys []crypto.PublicKey, sigs []crypto.Signature) error {
+func MultipleFulfillTx(tx Data, pubkeys []crypto.PublicKey, signatures []string) error {
 	n := len(pubkeys)
 	if n == 0 {
 		return Error("no pubkeys")
 	}
-	if n != len(sigs) {
-		return Error("different number of pubkeys and sigs")
+	if n != len(signatures) {
+		return Error("different number of pubkeys and signatures")
 	}
+	sig := new(ed25519.Signature)
 	subs := make(cc.Fulfillments, n)
 	for i, pubkey := range pubkeys {
-		subs[i] = cc.DefaultFulfillmentEd25519(
-			pubkey.(*ed25519.PublicKey),
-			sigs[i].(*ed25519.Signature),
-		)
+		if err := sig.FromString(signatures[i]); err != nil {
+			return err
+		}
+		subs[i] = cc.DefaultFulfillmentEd25519(pubkey.(*ed25519.PublicKey), sig)
 	}
 	return FulfillTx(tx, cc.Fulfillments{cc.DefaultFulfillmentThreshold(subs)})
 }
