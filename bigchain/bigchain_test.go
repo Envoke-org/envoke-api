@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	Alice = "3k9RQZGU36rwRV7zHJCMVmcdSVLqtgLJNBWV6e3DPKJi"
-	Bob   = "AS7E9tT8hmG7kMThCfdzyCy4RTq1AnMNXpJZFhcu3bwi"
+	Alice = "3th33iKfYoPXQ6YL8mXcD3gzgMppEEHFBPFqch4Cn5d3"
+	Bob   = "4ScATKswfFYUw3FDoxDoUWsRzBh3BUqTmizmCBNRoPiz"
 )
 
 func TestBigchain(t *testing.T) {
@@ -37,6 +37,7 @@ func TestBigchain(t *testing.T) {
 		t.Fatal("unfulfilled")
 	}
 	WriteJSON(output, Data{"createTx": tx})
+	SleepSeconds(1)
 	createTxId, err := HttpPostTx(tx)
 	if err != nil {
 		t.Fatal(err)
@@ -61,6 +62,7 @@ func TestBigchain(t *testing.T) {
 		t.Fatal(err)
 	}
 	WriteJSON(output, Data{"transfer1Tx": tx})
+	SleepSeconds(1)
 	// Transfer Bob's output of divisible transfer to Alice
 	tx, err = IndividualTransferTx(60, createTxId, transferTxId, 1, pubAlice, pubBob)
 	if err != nil {
@@ -80,6 +82,7 @@ func TestBigchain(t *testing.T) {
 		t.Fatal(err)
 	}
 	WriteJSON(output, Data{"transfer2Tx": tx})
+	SleepSeconds(1)
 	// Multiple outputs tx
 	tx, err = MultipleOwnersCreateTx([]int{2, 3}, data, []crypto.PublicKey{pubAlice, pubBob}, []crypto.PublicKey{pubAlice})
 	if err != nil {
@@ -99,8 +102,9 @@ func TestBigchain(t *testing.T) {
 		t.Fatal(err)
 	}
 	WriteJSON(output, Data{"multipleOutputTx": tx})
+	SleepSeconds(1)
 	// Shared input tx
-	tx, err = MultipleOwnersCreateTx([]int{4}, data, []crypto.PublicKey{pubAlice}, []crypto.PublicKey{pubAlice, pubBob})
+	tx, err = MultipleOwnersCreateTx([]int{1}, data, []crypto.PublicKey{pubAlice}, []crypto.PublicKey{pubAlice, pubBob})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,6 +123,7 @@ func TestBigchain(t *testing.T) {
 		t.Fatal(err)
 	}
 	WriteJSON(output, Data{"sharedInputTx": tx})
+	SleepSeconds(1)
 	// Shared output tx
 	tx, err = MultipleOwnersCreateTx([]int{100}, data, []crypto.PublicKey{pubAlice, pubBob}, []crypto.PublicKey{pubAlice})
 	if err != nil {

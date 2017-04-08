@@ -372,6 +372,7 @@ OUTER:
 		WriteVarUint(buf, sub.Weight())
 		p, _ := sub.MarshalBinary()
 		WriteVarOctet(buf, p)
+		buf.WriteByte(0)
 	}
 	return buf.Bytes()
 }
@@ -413,6 +414,9 @@ func ThresholdSubs(p []byte) (Fulfillments, int, error) {
 		}
 		subs[i], err = UnmarshalBinary(p, weight)
 		if err != nil {
+			return nil, 0, err
+		}
+		if _, err := buf.ReadByte(); err != nil {
 			return nil, 0, err
 		}
 	}
