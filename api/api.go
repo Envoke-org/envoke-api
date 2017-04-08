@@ -324,7 +324,7 @@ func (api *Api) QueryHandler(w http.ResponseWriter, req *http.Request, params ht
 		err = ld.ValidateRecordingTx(tx)
 	case "Right":
 		err = ld.ValidateRightTx(tx)
-	case "User":
+	case "MusicGroup", "Organization", "Person":
 		err = ld.ValidateUserTx(tx)
 	default:
 		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
