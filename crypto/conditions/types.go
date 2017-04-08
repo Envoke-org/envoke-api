@@ -90,28 +90,28 @@ func (f *fulfillmentPrefix) Validate(p []byte) bool {
 
 type fulfillmentEd25519 struct {
 	*fulfillment
-	pub *ed25519.PublicKey
-	sig *ed25519.Signature
+	pubkey *ed25519.PublicKey
+	sig    *ed25519.Signature
 }
 
-func DefaultFulfillmentEd25519(pub *ed25519.PublicKey, sig *ed25519.Signature) *fulfillmentEd25519 {
-	return NewFulfillmentEd25519(pub, sig, 1)
+func DefaultFulfillmentEd25519(pubkey *ed25519.PublicKey, sig *ed25519.Signature) *fulfillmentEd25519 {
+	return NewFulfillmentEd25519(pubkey, sig, 1)
 }
 
-func NewFulfillmentEd25519(pub *ed25519.PublicKey, sig *ed25519.Signature, weight int) *fulfillmentEd25519 {
+func NewFulfillmentEd25519(pubkey *ed25519.PublicKey, sig *ed25519.Signature, weight int) *fulfillmentEd25519 {
 	f := new(fulfillmentEd25519)
-	payload := append(pub.Bytes(), sig.Bytes()...)
+	payload := append(pubkey.Bytes(), sig.Bytes()...)
 	f.fulfillment = NewFulfillment(ED25519_ID, f, payload, weight)
-	f.pub = pub
+	f.pubkey = pubkey
 	f.sig = sig
 	f.Init()
 	return f
 }
 
 func (f *fulfillmentEd25519) Init() {
-	if f.pub.Bytes() == nil {
-		f.pub = new(ed25519.PublicKey)
-		err := f.pub.FromBytes(f.payload[:ed25519.PUBKEY_SIZE])
+	if f.pubkey.Bytes() == nil {
+		f.pubkey = new(ed25519.PublicKey)
+		err := f.pubkey.FromBytes(f.payload[:ed25519.PUBKEY_SIZE])
 		Check(err)
 	}
 	if f.sig.Bytes() == nil {
@@ -120,7 +120,7 @@ func (f *fulfillmentEd25519) Init() {
 		// ignore err for now
 	}
 	f.bitmask = ED25519_BITMASK
-	f.hash = f.pub.Bytes()
+	f.hash = f.pubkey.Bytes()
 	f.size = ED25519_SIZE
 }
 
@@ -138,10 +138,10 @@ func (f *fulfillmentEd25519) Data() Data {
 }
 
 func (f *fulfillmentEd25519) PublicKey() crypto.PublicKey {
-	if f.pub.Bytes() == nil {
+	if f.pubkey.Bytes() == nil {
 		return nil
 	}
-	return f.pub
+	return f.pubkey
 }
 
 func (f *fulfillmentEd25519) Signature() crypto.Signature {
@@ -155,31 +155,31 @@ func (f *fulfillmentEd25519) Validate(p []byte) bool {
 	if !f.fulfillment.Validate(nil) {
 		return false
 	}
-	return f.pub.Verify(p, f.sig)
+	return f.pubkey.Verify(p, f.sig)
 }
 
 // SHA256 RSA
 
 type fulfillmentRSA struct {
 	*fulfillment
-	pub *rsa.PublicKey
-	sig *rsa.Signature
+	pubkey *rsa.PublicKey
+	sig    *rsa.Signature
 }
 
-func NewFulfillmentRSA(pub *rsa.PublicKey, sig *rsa.Signature, weight int) *fulfillmentRSA {
+func NewFulfillmentRSA(pubkey *rsa.PublicKey, sig *rsa.Signature, weight int) *fulfillmentRSA {
 	f := new(fulfillmentRSA)
-	payload := append(pub.Bytes(), sig.Bytes()...)
+	payload := append(pubkey.Bytes(), sig.Bytes()...)
 	f.fulfillment = NewFulfillment(RSA_ID, f, payload, weight)
-	f.pub = pub
+	f.pubkey = pubkey
 	f.sig = sig
 	f.Init()
 	return f
 }
 
 func (f *fulfillmentRSA) Init() {
-	if f.pub.Bytes() == nil {
-		f.pub = new(rsa.PublicKey)
-		err := f.pub.FromBytes(f.payload[:rsa.KEY_SIZE])
+	if f.pubkey.Bytes() == nil {
+		f.pubkey = new(rsa.PublicKey)
+		err := f.pubkey.FromBytes(f.payload[:rsa.KEY_SIZE])
 		Check(err)
 	}
 	if f.sig.Bytes() == nil {
@@ -188,15 +188,15 @@ func (f *fulfillmentRSA) Init() {
 		Check(err)
 	}
 	f.bitmask = RSA_BITMASK
-	f.hash = Sum256(f.pub.Bytes())
+	f.hash = Sum256(f.pubkey.Bytes())
 	f.size = RSA_SIZE
 }
 
 func (f *fulfillmentRSA) PublicKey() crypto.PublicKey {
-	if f.pub.Bytes() == nil {
+	if f.pubkey.Bytes() == nil {
 		return nil
 	}
-	return f.pub
+	return f.pubkey
 }
 
 func (f *fulfillmentRSA) Signature() crypto.Signature {
@@ -210,7 +210,7 @@ func (f *fulfillmentRSA) Validate(p []byte) bool {
 	if !f.fulfillment.Validate(nil) {
 		return false
 	}
-	return f.pub.Verify(p, f.sig)
+	return f.pubkey.Verify(p, f.sig)
 }
 
 // SHA256 Threshold
@@ -246,9 +246,7 @@ func (f *fulfillmentThreshold) Init() {
 	if f.subs == nil && f.threshold == 0 {
 		f.ThresholdSubs()
 	}
-	if f.subs != nil && f.threshold > 0 {
-		//..
-	} else {
+	if f.subs == nil || f.threshold <= 0 {
 		Panicf("Cannot have %d subs, threshold=%d\n", len(f.subs), f.threshold)
 	}
 	f.bitmask = ThresholdBitmask(f.subs)
@@ -256,24 +254,33 @@ func (f *fulfillmentThreshold) Init() {
 	f.size = ThresholdSize(f.subs, f.threshold)
 }
 
-func DefaultFulfillmentThresholdFromPubKeys(pubs []crypto.PublicKey) *fulfillmentThreshold {
-	subs := DefaultFulfillmentsFromPubKeys(pubs)
-	return NewFulfillmentThreshold(subs, len(pubs), 1)
+func DefaultFulfillmentThresholdFromPubkeys(pubkeys []crypto.PublicKey) (*fulfillmentThreshold, error) {
+	subs, err := DefaultFulfillmentsFromPubkeys(pubkeys)
+	if err != nil {
+		return nil, err
+	}
+	return NewFulfillmentThreshold(subs, len(pubkeys), 1), nil
 }
 
-func FulfillmentThresholdFromPubKeys(pubs []crypto.PublicKey, threshold, weight int, weights []int) *fulfillmentThreshold {
-	subs := FulfillmentsFromPubKeys(pubs, weights)
-	return NewFulfillmentThreshold(subs, threshold, weight)
+func FulfillmentThresholdFromPubkeys(pubkeys []crypto.PublicKey, threshold, weight int, weights []int) (*fulfillmentThreshold, error) {
+	subs, err := FulfillmentsFromPubkeys(pubkeys, weights)
+	if err != nil {
+		return nil, err
+	}
+	return NewFulfillmentThreshold(subs, threshold, weight), nil
 }
 
 // For testing..
-func DefaultFulfillmentThresholdFromPrivKeys(msg []byte, privs ...crypto.PrivateKey) *fulfillmentThreshold {
-	n := len(privs)
+func DefaultFulfillmentThresholdFromPrivkeys(msg []byte, privkeys ...crypto.PrivateKey) (_ *fulfillmentThreshold, err error) {
+	n := len(privkeys)
 	subs := make(Fulfillments, n)
-	for i, priv := range privs {
-		subs[i] = DefaultFulfillmentFromPrivKey(msg, priv)
+	for i, privkey := range privkeys {
+		subs[i], err = DefaultFulfillmentFromPrivkey(msg, privkey)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return NewFulfillmentThreshold(subs, n, 1)
+	return NewFulfillmentThreshold(subs, n, 1), nil
 }
 
 func (f *fulfillmentThreshold) Data() Data {
@@ -368,6 +375,8 @@ OUTER:
 	}
 	return buf.Bytes()
 }
+
+func (f *fulfillmentThreshold) Subfulfillments() Fulfillments { return f.subs }
 
 func (f *fulfillmentThreshold) ThresholdSubs() {
 	if f.subs != nil && f.threshold > 0 {
@@ -480,9 +489,8 @@ func (f *fulfillmentThreshold) Validate(p []byte) bool {
 	if !f.fulfillment.Validate(nil) {
 		return false
 	}
-	subs := f.subs
-	threshold := f.threshold
 	min, total := 0, 0
+	subs, threshold := f.subs, f.threshold
 	var subf Fulfillments
 	for _, sub := range subs {
 		if !sub.IsCondition() {

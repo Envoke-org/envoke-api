@@ -55,6 +55,7 @@ type Fulfillment interface {
 	Signature() crypto.Signature
 	Size() int
 	String() string
+	Subfulfillments() Fulfillments
 	UnmarshalBinary([]byte) error
 	Validate([]byte) bool
 	Weight() int
@@ -62,90 +63,105 @@ type Fulfillment interface {
 
 // Fufillment from key
 
-func DefaultFulfillmentsFromPrivKeys(msgs [][]byte, privs []crypto.PrivateKey) Fulfillments {
-	n := len(privs)
+func DefaultFulfillmentsFromPrivkeys(msgs [][]byte, privkeys []crypto.PrivateKey) (_ Fulfillments, err error) {
+	n := len(privkeys)
 	if n != len(msgs) {
-		panic(ErrorAppend(ErrInvalidSize, "slices are different sizes"))
+		return nil, Error("different number of privkeys and msgs")
 	}
 	fulfillments := make(Fulfillments, n)
-	for i, priv := range privs {
-		fulfillments[i] = DefaultFulfillmentFromPrivKey(msgs[i], priv)
+	for i, privkey := range privkeys {
+		fulfillments[i], err = DefaultFulfillmentFromPrivkey(msgs[i], privkey)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return fulfillments
+	return fulfillments, nil
 }
 
-func FulfillmentsFromPrivKeys(msgs [][]byte, privs []crypto.PrivateKey, weights []int) Fulfillments {
-	n := len(privs)
-	if n != len(msgs) || n != len(weights) {
-		panic(ErrorAppend(ErrInvalidSize, "slices are different sizes"))
+func FulfillmentsFromPrivkeys(msgs [][]byte, privkeys []crypto.PrivateKey, weights []int) (_ Fulfillments, err error) {
+	n := len(privkeys)
+	if n != len(msgs) {
+		return nil, Error("different number of privkeys and msgs")
+	}
+	if n != len(weights) {
+		return nil, Error("different number of privkeys and weights")
 	}
 	fulfillments := make(Fulfillments, n)
-	for i, priv := range privs {
-		fulfillments[i] = FulfillmentFromPrivKey(msgs[i], priv, weights[i])
+	for i, privkey := range privkeys {
+		fulfillments[i], err = FulfillmentFromPrivkey(msgs[i], privkey, weights[i])
+		if err != nil {
+			return nil, err
+		}
 	}
-	return fulfillments
+	return fulfillments, nil
 }
 
-func DefaultFulfillmentFromPrivKey(msg []byte, priv crypto.PrivateKey) Fulfillment {
-	return FulfillmentFromPrivKey(msg, priv, 1)
+func DefaultFulfillmentFromPrivkey(msg []byte, privkey crypto.PrivateKey) (Fulfillment, error) {
+	return FulfillmentFromPrivkey(msg, privkey, 1)
 }
 
-func FulfillmentFromPrivKey(msg []byte, priv crypto.PrivateKey, weight int) Fulfillment {
-	switch priv.(type) {
+func FulfillmentFromPrivkey(msg []byte, privkey crypto.PrivateKey, weight int) (Fulfillment, error) {
+	switch privkey.(type) {
 	case *ed25519.PrivateKey:
-		privEd25519 := priv.(*ed25519.PrivateKey)
+		privEd25519 := privkey.(*ed25519.PrivateKey)
 		pubEd25519 := privEd25519.Public().(*ed25519.PublicKey)
 		sigEd25519 := privEd25519.Sign(msg).(*ed25519.Signature)
-		return NewFulfillmentEd25519(pubEd25519, sigEd25519, weight)
+		return NewFulfillmentEd25519(pubEd25519, sigEd25519, weight), nil
 	case *rsa.PrivateKey:
-		privRSA := priv.(*rsa.PrivateKey)
+		privRSA := privkey.(*rsa.PrivateKey)
 		pubRSA := privRSA.Public().(*rsa.PublicKey)
 		sigRSA := privRSA.Sign(msg).(*rsa.Signature)
-		return NewFulfillmentRSA(pubRSA, sigRSA, weight)
+		return NewFulfillmentRSA(pubRSA, sigRSA, weight), nil
 	}
-	panic(ErrInvalidKey)
+	return nil, ErrInvalidType
 }
 
-func DefaultFulfillmentsFromPubKeys(pubs []crypto.PublicKey) Fulfillments {
-	fulfillments := make(Fulfillments, len(pubs))
-	for i, pub := range pubs {
-		fulfillments[i] = DefaultFulfillmentFromPubKey(pub)
+func DefaultFulfillmentsFromPubkeys(pubkeys []crypto.PublicKey) (_ Fulfillments, err error) {
+	fulfillments := make(Fulfillments, len(pubkeys))
+	for i, pubkey := range pubkeys {
+		fulfillments[i], err = DefaultFulfillmentFromPubkey(pubkey)
+		if err != nil {
+			return nil, err
+		}
 	}
-	return fulfillments
+	return fulfillments, nil
 }
 
-func FulfillmentsFromPubKeys(pubs []crypto.PublicKey, weights []int) Fulfillments {
-	n := len(pubs)
+func FulfillmentsFromPubkeys(pubkeys []crypto.PublicKey, weights []int) (_ Fulfillments, err error) {
+	n := len(pubkeys)
 	if n != len(weights) {
-		panic(ErrorAppend(ErrInvalidSize, "slices are different sizes"))
+		return nil, Error("different number of pubkeys and weights")
 	}
 	fulfillments := make(Fulfillments, n)
-	for i, pub := range pubs {
-		fulfillments[i] = FulfillmentFromPubKey(pub, weights[i])
+	for i, pubkey := range pubkeys {
+		fulfillments[i], err = FulfillmentFromPubKey(pubkey, weights[i])
+		if err != nil {
+			return nil, err
+		}
 	}
-	return fulfillments
+	return fulfillments, nil
 }
 
-func DefaultFulfillmentFromPubKey(pub crypto.PublicKey) Fulfillment {
-	return FulfillmentFromPubKey(pub, 1)
+func DefaultFulfillmentFromPubkey(pubkey crypto.PublicKey) (Fulfillment, error) {
+	return FulfillmentFromPubKey(pubkey, 1)
 }
 
-func FulfillmentFromPubKey(pub crypto.PublicKey, weight int) Fulfillment {
-	switch pub.(type) {
+func FulfillmentFromPubKey(pubkey crypto.PublicKey, weight int) (Fulfillment, error) {
+	switch pubkey.(type) {
 	case *ed25519.PublicKey:
-		pubEd25519 := pub.(*ed25519.PublicKey)
-		return NewFulfillmentEd25519(pubEd25519, nil, weight)
+		pubEd25519 := pubkey.(*ed25519.PublicKey)
+		return NewFulfillmentEd25519(pubEd25519, nil, weight), nil
 	case *rsa.PublicKey:
-		pubRSA := pub.(*rsa.PublicKey)
-		return NewFulfillmentRSA(pubRSA, nil, weight)
+		pubRSA := pubkey.(*rsa.PublicKey)
+		return NewFulfillmentRSA(pubRSA, nil, weight), nil
 	}
-	panic(ErrInvalidKey)
+	return nil, ErrInvalidType
 }
 
-func FulfillWithPrivKey(f Fulfillment, msg []byte, priv crypto.PrivateKey) {
-	sig := priv.Sign(msg)
+func FulfillWithPrivkey(f Fulfillment, msg []byte, privkey crypto.PrivateKey) error {
+	sig := privkey.Sign(msg)
 	if !f.PublicKey().Verify(msg, sig) {
-		panic(ErrInvalidSignature)
+		return ErrInvalidSignature
 	}
 	switch sig.(type) {
 	case *ed25519.Signature:
@@ -157,8 +173,9 @@ func FulfillWithPrivKey(f Fulfillment, msg []byte, priv crypto.PrivateKey) {
 		ful.payload = append(ful.payload, sig.Bytes()...)
 		ful.sig = sig.(*rsa.Signature)
 	default:
-		panic(ErrInvalidSignature)
+		return ErrInvalidType
 	}
+	return nil
 }
 
 type Fulfillments []Fulfillment
@@ -425,6 +442,8 @@ func (f *fulfillment) String() string {
 	return Sprintf("cf:%x:%s", f.id, payload64)
 }
 
+func (f *fulfillment) Subfulfillments() Fulfillments { return nil }
+
 func (f *fulfillment) UnmarshalBinary(p []byte) (err error) {
 	c := NilCondition()
 	c.UnmarshalBinary(p)
@@ -481,7 +500,7 @@ func (f *fulfillment) Weight() int {
 
 type Condition struct {
 	*fulfillment
-	pub crypto.PublicKey
+	pubkey crypto.PublicKey
 }
 
 func NilCondition() *Condition {
@@ -490,7 +509,7 @@ func NilCondition() *Condition {
 	}
 }
 
-func NewCondition(bitmask int, hash []byte, id int, pub crypto.PublicKey, size, weight int) *Condition {
+func NewCondition(bitmask int, hash []byte, id int, pubkey crypto.PublicKey, size, weight int) *Condition {
 	c := &Condition{
 		&fulfillment{
 			bitmask: bitmask,
@@ -498,7 +517,7 @@ func NewCondition(bitmask int, hash []byte, id int, pub crypto.PublicKey, size, 
 			id:      id,
 			size:    size,
 			weight:  weight,
-		}, pub,
+		}, pubkey,
 	}
 	if !c.Validate(nil) {
 		panic(ErrInvalidCondition)

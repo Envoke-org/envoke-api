@@ -25,10 +25,16 @@ func TestBigchain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	FulfillTx(tx, privAlice)
+	if err = IndividualFulfillTx(tx, privAlice); err != nil {
+		t.Fatal(err)
+	}
 	// Check that it's fulfilled
-	if !FulfilledTx(tx) {
-		t.Fatal(ErrInvalidFulfillment)
+	fulfilled, err := FulfilledTx(tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !fulfilled {
+		t.Fatal("unfulfilled")
 	}
 	WriteJSON(output, Data{"createTx": tx})
 	createTxId, err := HttpPostTx(tx)
@@ -40,9 +46,15 @@ func TestBigchain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	FulfillTx(tx, privAlice)
-	if !FulfilledTx(tx) {
-		t.Fatal(ErrInvalidFulfillment)
+	if err = IndividualFulfillTx(tx, privAlice); err != nil {
+		t.Fatal(err)
+	}
+	fulfilled, err = FulfilledTx(tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !fulfilled {
+		t.Fatal("unfulfilled")
 	}
 	transferTxId, err := HttpPostTx(tx)
 	if err != nil {
@@ -54,38 +66,76 @@ func TestBigchain(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	FulfillTx(tx, privBob)
-	if !FulfilledTx(tx) {
-		t.Fatal(ErrInvalidFulfillment)
+	if err = IndividualFulfillTx(tx, privBob); err != nil {
+		t.Fatal(err)
+	}
+	fulfilled, err = FulfilledTx(tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !fulfilled {
+		t.Fatal("unfulfilled")
 	}
 	if _, err := HttpPostTx(tx); err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, Data{"transfer2Tx": tx})
-	// Multiple owners create tx
-	tx, err = MultipleOwnersCreateTx([]int{2, 3}, data, []crypto.PublicKey{pubAlice, pubBob}, pubAlice)
+	// Multiple outputs tx
+	tx, err = MultipleOwnersCreateTx([]int{2, 3}, data, []crypto.PublicKey{pubAlice, pubBob}, []crypto.PublicKey{pubAlice})
 	if err != nil {
 		t.Fatal(err)
 	}
-	FulfillTx(tx, privAlice)
-	if !FulfilledTx(tx) {
+	if err = IndividualFulfillTx(tx, privAlice); err != nil {
+		t.Fatal(err)
+	}
+	fulfilled, err = FulfilledTx(tx)
+	if err != nil {
 		t.Fatal(ErrInvalidFulfillment)
+	}
+	if !fulfilled {
+		t.Fatal("unfulfilled")
 	}
 	if _, err := HttpPostTx(tx); err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, Data{"multipleOwnersTx": tx})
-	// Multiple owners tx with shared output/threshold signature
-	tx, err = MultipleOwnersCreateTx([]int{100}, data, []crypto.PublicKey{pubAlice, pubBob}, pubAlice)
+	WriteJSON(output, Data{"multipleOutputTx": tx})
+	// Shared input tx
+	tx, err = MultipleOwnersCreateTx([]int{4}, data, []crypto.PublicKey{pubAlice}, []crypto.PublicKey{pubAlice, pubBob})
 	if err != nil {
 		t.Fatal(err)
 	}
-	FulfillTx(tx, privAlice)
-	if !FulfilledTx(tx) {
+	p := MustMarshalJSON(tx)
+	if err = MultipleFulfillTx(tx, []crypto.PublicKey{pubAlice, pubBob}, []crypto.Signature{privAlice.Sign(p), privBob.Sign(p)}); err != nil {
+		t.Fatal(err)
+	}
+	fulfilled, err = FulfilledTx(tx)
+	if err != nil {
 		t.Fatal(ErrInvalidFulfillment)
+	}
+	if !fulfilled {
+		t.Fatal("unfulfilled")
 	}
 	if _, err := HttpPostTx(tx); err != nil {
 		t.Fatal(err)
 	}
-	WriteJSON(output, Data{"sharedTx": tx})
+	WriteJSON(output, Data{"sharedInputTx": tx})
+	// Shared output tx
+	tx, err = MultipleOwnersCreateTx([]int{100}, data, []crypto.PublicKey{pubAlice, pubBob}, []crypto.PublicKey{pubAlice})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = IndividualFulfillTx(tx, privAlice); err != nil {
+		t.Fatal(err)
+	}
+	fulfilled, err = FulfilledTx(tx)
+	if err != nil {
+		t.Fatal(ErrInvalidFulfillment)
+	}
+	if !fulfilled {
+		t.Fatal("unfulfilled")
+	}
+	if _, err := HttpPostTx(tx); err != nil {
+		t.Fatal(err)
+	}
+	WriteJSON(output, Data{"sharedOutputTx": tx})
 }

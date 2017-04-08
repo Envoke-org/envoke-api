@@ -21,8 +21,12 @@ func HttpGetTx(id string) (Data, error) {
 	if err = ReadJSON(response.Body, &tx); err != nil {
 		return nil, err
 	}
-	if !FulfilledTx(tx) {
-		return nil, ErrInvalidFulfillment
+	fulfilled, err := FulfilledTx(tx)
+	if err != nil {
+		return nil, err
+	}
+	if !fulfilled {
+		return nil, Error("unfulfilled")
 	}
 	return tx, nil
 }
@@ -38,8 +42,12 @@ func HttpGetTransfers(assetId string) ([]Data, error) {
 		return nil, err
 	}
 	for _, tx := range txs {
-		if !FulfilledTx(tx) {
-			return nil, ErrInvalidFulfillment
+		fulfilled, err := FulfilledTx(tx)
+		if err != nil {
+			return nil, err
+		}
+		if !fulfilled {
+			return nil, Error("unfulfilled")
 		}
 	}
 	return txs, nil
@@ -100,10 +108,6 @@ const (
 	VERSION  = "0.9"
 )
 
-func DefaultIndividualCreateTx(data Data, owner crypto.PublicKey) (Data, error) {
-	return IndividualCreateTx(1, data, owner, owner)
-}
-
 func IndividualCreateTx(amount int, data Data, ownerAfter, ownerBefore crypto.PublicKey) (Data, error) {
 	amounts := []int{amount}
 	asset := Data{"data": data}
@@ -113,34 +117,25 @@ func IndividualCreateTx(amount int, data Data, ownerAfter, ownerBefore crypto.Pu
 	return CreateTx(amounts, asset, fulfills, ownersAfter, ownersBefore)
 }
 
-func DefaultMultipleOwnersCreateTx(data Data, ownersAfter []crypto.PublicKey, ownerBefore crypto.PublicKey) (Data, error) {
-	return MultipleOwnersCreateTx([]int{1}, data, ownersAfter, ownerBefore)
-}
-
-func MultipleOwnersCreateTx(amounts []int, data Data, ownersAfter []crypto.PublicKey, ownerBefore crypto.PublicKey) (Data, error) {
+func MultipleOwnersCreateTx(amounts []int, data Data, ownersAfter []crypto.PublicKey, ownersBefore []crypto.PublicKey) (Data, error) {
 	asset := Data{"data": data}
 	fulfills := []Data{nil}
-	ownersBefore := []crypto.PublicKey{ownerBefore}
 	n := len(amounts)
 	if n == 0 {
 		return nil, Error("no amounts")
 	}
-	owners := make([][]crypto.PublicKey, n)
+	_ownersAfter := make([][]crypto.PublicKey, n)
 	if n == 1 {
-		owners[0] = ownersAfter
+		_ownersAfter[0] = ownersAfter
 	} else {
 		if n != len(ownersAfter) {
 			return nil, Error("different number of amounts and ownersAfter")
 		}
-		for i, owner := range ownersAfter {
-			owners[i] = []crypto.PublicKey{owner}
+		for i, ownerAfter := range ownersAfter {
+			_ownersAfter[i] = []crypto.PublicKey{ownerAfter}
 		}
 	}
-	return CreateTx(amounts, asset, fulfills, owners, [][]crypto.PublicKey{ownersBefore})
-}
-
-func DefaultIndividualTransferTx(assetId, consumeId string, idx int, ownerAfter, ownerBefore crypto.PublicKey) (Data, error) {
-	return IndividualTransferTx(1, assetId, consumeId, idx, ownerAfter, ownerBefore)
+	return CreateTx(amounts, asset, fulfills, _ownersAfter, [][]crypto.PublicKey{ownersBefore})
 }
 
 func IndividualTransferTx(amount int, assetId, consumeId string, idx int, ownerAfter, ownerBefore crypto.PublicKey) (Data, error) {
@@ -179,7 +174,10 @@ func TransferTx(amounts []int, asset Data, fulfills []Data, ownersAfter, ownersB
 }
 
 func GenerateTx(amounts []int, asset Data, fulfills []Data, metadata Data, operation string, ownersAfter, ownersBefore [][]crypto.PublicKey) (Data, error) {
-	inputs := NewInputs(fulfills, ownersBefore)
+	inputs, err := NewInputs(fulfills, ownersBefore)
+	if err != nil {
+		return nil, err
+	}
 	outputs, err := NewOutputs(amounts, ownersAfter)
 	if err != nil {
 		return nil, err
@@ -200,52 +198,103 @@ func NewTx(asset Data, inputs []Data, metadata Data, operation string, outputs [
 	return tx
 }
 
-func FulfillTx(tx Data, privkey crypto.PrivateKey) {
-	for _, input := range GetTxInputs(tx) {
-		input.Set("fulfillment", cc.DefaultFulfillmentFromPrivKey(MustMarshalJSON(tx), privkey).String())
+func IndividualFulfillTx(tx Data, privkey crypto.PrivateKey) error {
+	fulfillment, err := cc.DefaultFulfillmentFromPrivkey(MustMarshalJSON(tx), privkey)
+	if err != nil {
+		return err
 	}
+	return FulfillTx(tx, cc.Fulfillments{fulfillment})
 }
 
-func UnfulfillTx(tx Data) {
-	for _, input := range GetTxInputs(tx) {
-		input.Clear("fulfillment")
+func MultipleFulfillTx(tx Data, pubkeys []crypto.PublicKey, sigs []crypto.Signature) error {
+	n := len(pubkeys)
+	if n == 0 {
+		return Error("no pubkeys")
 	}
+	if n != len(sigs) {
+		return Error("different number of pubkeys and sigs")
+	}
+	subs := make(cc.Fulfillments, n)
+	for i, pubkey := range pubkeys {
+		subs[i] = cc.DefaultFulfillmentEd25519(
+			pubkey.(*ed25519.PublicKey),
+			sigs[i].(*ed25519.Signature),
+		)
+	}
+	return FulfillTx(tx, cc.Fulfillments{cc.DefaultFulfillmentThreshold(subs)})
 }
 
-func FulfilledTx(tx Data) bool {
-	var err error
-	inputs := tx.GetDataSlice("inputs")
-	fulfillments := make([]cc.Fulfillment, len(inputs))
+func FulfillTx(tx Data, fulfillments cc.Fulfillments) error {
+	n := len(fulfillments)
+	if n == 0 {
+		return Error("no fulfillments")
+	}
+	inputs := GetTxInputs(tx)
+	if n != len(inputs) {
+		return Error("different number of fulfillments and inputs")
+	}
+	for i, fulfillment := range fulfillments {
+		inputs[i].Set("fulfillment", fulfillment.String())
+	}
+	return nil
+}
+
+func UnfulfillTx(tx Data) (_ cc.Fulfillments, err error) {
+	inputs := GetTxInputs(tx)
+	if len(inputs) == 0 {
+		return nil, Error("no inputs")
+	}
+	fulfillments := make(cc.Fulfillments, len(inputs))
 	for i, input := range inputs {
 		uri := input.GetStr("fulfillment")
 		fulfillments[i], err = cc.DefaultUnmarshalURI(uri)
-		Check(err)
+		if err != nil {
+			return nil, err
+		}
 		input.Clear("fulfillment")
 	}
+	return fulfillments, nil
+}
+
+func FulfilledTx(tx Data) (bool, error) {
+	fulfillments, err := UnfulfillTx(tx)
+	if err != nil {
+		return false, err
+	}
 	fulfilled := true
-	json := MustMarshalJSON(tx)
-	for _, f := range fulfillments {
-		if !f.Validate(json) {
+	p := MustMarshalJSON(tx)
+	for _, fulfillment := range fulfillments {
+		if subs := fulfillment.Subfulfillments(); subs != nil {
+			for _, sub := range subs {
+				if !sub.Validate(p) {
+					fulfilled = false
+					break
+				}
+			}
+		} else if !fulfillment.Validate(p) {
 			fulfilled = false
 			break
 		}
 	}
-	for i, input := range inputs {
-		input.Set("fulfillment", fulfillments[i].String())
+	if err = FulfillTx(tx, fulfillments); err != nil {
+		return false, err
 	}
-	return fulfilled
+	return fulfilled, nil
 }
 
-func NewInputs(fulfills []Data, ownersBefore [][]crypto.PublicKey) []Data {
+func NewInputs(fulfills []Data, ownersBefore [][]crypto.PublicKey) ([]Data, error) {
 	n := len(fulfills)
+	if n == 0 {
+		return nil, Error("no fulfills")
+	}
 	if n != len(ownersBefore) {
-		panic(ErrorAppend(ErrInvalidSize, "slices are different sizes"))
+		return nil, Error("different number of fulfills and ownersBefore")
 	}
 	inputs := make([]Data, n)
 	for i := range inputs {
 		inputs[i] = NewInput(fulfills[i], ownersBefore[i])
 	}
-	return inputs
+	return inputs, nil
 }
 
 func NewInput(fulfills Data, ownersBefore []crypto.PublicKey) Data {
@@ -280,15 +329,23 @@ func NewOutput(amount int, ownersAfter []crypto.PublicKey) (Data, error) {
 		return nil, Error("no ownersAfter")
 	}
 	if n == 1 {
+		fulfillment, err := cc.DefaultFulfillmentFromPubkey(ownersAfter[0])
+		if err != nil {
+			return nil, err
+		}
 		return Data{
 			"amount":      amount,
-			"condition":   cc.DefaultFulfillmentFromPubKey(ownersAfter[0]).Data(),
+			"condition":   fulfillment.Data(),
 			"public_keys": ownersAfter,
 		}, nil
 	}
+	fulfillment, err := cc.DefaultFulfillmentThresholdFromPubkeys(ownersAfter)
+	if err != nil {
+		return nil, err
+	}
 	return Data{
 		"amount":      amount,
-		"condition":   cc.DefaultFulfillmentThresholdFromPubKeys(ownersAfter).Data(),
+		"condition":   fulfillment.Data(),
 		"public_keys": ownersAfter,
 	}, nil
 }
