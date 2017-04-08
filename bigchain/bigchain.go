@@ -53,27 +53,32 @@ func HttpGetTransfers(assetId string) ([]Data, error) {
 	return txs, nil
 }
 
-func HttpGetOutputs(pubkey crypto.PublicKey) ([]string, error) {
-	url := Getenv("ENDPOINT") + Sprintf("outputs?public_key=%v", pubkey)
+func HttpGetOutputs(pubkey crypto.PublicKey, unspent bool) ([]string, []int, error) {
+	url := Getenv("ENDPOINT") + Sprintf("outputs?public_key=%vunspent=%v", pubkey, unspent)
 	response, err := HttpGet(url)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var links []string
 	if err = ReadJSON(response.Body, &links); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return links, nil
+	txIds := make([]string, len(links))
+	outputs := make([]int, len(links))
+	for i, link := range links {
+		submatch := SubmatchStr(`transactions/(.*?)/outputs/([0-9]{1,2})`, link)
+		txIds[i], outputs[i] = submatch[1], MustAtoi(submatch[2])
+	}
+	return txIds, outputs, nil
 }
 
-func HttpGetFilter(fn func(string) (Data, error), pubkey crypto.PublicKey) ([]Data, error) {
-	links, err := HttpGetOutputs(pubkey)
+func HttpGetFilter(fn func(string) (Data, error), pubkey crypto.PublicKey, unspent bool) ([]Data, error) {
+	txIds, _, err := HttpGetOutputs(pubkey, unspent)
 	if err != nil {
 		return nil, err
 	}
 	var datas []Data
-	for _, link := range links {
-		txId := SubmatchStr(`transactions/(.*?)/outputs`, link)[1]
+	for _, txId := range txIds {
 		tx, err := fn(txId)
 		if err == nil {
 			datas = append(datas, GetTxAssetData(tx))
