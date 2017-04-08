@@ -101,7 +101,7 @@ func GetSameAs(data Data) string {
 	return data.GetStr("sameAs")
 }
 
-func NewComposition(composerIds []string, inLanguage, iswcCode, name, publisherId, url string) (Data, error) {
+func NewComposition(composerIds []string, inLanguage, iswcCode, name string, publisherIds []string, url string) (Data, error) {
 	composition := Data{
 		"@context": CONTEXT,
 		"@type":    "MusicComposition",
@@ -109,23 +109,31 @@ func NewComposition(composerIds []string, inLanguage, iswcCode, name, publisherI
 	}
 	if n := len(composerIds); n == 0 {
 		return nil, Error("no composer ids")
-	} else if n == 1 {
-		composition.Set("composer", NewLink(composerIds[0]))
 	} else {
 		composers := make([]Data, n)
 		for i, composerId := range composerIds {
+			if !MatchId(composerId) {
+				return nil, Error("invalid composer id")
+			}
 			composers[i] = NewLink(composerId)
 		}
 		composition.Set("composer", composers)
 	}
-	if MatchStr(regex.ISWC, iswcCode) {
-		composition.Set("iswcCode", iswcCode)
+	if n := len(publisherIds); n > 0 {
+		publishers := make([]Data, n)
+		for i, publisherId := range publisherIds {
+			if !MatchId(publisherId) {
+				return nil, Error("invalid publisher id")
+			}
+			publishers[i] = NewLink(publisherId)
+		}
+		composition.Set("publisher", publishers)
 	}
 	if MatchStr(regex.LANGUAGE, inLanguage) {
 		composition.Set("inLanguage", inLanguage)
 	}
-	if MatchId(publisherId) {
-		composition.Set("publisher", NewLink(publisherId))
+	if MatchStr(regex.ISWC, iswcCode) {
+		composition.Set("iswcCode", iswcCode)
 	}
 	if MatchUrlRelaxed(url) {
 		composition.Set("url", url)
@@ -134,35 +142,22 @@ func NewComposition(composerIds []string, inLanguage, iswcCode, name, publisherI
 }
 
 func GetComposers(data Data) []Data {
-	v := data.Get("composer")
-	if composer := AssertData(v); composer != nil {
-		return []Data{composer}
-	}
-	return AssertDataSlice(v)
-}
-
-func GetHFA(data Data) string {
-	return data.GetStr("hfaCode")
-}
-
-func GetISWC(data Data) string {
-	return data.GetStr("iswcCode")
+	return AssertDataSlice(data.Get("composer"))
 }
 
 func GetLanguage(data Data) string {
 	return data.GetStr("inLanguage")
 }
 
-func GetThresholdSignature(data Data) string {
-	return data.GetStr("thresholdSignature")
+func GetISWC(data Data) string {
+	return data.GetStr("iswcCode")
 }
 
-func GetPublisherId(data Data) string {
-	publisher := data.GetData("publisher")
-	return GetId(publisher)
+func GetPublishers(data Data) []Data {
+	return AssertDataSlice(data.Get("publisher"))
 }
 
-func NewRecording(artistIds []string, compositionId, duration, isrcCode, licenseId, recordLabelId, url string) (Data, error) {
+func NewRecording(artistIds []string, compositionId, duration, isrcCode, licenseId string, recordLabelIds []string, url string) (Data, error) {
 	recording := Data{
 		"@context":    CONTEXT,
 		"@type":       "MusicRecording",
@@ -170,16 +165,28 @@ func NewRecording(artistIds []string, compositionId, duration, isrcCode, license
 	}
 	if n := len(artistIds); n == 0 {
 		return nil, Error("no artist ids")
-	} else if n == 1 {
-		recording.Set("byArtist", NewLink(artistIds[0]))
 	} else {
 		artists := make([]Data, n)
 		for i, artistId := range artistIds {
+			if !MatchId(artistId) {
+				return nil, Error("invalid artist id")
+			}
 			artists[i] = NewLink(artistId)
 		}
 		recording.Set("byArtist", artists)
 	}
+	if n := len(recordLabelIds); n > 0 {
+		recordLabels := make([]Data, n)
+		for i, recordLabelId := range recordLabelIds {
+			if !MatchId(recordLabelId) {
+				return nil, Error("invalid record label id")
+			}
+			recordLabels[i] = NewLink(recordLabelId)
+		}
+		recording.Set("recordLabel", recordLabels)
+	}
 	if !EmptyStr(duration) {
+		// TODO: match str duration
 		recording.Set("duration", duration)
 	}
 	if MatchStr(regex.ISRC, isrcCode) {
@@ -188,9 +195,6 @@ func NewRecording(artistIds []string, compositionId, duration, isrcCode, license
 	if MatchId(licenseId) {
 		recording.GetData("recordingOf").Set("license", NewLink(licenseId))
 	}
-	if MatchId(recordLabelId) {
-		recording.Set("recordLabel", NewLink(recordLabelId))
-	}
 	if MatchUrlRelaxed(url) {
 		recording.Set("url", url)
 	}
@@ -198,11 +202,7 @@ func NewRecording(artistIds []string, compositionId, duration, isrcCode, license
 }
 
 func GetArtists(data Data) []Data {
-	v := data.Get("byArtist")
-	if artist := AssertData(v); artist != nil {
-		return []Data{artist}
-	}
-	return AssertDataSlice(v)
+	return AssertDataSlice(data.Get("byArtist"))
 }
 
 func GetDuration(data Data) string {
@@ -214,17 +214,15 @@ func GetISRC(data Data) string {
 }
 
 func GetLicenseId(data Data) string {
-	license := data.GetData("license")
-	return GetId(license)
+	return GetId(data.GetData("license"))
 }
 
 func GetRecordingOf(data Data) Data {
 	return data.GetData("recordingOf")
 }
 
-func GetRecordLabelId(data Data) string {
-	recordLabel := data.GetData("recordLabel")
-	return GetId(recordLabel)
+func GetRecordLabels(data Data) []Data {
+	return AssertDataSlice(data.Get("recordLabel"))
 }
 
 // Note: transferId is the hex id of a TRANSFER tx in BigchainDB/IPDB

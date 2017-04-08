@@ -117,19 +117,12 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"pattern": "^MusicComposition$"
 		},
 		"composer": {
-			"oneOf": [
-				{
-					"$ref": "#/definitions/link"
-				},
-				{
-					"type": "array",
-					"items": {
-						"$ref": "#/definitions/link"
-					},	
-					"minItems": 2,
-					"uniqueItems": true
-				}
-			]
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/link"
+			},	
+			"minItems": 1,
+			"uniqueItems": true
 		},
 		"inLanguage": {
 			"type": "string",
@@ -143,38 +136,19 @@ var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "string"
 		},
 		"publisher": {
-			"$ref": "#/definitions/link"
-		},
-		"thresholdSignature": {
-			"type": "string",
-			"pattern": "%s"
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/link"
+			},	
+			"minItems": 1,
+			"uniqueItems": true
 		},
 		"url": {
 			"type": "string"
 		}
 	},
-	"oneOf": [
-		{
-			"properties": {
-				"composer": {
-					"type": "array"
-				}
-			},
-			"required": ["thresholdSignature"]
-		},
-		{
-			"properties": {
-				"composer": {
-					"$ref": "#/definitions/link"
-				}
-			},
-			"not": {
-				"required": ["thresholdSignature"]
-			}
-		}
-	],
 	"required": ["@context", "@type", "composer", "name"]
-}`, SCHEMA, link, spec.CONTEXT, regex.HFA, regex.LANGUAGE, regex.ISWC, regex.FULFILLMENT))
+}`, SCHEMA, link, spec.CONTEXT, regex.LANGUAGE, regex.ISWC))
 
 var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"$schema":  "%s",
@@ -207,19 +181,12 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"pattern": "^MusicRecording$"
 		},
 		"byArtist": {
-			"oneOf": [
-				{
-					"$ref": "#/definitions/link"
-				},
-				{
-					"type": "array",
-					"items": {
-						"$ref": "#/definitions/link"
-					},
-					"minItems": 2,
-					"uniqueItems": true
-				}
-			]
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/link"
+			},
+			"minItems": 1,
+			"uniqueItems": true
 		},
 		"duration": {
 			"type": "string"			
@@ -232,38 +199,19 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"$ref": "#/definitions/composition"
 		},
 		"recordLabel": {
-			"$ref": "#/definitions/link"
-		},
-		"thresholdSignature": {
-			"type": "string",
-			"pattern": "%s"
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/link"
+			},
+			"minItems": 1,
+			"uniqueItems": true
 		},
 		"url": {
 			"type": "string"
 		}
 	},
-	"oneOf": [
-		{
-			"properties": {
-				"byArtist": {
-					"type": "array"
-				}
-			},
-			"required": ["thresholdSignature"]
-		},
-		{
-			"properties": {
-				"byArtist": {
-					"$ref": "#/definitions/link"
-				}
-			},
-			"not": {
-				"required": ["thresholdSignature"]
-			}
-		}
-	],
 	"required": ["@context", "@type", "byArtist", "recordingOf"]
-}`, SCHEMA, link, spec.CONTEXT, regex.ISRC, regex.FULFILLMENT))
+}`, SCHEMA, link, spec.CONTEXT, regex.ISRC))
 
 var RightLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"$schema": "%s",
