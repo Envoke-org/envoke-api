@@ -167,34 +167,45 @@ func NewRecording(artistIds []string, compositionId, duration, isrcCode string, 
 	if n == 0 {
 		return nil, Error("no artist ids")
 	}
-	if n == len(licenseIds) && n == len(rightIds) {
-		artists := make([]Data, n)
-		for i, artistId := range artistIds {
-			if !MatchId(artistId) {
-				return nil, Error("invalid artist id")
-			}
-			artists[i] = NewLink(artistId)
+	m := len(recordLabelIds)
+	if len(licenseIds)%(n+m) != 0 {
+		return nil, Error("invalid number of artist/record label and license ids")
+	}
+	if len(rightIds)%(n+m) != 0 {
+		return nil, Error("invalid number of artist/record label and right ids")
+	}
+	artists := make([]Data, n)
+	for i, artistId := range artistIds {
+		if !MatchId(artistId) {
+			return nil, Error("invalid artist id")
+		}
+		artists[i] = NewLink(artistId)
+		if licenseIds != nil {
 			if MatchId(licenseIds[i]) {
 				artists[i].Set("hasLicense", NewLink(licenseIds[i]))
-			} else if MatchId(rightIds[i]) {
+			}
+		} else if rightIds != nil {
+			if MatchId(rightIds[i]) {
 				artists[i].Set("hasRight", NewLink(rightIds[i]))
 			}
 		}
-		recording.Set("byArtist", artists)
-	} else {
-		return nil, Error("different number of artist, license, and right ids")
 	}
-	if m := len(recordLabelIds); m > 0 {
+	recording.Set("byArtist", artists)
+	if m > 0 {
 		recordLabels := make([]Data, m)
 		for i, recordLabelId := range recordLabelIds {
 			if !MatchId(recordLabelId) {
 				return nil, Error("invalid record label id")
 			}
 			recordLabels[i] = NewLink(recordLabelId)
-			if MatchId(licenseIds[i+n]) {
-				recordLabels[i].Set("hasLicense", NewLink(licenseIds[i+n]))
-			} else if MatchId(rightIds[i+n]) {
-				recordLabels[i].Set("hasRight", NewLink(rightIds[i+n]))
+			if licenseIds != nil {
+				if MatchId(licenseIds[n+i]) {
+					recordLabels[i].Set("hasLicense", NewLink(licenseIds[n+i]))
+				}
+			} else if rightIds != nil {
+				if MatchId(rightIds[n+i]) {
+					recordLabels[i].Set("hasRight", NewLink(rightIds[n+i]))
+				}
 			}
 		}
 		recording.Set("recordLabel", recordLabels)
@@ -225,7 +236,7 @@ func GetISRC(data Data) string {
 }
 
 func GetLicenseId(data Data) string {
-	return GetId(data.GetData("license"))
+	return GetId(data.GetData("hasLicense"))
 }
 
 func GetRecordingOfId(data Data) string {

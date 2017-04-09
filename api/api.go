@@ -113,11 +113,11 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request, _ httprou
 }
 
 func (api *Api) Right(percentShares int, prevRightId, recipientId, rightToId string) (string, error) {
-	tx, err := ld.BuildRightTx(percentShares, prevRightId, api.privkey, recipientId, rightToId, api.userId, api.pubkey)
+	tx, err := ld.AssembleRightTx(percentShares, prevRightId, api.privkey, api.pubkey, recipientId, rightToId, api.userId)
 	if err != nil {
 		return "", ErrorJoin(ErrValidation, err)
 	}
-	id, err := api.SignAndSendTx(tx)
+	id, err := api.SendTx(tx)
 	if err != nil {
 		return "", err
 	}
@@ -129,9 +129,9 @@ func CompositionFromRequest(req *http.Request) (Data, error) {
 	composerIds := req.PostForm["composerIds"]
 	iswcCode := req.PostFormValue("iswcCode")
 	name := req.PostFormValue("name")
-	publisherId := req.PostFormValue("publisherId")
+	publisherIds := req.PostForm["publisherIds"]
 	url := req.PostFormValue("url")
-	composition, err := spec.NewComposition(composerIds, inLanguage, iswcCode, name, publisherId, url)
+	composition, err := spec.NewComposition(composerIds, inLanguage, iswcCode, name, publisherIds, url)
 	if err != nil {
 		return nil, ErrorJoin(ErrSpec, err)
 	}
@@ -170,11 +170,11 @@ func SignaturesFromRequest(req *http.Request) ([]string, error) {
 }
 
 func (api *Api) Publish(composition Data, signatures []string, splits []int) (string, error) {
-	tx, err := ld.BuildCompositionTx(composition, signatures, splits)
+	tx, err := ld.AssembleCompositionTx(composition, api.privkey, signatures, splits)
 	if err != nil {
 		return "", ErrorJoin(ErrValidation, err)
 	}
-	id, err := api.SignAndSendTx(tx)
+	id, err := api.SendTx(tx)
 	if err != nil {
 		return "", err
 	}
@@ -214,10 +214,11 @@ func RecordingFromRequest(req *http.Request) (Data, error) {
 	artistIds := req.PostForm["artistIds"]
 	duration := req.PostFormValue("duration")
 	isrcCode := req.PostFormValue("isrcCode")
-	licenseId := req.PostFormValue("licenseId")
-	recordLabelId := req.PostFormValue("recordLabelId")
+	licenseIds := req.PostForm["licenseIds"]
+	recordLabelIds := req.PostForm["recordLabelIds"]
+	rightIds := req.PostForm["rightIds"]
 	url := req.PostFormValue("url")
-	recording, err := spec.NewRecording(artistIds, compositionId, duration, isrcCode, licenseId, recordLabelId, url)
+	recording, err := spec.NewRecording(artistIds, compositionId, duration, isrcCode, licenseIds, recordLabelIds, rightIds, url)
 	if err != nil {
 		return nil, ErrorJoin(ErrSpec, err)
 	}
@@ -253,11 +254,11 @@ func (api *Api) ReleaseHandler(w http.ResponseWriter, req *http.Request, _ httpr
 }
 
 func (api *Api) Release(recording Data, signatures []string, splits []int) (string, error) {
-	tx, err := ld.BuildRecordingTx(recording, signatures, splits)
+	tx, err := ld.AssembleRecordingTx(api.privkey, recording, signatures, splits)
 	if err != nil {
 		return "", ErrorJoin(ErrValidation, err)
 	}
-	id, err := api.SignAndSendTx(tx)
+	id, err := api.SendTx(tx)
 	if err != nil {
 		return "", err
 	}
@@ -265,11 +266,11 @@ func (api *Api) Release(recording Data, signatures []string, splits []int) (stri
 }
 
 func (api *Api) License(license Data) (string, error) {
-	tx, err := ld.BuildLicenseTx(license, api.pubkey)
+	tx, err := ld.AssembleLicenseTx(license, api.privkey, api.pubkey)
 	if err != nil {
 		return "", ErrorJoin(ErrValidation, err)
 	}
-	id, err := api.SignAndSendTx(tx)
+	id, err := api.SendTx(tx)
 	if err != nil {
 		return "", err
 	}
@@ -285,7 +286,7 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request, _ httpr
 	validThrough := req.PostFormValue("validThrough")
 	licenseForIds := req.PostForm["licenseForIds"]
 	licenseHolderIds := req.PostForm["licenseHolderIds"]
-	rightIds := req.PostForm["rightId"]
+	rightIds := req.PostForm["rightIds"]
 	license, err := spec.NewLicense(licenseForIds, licenseHolderIds, api.userId, rightIds, validFrom, validThrough)
 	if err != nil {
 		http.Error(w, ErrorJoin(ErrSpec, err).Error(), http.StatusBadRequest)
@@ -355,19 +356,19 @@ func (api *Api) SearchHandler(w http.ResponseWriter, req *http.Request, params h
 	case "composition":
 		datas, err = bigchain.HttpGetFilter(func(id string) (Data, error) {
 			return ld.ValidateCompositionId(id)
-		}, pubkey)
+		}, pubkey, false)
 	case "license":
 		datas, err = bigchain.HttpGetFilter(func(id string) (Data, error) {
 			return ld.ValidateLicenseId(id)
-		}, pubkey)
+		}, pubkey, false)
 	case "recording":
 		datas, err = bigchain.HttpGetFilter(func(id string) (Data, error) {
 			return ld.ValidateRecordingId(id)
-		}, pubkey)
+		}, pubkey, false)
 	case "right":
 		datas, err = bigchain.HttpGetFilter(func(id string) (Data, error) {
 			return ld.ValidateRightId(id)
-		}, pubkey)
+		}, pubkey, false)
 	case "user":
 		datas = []Data{bigchain.GetTxAssetData(tx)}
 	default:
@@ -399,11 +400,11 @@ func (api *Api) SearchNameHandler(w http.ResponseWriter, req *http.Request, para
 	if _type == "composition" {
 		datas, err = bigchain.HttpGetFilter(func(id string) (Data, error) {
 			return CompositionFilter(id, name)
-		}, pubkey)
+		}, pubkey, false)
 	} else if _type == "recording" {
 		datas, err = bigchain.HttpGetFilter(func(id string) (Data, error) {
 			return RecordingFilter(name, id)
-		}, pubkey)
+		}, pubkey, false)
 	} else {
 		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
 		return
@@ -431,7 +432,7 @@ func RecordingFilter(name, recordingId string) (Data, error) {
 	if err != nil {
 		return nil, ErrorJoin(ErrValidation, err)
 	}
-	compositionId := spec.GetId(spec.GetRecordingOf(bigchain.GetTxAssetData(tx)))
+	compositionId := spec.GetRecordingOfId(bigchain.GetTxAssetData(tx))
 	if _, err = CompositionFilter(compositionId, name); err != nil {
 		return nil, err
 	}
@@ -548,7 +549,7 @@ func (api *Api) SignHandler(w http.ResponseWriter, req *http.Request, params htt
 }
 
 func (api *Api) SignComposition(composition Data, splits []int) (string, error) {
-	tx, err := ld.BuildCompositionTx(composition, nil, splits)
+	tx, err := ld.AssembleCompositionTx(composition, nil, nil, splits)
 	if err != nil {
 		return "", ErrorJoin(ErrValidation, err)
 	}
@@ -556,7 +557,7 @@ func (api *Api) SignComposition(composition Data, splits []int) (string, error) 
 }
 
 func (api *Api) SignRecording(recording Data, splits []int) (string, error) {
-	tx, err := ld.BuildRecordingTx(recording, nil, splits)
+	tx, err := ld.AssembleRecordingTx(nil, recording, nil, splits)
 	if err != nil {
 		return "", ErrorJoin(ErrValidation, err)
 	}
@@ -582,9 +583,12 @@ func (api *Api) LoggedIn() bool {
 	return false
 }
 
-func (api *Api) SignAndSendTx(tx Data) (string, error) {
-	bigchain.FulfillTx(tx, api.privkey)
-	if !bigchain.FulfilledTx(tx) {
+func (api *Api) SendTx(tx Data) (string, error) {
+	fulfilled, err := bigchain.FulfilledTx(tx)
+	if err != nil {
+		return "", ErrorJoin(ErrBigchain, err)
+	}
+	if !fulfilled {
 		return "", ErrorJoin(ErrBigchain, ErrInvalidFulfillment)
 	}
 	id, err := bigchain.HttpPostTx(tx)
@@ -623,18 +627,18 @@ func (api *Api) Login(privstr, userId string) error {
 
 func (api *Api) Register(password string, user Data) (Data, error) {
 	api.privkey, api.pubkey = ed25519.GenerateKeypairFromPassword(password)
-	tx, err := bigchain.IndividualCreateTx(1, user, api.pubkey, api.pubkey)
+	tx, err := bigchain.CreateTx([]int{1}, user, []crypto.PublicKey{api.pubkey}, []crypto.PublicKey{api.pubkey})
 	if err != nil {
 		return nil, ErrorJoin(ErrBigchain, err)
 	}
-	id, err := api.SignAndSendTx(tx)
+	userId, err := api.SendTx(tx)
 	if err != nil {
 		return nil, err
 	}
 	credentials := Data{
 		"privateKey": api.privkey.String(),
 		"publicKey":  api.pubkey.String(),
-		"userId":     id,
+		"userId":     userId,
 	}
 	api.privkey, api.pubkey = nil, nil
 	return credentials, nil
