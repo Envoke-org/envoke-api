@@ -155,21 +155,24 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"title": "MusicRecording",
 	"type": "object",
 	"definitions": {
-		"composition": {
+		"link": %s,
+		"party": {
 			"allOf": [
 				{
 					"$ref": "#/definitions/link"
 				},
 				{
 					"properties": {
-						"license": {
+						"hasLicense": {
+							"$ref": "#/definitions/link"
+						},
+						"hasRight": {
 							"$ref": "#/definitions/link"
 						}
 					}
 				}
 			]
-		},
-		"link": %s
+		}
 	},
 	"properties": {
 		"@context": {
@@ -183,7 +186,7 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 		"byArtist": {
 			"type": "array",
 			"items": {
-				"$ref": "#/definitions/link"
+				"$ref": "#/definitions/party"
 			},
 			"minItems": 1,
 			"uniqueItems": true
@@ -196,12 +199,12 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"pattern": "%s"
 		},
 		"recordingOf": {
-			"$ref": "#/definitions/composition"
+			"$ref": "#/definitions/link"
 		},
 		"recordLabel": {
 			"type": "array",
 			"items": {
-				"$ref": "#/definitions/link"
+				"$ref": "#/definitions/party"
 			},
 			"minItems": 1,
 			"uniqueItems": true
