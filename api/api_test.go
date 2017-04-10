@@ -80,14 +80,22 @@ func TestApi(t *testing.T) {
 	if err := api.Login(composerPrivkey.String(), composerId); err != nil {
 		t.Fatal(err)
 	}
-	composition, err := spec.NewComposition([]string{composerId}, "T-034.524.680-1", "EN", "composition_title", publisherId, "www.composition_url.com")
+	composition, err := spec.NewComposition([]string{composerId}, "T-034.524.680-1", "EN", "composition_title", []string{publisherId}, "www.composition_url.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	composerSignature, err := api.SignComposition(composition, []int{20, 80})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err = api.Login(publisherPrivkey.String(), publisherId); err != nil {
 		t.Fatal(err)
 	}
-	compositionId, err := api.Publish(composition, nil, nil)
+	publisherSignature, err := api.SignComposition(composition, []int{20, 80})
+	if err != nil {
+		t.Fatal(err)
+	}
+	compositionId, err := api.Publish(composition, []string{composerSignature, publisherSignature}, []int{20, 80})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,11 +111,12 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	SleepSeconds(2)
-	compositionRightId, err := api.Right(20, "", publisherId, compositionId)
+	compositionRightId, err := api.Right(10, "", recordLabelId, compositionId)
 	if err != nil {
 		t.Fatal(err)
 	}
 	WriteJSON(output, Data{"compositionRightId": compositionRightId})
+	SleepSeconds(2)
 	sig, err = ld.ProveRightHolder(CHALLENGE, composerPrivkey, composerId, compositionRightId)
 	if err != nil {
 		t.Fatal(err)
@@ -115,17 +124,17 @@ func TestApi(t *testing.T) {
 	if err = ld.VerifyRightHolder(CHALLENGE, composerId, compositionRightId, sig); err != nil {
 		t.Fatal(err)
 	}
-	sig, err = ld.ProveRightHolder(CHALLENGE, publisherPrivkey, publisherId, compositionRightId)
+	sig, err = ld.ProveRightHolder(CHALLENGE, recordLabelPrivkey, recordLabelId, compositionRightId)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = ld.VerifyRightHolder(CHALLENGE, publisherId, compositionRightId, sig); err != nil {
+	if err = ld.VerifyRightHolder(CHALLENGE, recordLabelId, compositionRightId, sig); err != nil {
 		t.Fatal(err)
 	}
 	if err = api.Login(publisherPrivkey.String(), publisherId); err != nil {
 		t.Fatal(err)
 	}
-	mechanicalLicense, err := spec.NewLicense([]string{compositionId}, []string{performerId, producerId, recordLabelId}, publisherId, []string{compositionRightId}, "2016-01-01", "2024-01-01")
+	mechanicalLicense, err := spec.NewLicense([]string{compositionId}, []string{performerId, producerId}, publisherId, nil, "2016-01-01", "2024-01-01")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -148,35 +157,32 @@ func TestApi(t *testing.T) {
 	if err = ld.VerifyLicenseHolder(CHALLENGE, producerId, mechanicalLicenseId, sig); err != nil {
 		t.Fatal(err)
 	}
-	sig, err = ld.ProveLicenseHolder(CHALLENGE, recordLabelId, mechanicalLicenseId, recordLabelPrivkey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = ld.VerifyLicenseHolder(CHALLENGE, recordLabelId, mechanicalLicenseId, sig); err != nil {
-		t.Fatal(err)
-	}
 	if err = api.Login(performerPrivkey.String(), performerId); err != nil {
 		t.Fatal(err)
 	}
-	recording, err := spec.NewRecording([]string{performerId, producerId}, compositionId, "PT2M43S", "US-S1Z-99-00001", mechanicalLicenseId, recordLabelId, "www.recording_url.com")
+	recording, err := spec.NewRecording([]string{performerId, producerId}, compositionId, "PT2M43S", "US-S1Z-99-00001", []string{mechanicalLicenseId, mechanicalLicenseId, ""}, []string{recordLabelId}, []string{"", "", compositionRightId}, "www.recording_url.com")
 	if err != nil {
 		t.Fatal(err)
 	}
-	perfomerSignature, err := api.SignRecording(recording, []int{80, 20})
+	perfomerSignature, err := api.SignRecording(recording, []int{30, 10, 60})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err = api.Login(producerPrivkey.String(), producerId); err != nil {
 		t.Fatal(err)
 	}
-	producerSignature, err := api.SignRecording(recording, []int{80, 20})
+	producerSignature, err := api.SignRecording(recording, []int{30, 10, 60})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err = api.Login(recordLabelPrivkey.String(), recordLabelId); err != nil {
 		t.Fatal(err)
 	}
-	recordingId, err := api.Release(recording, []string{perfomerSignature, producerSignature}, []int{80, 20})
+	recordLabelSignature, err := api.SignRecording(recording, []int{30, 10, 60})
+	if err != nil {
+		t.Fatal(err)
+	}
+	recordingId, err := api.Release(recording, []string{perfomerSignature, producerSignature, recordLabelSignature}, []int{30, 10, 60})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,6 +207,7 @@ func TestApi(t *testing.T) {
 	}
 	recordingRightId, err := api.Right(20, "", recordLabelId, recordingId)
 	WriteJSON(output, Data{"recordingRightId": recordingRightId})
+	SleepSeconds(2)
 	sig, err = ld.ProveRightHolder(CHALLENGE, performerPrivkey, performerId, recordingRightId)
 	if err != nil {
 		t.Fatal(err)
@@ -236,7 +243,7 @@ func TestApi(t *testing.T) {
 	}
 	txs, err := bigchain.HttpGetFilter(func(txId string) (Data, error) {
 		return ld.ValidateCompositionId(txId)
-	}, composerPrivkey.Public())
+	}, composerPrivkey.Public(), false)
 	if err != nil {
 		t.Fatal(err)
 	}

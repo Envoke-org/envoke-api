@@ -54,7 +54,7 @@ func HttpGetTransfers(assetId string) ([]Data, error) {
 }
 
 func HttpGetOutputs(pubkey crypto.PublicKey, unspent bool) ([]string, []int, error) {
-	url := Getenv("ENDPOINT") + Sprintf("outputs?public_key=%vunspent=%v", pubkey, unspent)
+	url := Getenv("ENDPOINT") + Sprintf("outputs?public_key=%v&unspent=%v", pubkey, unspent)
 	response, err := HttpGet(url)
 	if err != nil {
 		return nil, nil, err
@@ -135,8 +135,8 @@ func CreateTx(amounts []int, data Data, ownersAfter []crypto.PublicKey, ownersBe
 }
 func TransferTx(amounts []int, assetId, consumeId string, idx int, ownersAfter []crypto.PublicKey, ownersBefore []crypto.PublicKey) (Data, error) {
 	n := len(amounts)
-	if n <= 1 {
-		return nil, Error("should be multiple amounts")
+	if n == 0 {
+		return nil, Error("no amounts")
 	}
 	if n != len(ownersAfter) {
 		return nil, Error("different number of amounts and ownersAfter")
@@ -227,6 +227,7 @@ func UnfulfillTx(tx Data) (_ cc.Fulfillments, err error) {
 		uri := input.GetStr("fulfillment")
 		fulfillments[i], err = cc.DefaultUnmarshalURI(uri)
 		if err != nil {
+			// PrintJSON(inputs)
 			return nil, err
 		}
 		input.Clear("fulfillment")

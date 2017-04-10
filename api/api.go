@@ -117,6 +117,7 @@ func (api *Api) Right(percentShares int, prevRightId, recipientId, rightToId str
 	if err != nil {
 		return "", ErrorJoin(ErrValidation, err)
 	}
+	// PrintJSON(tx)
 	id, err := api.SendTx(tx)
 	if err != nil {
 		return "", err
@@ -565,7 +566,7 @@ func (api *Api) SignRecording(recording Data, splits []int) (string, error) {
 }
 
 func (api *Api) Sign(data Data) string {
-	return api.privkey.Sign(Checksum256(MustMarshalJSON(data))).String()
+	return api.privkey.Sign(MustMarshalJSON(data)).String()
 }
 
 func (api *Api) LoggedIn() bool {
@@ -629,6 +630,9 @@ func (api *Api) Register(password string, user Data) (Data, error) {
 	api.privkey, api.pubkey = ed25519.GenerateKeypairFromPassword(password)
 	tx, err := bigchain.CreateTx([]int{1}, user, []crypto.PublicKey{api.pubkey}, []crypto.PublicKey{api.pubkey})
 	if err != nil {
+		return nil, ErrorJoin(ErrBigchain, err)
+	}
+	if err = bigchain.IndividualFulfillTx(tx, api.privkey); err != nil {
 		return nil, ErrorJoin(ErrBigchain, err)
 	}
 	userId, err := api.SendTx(tx)

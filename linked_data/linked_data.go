@@ -343,9 +343,10 @@ func AssembleRightTx(percentShares int, prevRightId string, privkey crypto.Priva
 		return nil, err
 	}
 	if len(rightHolderIds) == 1 {
-		return bigchain.CreateTx([]int{1}, right, []crypto.PublicKey{recipientKey}, []crypto.PublicKey{pubkey})
+		tx, err = bigchain.CreateTx([]int{1}, right, []crypto.PublicKey{recipientKey}, []crypto.PublicKey{pubkey})
+	} else {
+		tx, err = bigchain.CreateTx([]int{1, 1}, right, []crypto.PublicKey{pubkey, recipientKey}, []crypto.PublicKey{pubkey})
 	}
-	tx, err = bigchain.CreateTx([]int{1, 1}, right, []crypto.PublicKey{pubkey, recipientKey}, []crypto.PublicKey{pubkey})
 	if err != nil {
 		return nil, err
 	}
@@ -515,8 +516,8 @@ func CheckRightHolder(rightHolderId, rightId string) (Data, crypto.PublicKey, er
 	rightHolderIds := spec.GetRightHolderIds(right)
 	for i := range rightHolderIds {
 		if rightHolderId == rightHolderIds[i] {
-			rightHolderKey := bigchain.DefaultTxOwnerAfter(tx, i)
-			txIds, outputs, err := bigchain.HttpGetOutputs(rightHolderKey, true)
+			pubkey := bigchain.DefaultTxOwnerAfter(tx, i)
+			txIds, outputs, err := bigchain.HttpGetOutputs(pubkey, true)
 			if err != nil {
 				return nil, nil, err
 			}
@@ -524,7 +525,7 @@ func CheckRightHolder(rightHolderId, rightId string) (Data, crypto.PublicKey, er
 			for j, txId := range txIds {
 				if transferId == txId {
 					if i == outputs[j] {
-						return tx, rightHolderKey, nil
+						return tx, pubkey, nil
 					}
 					break
 				}
@@ -578,6 +579,7 @@ func AssembleLicenseTx(license Data, privkey crypto.PrivateKey, pubkey crypto.Pu
 	licenserId := spec.GetId(licenser)
 	pubkeys := make([]crypto.PublicKey, n)
 	rightIds := spec.GetRightIds(license)
+	hasRights := len(licenseForIds) == len(rightIds)
 	for i, licenseHolderId := range licenseHolderIds {
 		if licenserId == licenseHolderId {
 			return nil, Error("licenser cannot be license-holder")
@@ -607,15 +609,17 @@ OUTER:
 		if err != nil {
 			return nil, err
 		}
-		if !EmptyStr(rightIds[i]) {
-			tx, _, err = CheckRightHolder(licenserId, rightIds[i])
-			if err != nil {
-				return nil, err
+		if hasRights {
+			if !EmptyStr(rightIds[i]) {
+				tx, _, err = CheckRightHolder(licenserId, rightIds[i])
+				if err != nil {
+					return nil, err
+				}
+				if licenseForId != spec.GetRightToId(bigchain.GetTxAssetData(tx)) {
+					return nil, Error("license doesn't link to composition/recording")
+				}
+				continue OUTER
 			}
-			if licenseForId != spec.GetRightToId(bigchain.GetTxAssetData(tx)) {
-				return nil, Error("license doesn't link to composition/recording")
-			}
-			continue OUTER
 		} else {
 			txIds, _, err := bigchain.HttpGetOutputs(pubkey, true)
 			if err != nil {
@@ -681,6 +685,7 @@ func ValidateLicenseTx(tx Data) (err error) {
 	}
 	licenseForIds := spec.GetLicenseForIds(license)
 	rightIds := spec.GetRightIds(licenser)
+	hasRights := len(licenseForIds) == len(rightIds)
 OUTER:
 	for i, licenseForId := range licenseForIds {
 		tx, err = bigchain.HttpGetTx(licenseForId)
@@ -699,15 +704,17 @@ OUTER:
 		if err != nil {
 			return err
 		}
-		if !EmptyStr(rightIds[i]) {
-			tx, _, err = CheckRightHolder(licenserId, rightIds[i])
-			if err != nil {
-				return err
+		if hasRights {
+			if !EmptyStr(rightIds[i]) {
+				tx, _, err = CheckRightHolder(licenserId, rightIds[i])
+				if err != nil {
+					return err
+				}
+				if licenseForId != spec.GetRightToId(bigchain.GetTxAssetData(tx)) {
+					return err
+				}
+				continue OUTER
 			}
-			if licenseForId != spec.GetRightToId(bigchain.GetTxAssetData(tx)) {
-				return err
-			}
-			continue OUTER
 		} else {
 			txIds, _, err := bigchain.HttpGetOutputs(ownerBefore, true)
 			if err != nil {

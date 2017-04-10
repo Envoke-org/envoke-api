@@ -168,10 +168,10 @@ func NewRecording(artistIds []string, compositionId, duration, isrcCode string, 
 		return nil, Error("no artist ids")
 	}
 	m := len(recordLabelIds)
-	if len(licenseIds)%(n+m) != 0 {
+	if licenseIds != nil && len(licenseIds) != n+m {
 		return nil, Error("invalid number of artist/record label and license ids")
 	}
-	if len(rightIds)%(n+m) != 0 {
+	if rightIds != nil && len(rightIds) != n+m {
 		return nil, Error("invalid number of artist/record label and right ids")
 	}
 	artists := make([]Data, n)
@@ -183,8 +183,10 @@ func NewRecording(artistIds []string, compositionId, duration, isrcCode string, 
 		if licenseIds != nil {
 			if MatchId(licenseIds[i]) {
 				artists[i].Set("hasLicense", NewLink(licenseIds[i]))
+				continue
 			}
-		} else if rightIds != nil {
+		}
+		if rightIds != nil {
 			if MatchId(rightIds[i]) {
 				artists[i].Set("hasRight", NewLink(rightIds[i]))
 			}
@@ -201,8 +203,10 @@ func NewRecording(artistIds []string, compositionId, duration, isrcCode string, 
 			if licenseIds != nil {
 				if MatchId(licenseIds[n+i]) {
 					recordLabels[i].Set("hasLicense", NewLink(licenseIds[n+i]))
+					continue
 				}
-			} else if rightIds != nil {
+			}
+			if rightIds != nil {
 				if MatchId(rightIds[n+i]) {
 					recordLabels[i].Set("hasRight", NewLink(rightIds[n+i]))
 				}
@@ -306,8 +310,8 @@ func NewLicense(licenseForIds, licenseHolderIds []string, licenserId string, rig
 	if n == 0 {
 		return nil, Error("no composition/recording ids")
 	}
-	if n != len(rightIds) {
-		return nil, Error("different number of composition/recording and right ids")
+	if rightIds != nil && len(rightIds) != n {
+		return nil, Error("invalid number of composition/recording and right ids")
 	}
 	licenseFor := make([]Data, n)
 	rights := make([]Data, n)
@@ -316,7 +320,11 @@ func NewLicense(licenseForIds, licenseHolderIds []string, licenserId string, rig
 			return nil, ErrInvalidId
 		}
 		licenseFor[i] = NewLink(licenseForId)
-		rights[i] = NewLink(rightIds[i]) //..
+		if rightIds != nil {
+			if MatchId(rightIds[i]) {
+				rights[i] = NewLink(rightIds[i])
+			}
+		}
 	}
 	n = len(licenseHolderIds)
 	if n == 0 {
@@ -324,22 +332,26 @@ func NewLicense(licenseForIds, licenseHolderIds []string, licenserId string, rig
 	}
 	licenseHolders := make([]Data, n)
 	for i, licenseHolderId := range licenseHolderIds {
+		if !MatchId(licenseHolderId) {
+			return nil, ErrInvalidId
+		}
 		licenseHolders[i] = NewLink(licenseHolderId)
 	}
 	if !MatchId(licenserId) {
 		return nil, ErrInvalidId
+	}
+	licenser := NewLink(licenserId)
+	if rightIds != nil {
+		licenser.Set("hasRight", rights)
 	}
 	return Data{
 		"@context":      CONTEXT,
 		"@type":         "License",
 		"licenseFor":    licenseFor,
 		"licenseHolder": licenseHolders,
-		"licenser": Data{
-			"@id":      licenserId,
-			"hasRight": rights,
-		},
-		"validFrom":    validFrom,
-		"validThrough": validThrough,
+		"licenser":      licenser,
+		"validFrom":     validFrom,
+		"validThrough":  validThrough,
 	}, nil
 }
 
