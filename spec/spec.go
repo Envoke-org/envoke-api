@@ -168,11 +168,15 @@ func NewRecording(artistIds []string, compositionId, duration, isrcCode string, 
 		return nil, Error("no artist ids")
 	}
 	m := len(recordLabelIds)
-	if licenseIds != nil && len(licenseIds) != n+m {
-		return nil, Error("invalid number of artist/record label and license ids")
+	if licenseIds != nil {
+		if len(licenseIds) != n+m {
+			return nil, Error("invalid number of artist/record label and license ids")
+		}
 	}
-	if rightIds != nil && len(rightIds) != n+m {
-		return nil, Error("invalid number of artist/record label and right ids")
+	if rightIds != nil {
+		if len(rightIds) != n+m {
+			return nil, Error("invalid number of artist/record label and right ids")
+		}
 	}
 	artists := make([]Data, n)
 	for i, artistId := range artistIds {
@@ -310,8 +314,10 @@ func NewLicense(licenseForIds, licenseHolderIds []string, licenserId string, rig
 	if n == 0 {
 		return nil, Error("no composition/recording ids")
 	}
-	if rightIds != nil && len(rightIds) != n {
-		return nil, Error("invalid number of composition/recording and right ids")
+	if rightIds != nil {
+		if len(rightIds) != n {
+			return nil, Error("invalid number of composition/recording and right ids")
+		}
 	}
 	licenseFor := make([]Data, n)
 	rights := make([]Data, n)

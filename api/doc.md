@@ -21,14 +21,14 @@
 * **Data Params**
 ```javascript
 u: {
-  // Required
+  // REQUIRED
   licenseForIds: [array hexadecimal],
   licenseHolderIds: [array hexadecimal],
   licenserId: [hexadecimal],
   validFrom: [date],
   validThrough: [date],
 
-  // Required if licenser is not composer/artist of work(s)
+  // REQUIRED if licenser is not composer/publisher of composition(s) or artist/label on recording(s)
   rightIds: [array hexadecimal]
 }
 ```
@@ -92,18 +92,18 @@ u: {
 * **Data Params**
 	```javascript
 	u: {
-		// Required
+		// REQUIRED
 		composerIds: [array hexadecimal],
 		name: [string],
 
-		// Required if multiple composers 
+		// REQUIRED if publisher(s) or multiple composers
 		signatures: [array base58],
 		splits: [array integer],
 					
-		// Optional
+		// OPTIONAL
 		inLanguage: [string],
 		iswcCode: [alphanumeric & special characters],
-		publisherId: [hexadecimal],
+		publisherIds: [array hexadecimal],
 		url: [url]
 	}
 	``` 
@@ -134,13 +134,13 @@ u: {
 * **Data Params**
 	```javascript
 	u: {
-		// Required
+		// REQUIRED
 		name: [string],
 		password: [alphanumeric & special characters],
 		sameAs: [url],
 		type: [MusicGroup|Organization|Person],
 		
-		// Optional
+		// OPTIONAL
 		email: [email address],
 		ipiNumber: [number],
 		isniNumber: [alphanumeric],
@@ -183,21 +183,22 @@ u: {
 * **Data Params**
 	```javascript
 	u: {
-		// Required
+		// REQUIRED
 		artistIds: [array hexadecimal],
 		compositionId: [hexadecimal],
 
-		// Required if artists aren't composition right-holders
-		licenseId: [hexadecimal],
+		// REQUIRED if artists/labels aren't composers/publishers of composition
+		licenseIds: [array hexadecimal],
+		rightIds: [array hexadecimal],
 
-		// Required if multiple artists
-		splits: [array],
+		// REQUIRED if label(s) or multiple artists
+		splits: [array integer],
 		signatures: [array base58],
 
-		// Optional
+		// OPTIONAL
 		duration: [alphanumeric],
 		isrcCode: [alphanumeric & special characters],
-		recordLabelId: [hexadecimal],
+		recordLabelIds: [array hexadecimal],
 		url: [url]
 	}
 	```
@@ -229,12 +230,12 @@ u: {
 * **Data Params**
 	```javascript
 	u: {
-		// Required
+		// REQUIRED
 		percentShares: [integer],
 		recipientId: [hexadecimal],
 		rightToId: [hexadecimal],
 
-		// Required if licenser isn't composer/artist of work
+		// REQUIRED if licenser isn't composer/publisher of composition or artist/label on recording
 		prevRightId: [hexadecimal]
 	}
 	```
@@ -298,7 +299,7 @@ u: {
 		
 	* `type=[composition|recording]`
 	* `userId=[hexadecimal]`
-  * `name=[alphanumeric]`
+  	* `name=[alphanumeric]`
 		
 * **Success Response**
 
@@ -313,7 +314,7 @@ u: {
 ### Sign Composition
 * **Purpose**
 
-  Generate a composer signature of a composition.
+  Generate a signature of a composition.
   
 * **URL**
 
@@ -327,17 +328,17 @@ u: {
 * **Data Params**
   ```javascript
     u: {
-      // Required
+      // REQUIRED
       composerIds: [array hexadecimal],
       name: [string],
 
-      // Required if multiple composers 
+      // REQUIRED if publisher(s) and/or multiple composers
       splits: [array integer],
 
-      // Optional
+      // OPTIONAL
       inLanguage: [string],
       iswcCode: [alphanumeric & special characters],
-      publisherId: [hexadecimal],
+      publisherIds: [array hexadecimal],
       url: [url]
     }
     ```
@@ -355,7 +356,7 @@ u: {
 ### Sign Recording
 * **Purpose**
 
-  Generate an artist signature of a recording.
+  Generate a signature of a recording.
   
 * **URL**
 
@@ -369,20 +370,21 @@ u: {
 * **Data Params**
   ```javascript
 	u: {
-		// Required
+		// REQUIRED
 		artistIds: [array hexadecimal],
 		compositionId: [hexadecimal],
 
-		// Required if artists aren't composition right-holders
-		licenseId: [hexadecimal],
+		// REQUIRED if artists/labels aren't composers/publishers of composition
+		licenseIds: [array hexadecimal],
+		rightIds: [array hexadecimal],
 
-		// Required if multiple artists
+		// REQUIRED if label(s) or multiple artists
 		splits: [array],
 
-		// Optional
+		// OPTIONAL
 		duration: [alphanumeric],
 		isrcCode: [alphanumeric & special characters],
-		recordLabelId: [hexadecimal],
+		recordLabelIds: [array hexadecimal],
 		url: [url]
 	}
 	```

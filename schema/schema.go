@@ -256,20 +256,6 @@ var LicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"title": "License",
 	"type": "object",
 	"definitions": {
-		"licenseFor": {
-			"allOf": [
-				{
-					"$ref": "#/definitions/link"
-				},
-				{
-					"properties": {
-						"right": {
-							"$ref": "#/definitions/link"
-						}
-					}
-				}
-			]
-		},
 		"link": %s
 	},
 	"properties": {
@@ -284,7 +270,7 @@ var LicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 		"licenseFor": {
 			"type": "array",
 			"items": {
-				"$ref": "#/definitions/licenseFor"
+				"$ref": "#/definitions/link"
 			},
 			"minItems": 1,
 			"uniqueItems": true
@@ -298,7 +284,23 @@ var LicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"uniqueItems": true
 		},
 		"licenser": {
-			"$ref": "#/definitions/link"
+			"allOf": [
+				{
+					"$ref": "#/definitions/link"
+				},
+				{
+					"properties": {
+						"hasRight": {
+							"type": "array",
+							"items": {
+								"$ref": "#/definitions/link"
+							},
+							"minItems": 1,
+							"uniqueItems": true
+						}
+					}
+				}
+			]
 		},
 		"validFrom": {
 			"type": "string",
