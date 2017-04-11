@@ -10,16 +10,18 @@ Single composer
 {
   "@context": "<context placeholder>",
   "@type": "MusicComposition",
-  "composer": {
-    "@id": "<composerId>"
-  },
+  "composer": [
+    {
+      "@id": "<composerId>"
+    }
+  ],
   "inLanguage": "EN",
   "name": "untitled",
   "url": "http://www.composition_url.com"
 }
 ```
 
-Multiple composers with publisher 
+Multiple composers and publishers
 
 ```javascript
 {
@@ -36,26 +38,28 @@ Multiple composers with publisher
   "inLanguage": "EN",
   "iswcCode": "T-034.524.680-1",
   "name": "untitled",
-  "publisher": {
-    "@id": "<publisherId>"
-  }
+  "publisher": [
+    {
+      "@id": "<publisherId>"
+    },
+    {
+      "@id": "<publisherId>"
+    }
+  ]
 }
 ```
 
 ### License
 
-License for composition with multiple license-holders (licenser is not composer)
+License for composition with multiple license-holders (licenser is composer)
 
 ```javascript
 {
   "@context": "<context placeholder>",
   "@type": "License",
   "licenseFor": [
-    {
-      "@id": "<compositionId>",
-      "right": {
-        "@id": "<rightId>"
-      }
+    { 
+      "@id": "<compositionId>"
     }
   ],
   "licenseHolder": [
@@ -74,7 +78,7 @@ License for composition with multiple license-holders (licenser is not composer)
 }
 ```
 
-License for composition and recording with single license-holder (licenser is composer & artist)
+License for composition and recording with single license-holder (licenser has rights to composition and recording)
 ```javascript
 {
   "@context": "<context placeholder>",
@@ -93,6 +97,14 @@ License for composition and recording with single license-holder (licenser is co
     }
   ],
   "licenser": {
+    "hasRight": [
+      {
+        "@id": "<rightId>"
+      },
+      {
+        "@id": "<rightId>"
+      }
+    ],
     "@id": "<licenserId>"
   },
   "validFrom": "2020-01-01",
@@ -108,9 +120,11 @@ Single artist (artist composed composition)
 {
   "@context": "<context placeholder>",
   "@type": "MusicRecording",
-  "byArtist": {
-    "@id": "<artistId>"
-  },
+  "byArtist": [
+    {
+      "@id": "<artistId>"
+    }
+  ],
   "duration": "PT2M43S",
   "recordingOf": {
     "@id": "<compositionId>"
@@ -119,7 +133,7 @@ Single artist (artist composed composition)
 }
 ```
 
-Multiple artists with record label (artists are not composers/right-holders of composition)
+Multiple artists with record label (artists and record label have license for composition)
 
 ```javascript
 {
@@ -127,24 +141,31 @@ Multiple artists with record label (artists are not composers/right-holders of c
   "@type": "MusicRecording",
   "byArtist": [
     {
+      "hasLicense": {
+        "@id": "<licenseId>"
+      },
       "@id": "<artistId>"
     },
     {
+      "hasLicense": {
+        "@id": "<licenseId>"
+      },
       "@id": "<artistId>"
     }
   ],
   "duration": "PT2M43S",
   "isrcCode": "US-S1Z-99-00001",
-  "recordLabel": {
-    "@id": "<recordLabelId>"
-  },
-  "recordingOf": {
-    "@id": "<compositionId>",
-    "license": {
-      "@id": "<licenseId>"
+  "recordLabel": [
+    {
+      "hasLicense": {
+        "@id": "<licenseId>"
+      },
+      "@id": "<recordLabelId>"
     }
+  ],
+  "recordingOf": {
+    "@id": "<compositionId>"
   },
-  "thresholdSignature": "cf:2:AQIB...",
   "url": "http://www.recording.com"
 }
 ```

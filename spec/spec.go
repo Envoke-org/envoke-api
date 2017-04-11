@@ -64,10 +64,6 @@ func NewUser(email, ipi, isni string, memberIds []string, name, pro, sameAs, _ty
 	return user, nil
 }
 
-func GetDescription(data Data) string {
-	return data.GetStr("description")
-}
-
 func GetEmail(data Data) string {
 	return data.GetStr("email")
 }
