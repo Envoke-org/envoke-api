@@ -294,7 +294,7 @@ NEXT:
 	return nil, nil, Error("sender cannot transfer that many shares")
 }
 
-func AssembleRightTx(percentShares int, prevRightId string, privkey crypto.PrivateKey, pubkey crypto.PublicKey, recipientId, rightToId, senderId string) (Data, error) {
+func AssembleRightTx(percentShares int, previousRightId string, privkey crypto.PrivateKey, pubkey crypto.PublicKey, recipientId, rightToId, senderId string) (Data, error) {
 	tx, err := ValidateUserId(recipientId)
 	if err != nil {
 		return nil, err
@@ -316,8 +316,8 @@ func AssembleRightTx(percentShares int, prevRightId string, privkey crypto.Priva
 		return nil, err
 	}
 	consumeId := rightToId
-	if !EmptyStr(prevRightId) {
-		tx, _, err = CheckRightHolder(senderId, prevRightId)
+	if !EmptyStr(previousRightId) {
+		tx, _, err = CheckRightHolder(senderId, previousRightId)
 		if err != nil {
 			return nil, err
 		}

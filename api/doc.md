@@ -236,7 +236,7 @@ u: {
 		rightToId: [hexadecimal],
 
 		// REQUIRED if licenser isn't composer/publisher of composition or artist/label on recording
-		prevRightId: [hexadecimal]
+		previousRightId: [hexadecimal]
 	}
 	```
 
@@ -332,7 +332,7 @@ u: {
       composerIds: [array hexadecimal],
       name: [string],
 
-      // REQUIRED if publisher(s) and/or multiple composers
+      // REQUIRED if publisher(s) or multiple composers
       splits: [array integer],
 
       // OPTIONAL

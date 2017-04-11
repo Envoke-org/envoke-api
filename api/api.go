@@ -101,10 +101,10 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request, _ httprou
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	prevRightId := req.PostFormValue("prevRightId")
+	previousRightId := req.PostFormValue("previousRightId")
 	recipientId := req.PostFormValue("recipientId")
 	rightToId := req.PostFormValue("rightToId")
-	id, err := api.Right(percentShares, prevRightId, recipientId, rightToId)
+	id, err := api.Right(percentShares, previousRightId, recipientId, rightToId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -112,8 +112,8 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request, _ httprou
 	w.Write([]byte(id))
 }
 
-func (api *Api) Right(percentShares int, prevRightId, recipientId, rightToId string) (string, error) {
-	tx, err := ld.AssembleRightTx(percentShares, prevRightId, api.privkey, api.pubkey, recipientId, rightToId, api.userId)
+func (api *Api) Right(percentShares int, previousRightId, recipientId, rightToId string) (string, error) {
+	tx, err := ld.AssembleRightTx(percentShares, previousRightId, api.privkey, api.pubkey, recipientId, rightToId, api.userId)
 	if err != nil {
 		return "", ErrorJoin(ErrValidation, err)
 	}
@@ -142,11 +142,8 @@ func CompositionFromRequest(req *http.Request) (Data, error) {
 func SplitsFromRequest(req *http.Request) (splits []int, err error) {
 	// form should have been parsed
 	n := len(req.PostForm["splits"])
-	if n == 0 {
-		return nil, nil
-	}
-	if n == 1 {
-		return nil, Error("must have more than one split")
+	if n <= 1 {
+		return []int{100}, nil
 	}
 	splits = make([]int, n)
 	for i, split := range req.PostForm["splits"] {

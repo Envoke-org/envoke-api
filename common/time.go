@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-const shortForm = "2006-01-01"
+const shortForm = "2006-01-02"
 
 func Now() time.Time {
 	return time.Now().Local()
