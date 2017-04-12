@@ -62,14 +62,12 @@ func (api *Api) LoginHandler(w http.ResponseWriter, req *http.Request, _ httprou
 
 func UserFromRequest(req *http.Request) (Data, error) {
 	email := req.PostFormValue("email")
-	ipiNumer := req.PostFormValue("ipiNumber")
 	isniNumber := req.PostFormValue("isniNumber")
 	memberIds := req.PostForm["memberIds"]
 	name := req.PostFormValue("name")
-	pro := req.PostFormValue("pro")
 	sameAs := req.PostFormValue("sameAs")
 	_type := req.PostFormValue("type")
-	user, err := spec.NewUser(email, ipiNumer, isniNumber, memberIds, name, pro, sameAs, _type)
+	user, err := spec.NewUser(email, isniNumber, memberIds, name, sameAs, _type)
 	if err != nil {
 		return nil, ErrorJoin(ErrSpec, err)
 	}
@@ -96,15 +94,19 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request, _ httprou
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
 	}
-	percentShares, err := Atoi(req.PostFormValue("percentShares"))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
+	assetId := req.PostFormValue("assetId")
 	previousRightId := req.PostFormValue("previousRightId")
-	recipientId := req.PostFormValue("recipientId")
-	rightToId := req.PostFormValue("rightToId")
-	id, err := api.Right(percentShares, previousRightId, recipientId, rightToId)
+	recipientIds := req.PostForm["recipientIds"]
+	splits := make([]int, len(req.PostForm["splits"]))
+	var err error
+	for i, split := range req.PostForm["splits"] {
+		splits[i], err = Atoi(split)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+	id, err := api.Right(assetId, previousRightId, recipientIds, splits)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -112,17 +114,12 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request, _ httprou
 	w.Write([]byte(id))
 }
 
-func (api *Api) Right(percentShares int, previousRightId, recipientId, rightToId string) (string, error) {
-	tx, err := ld.AssembleRightTx(percentShares, previousRightId, api.privkey, api.pubkey, recipientId, rightToId, api.userId)
+func (api *Api) Right(assetId, previousRightId string, recipientIds []string, splits []int) (string, error) {
+	tx, err := ld.AssembleRightTx(assetId, previousRightId, api.privkey, api.pubkey, recipientIds, splits)
 	if err != nil {
 		return "", ErrorJoin(ErrValidation, err)
 	}
-	// PrintJSON(tx)
-	id, err := api.SendTx(tx)
-	if err != nil {
-		return "", err
-	}
-	return id, nil
+	return api.SendTx(tx)
 }
 
 func CompositionFromRequest(req *http.Request) (Data, error) {
@@ -172,11 +169,7 @@ func (api *Api) Publish(composition Data, signatures []string, splits []int) (st
 	if err != nil {
 		return "", ErrorJoin(ErrValidation, err)
 	}
-	id, err := api.SendTx(tx)
-	if err != nil {
-		return "", err
-	}
-	return id, nil
+	return api.SendTx(tx)
 }
 
 func (api *Api) PublishHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
@@ -214,9 +207,8 @@ func RecordingFromRequest(req *http.Request) (Data, error) {
 	isrcCode := req.PostFormValue("isrcCode")
 	licenseIds := req.PostForm["licenseIds"]
 	recordLabelIds := req.PostForm["recordLabelIds"]
-	rightIds := req.PostForm["rightIds"]
 	url := req.PostFormValue("url")
-	recording, err := spec.NewRecording(artistIds, compositionId, duration, isrcCode, licenseIds, recordLabelIds, rightIds, url)
+	recording, err := spec.NewRecording(artistIds, compositionId, duration, isrcCode, licenseIds, recordLabelIds, url)
 	if err != nil {
 		return nil, ErrorJoin(ErrSpec, err)
 	}
@@ -256,23 +248,15 @@ func (api *Api) Release(recording Data, signatures []string, splits []int) (stri
 	if err != nil {
 		return "", ErrorJoin(ErrValidation, err)
 	}
-	id, err := api.SendTx(tx)
-	if err != nil {
-		return "", err
-	}
-	return id, nil
+	return api.SendTx(tx)
 }
 
-func (api *Api) License(license Data) (string, error) {
-	tx, err := ld.AssembleLicenseTx(license, api.privkey, api.pubkey)
+func (api *Api) License(assetIds, licenseHolderIds []string, validThrough string) (string, error) {
+	tx, err := ld.AssembleLicenseTx(assetIds, licenseHolderIds, api.privkey, api.pubkey, validThrough)
 	if err != nil {
 		return "", ErrorJoin(ErrValidation, err)
 	}
-	id, err := api.SendTx(tx)
-	if err != nil {
-		return "", err
-	}
-	return id, nil
+	return api.SendTx(tx)
 }
 
 func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
@@ -280,17 +264,11 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request, _ httpr
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
 	}
-	validFrom := req.PostFormValue("validFrom")
+	var err error
 	validThrough := req.PostFormValue("validThrough")
-	licenseForIds := req.PostForm["licenseForIds"]
+	assetIds := req.PostForm["assetIds"]
 	licenseHolderIds := req.PostForm["licenseHolderIds"]
-	rightIds := req.PostForm["rightIds"]
-	license, err := spec.NewLicense(licenseForIds, licenseHolderIds, api.userId, rightIds, validFrom, validThrough)
-	if err != nil {
-		http.Error(w, ErrorJoin(ErrSpec, err).Error(), http.StatusBadRequest)
-		return
-	}
-	id, err := api.License(license)
+	id, err := api.License(assetIds, licenseHolderIds, validThrough)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return

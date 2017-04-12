@@ -11,8 +11,8 @@ import (
 
 // GET requests
 
-func HttpGetTx(id string) (Data, error) {
-	url := Getenv("ENDPOINT") + "transactions/" + id
+func HttpGetTx(txId string) (Data, error) {
+	url := Getenv("ENDPOINT") + "transactions/" + txId
 	response, err := HttpGet(url)
 	if err != nil {
 		return nil, err
@@ -29,6 +29,19 @@ func HttpGetTx(id string) (Data, error) {
 		return nil, Error("unfulfilled")
 	}
 	return tx, nil
+}
+
+func HttpGetStatus(txId string) (string, error) {
+	url := Getenv("ENDPOINT") + "statuses?tx_id=" + txId
+	response, err := HttpGet(url)
+	if err != nil {
+		return "", err
+	}
+	var message Data
+	if err = ReadJSON(response.Body, &message); err != nil {
+		return "", err
+	}
+	return message.GetStr("status"), nil
 }
 
 func HttpGetTransfers(assetId string) ([]Data, error) {
@@ -116,15 +129,14 @@ const (
 func CreateTx(amounts []int, data Data, ownersAfter []crypto.PublicKey, ownersBefore []crypto.PublicKey) (Data, error) {
 	asset := Data{"data": data}
 	fulfills := []Data{nil}
-	n := len(amounts)
-	if n == 0 {
+	if len(amounts) == 0 {
 		return nil, Error("no amounts")
 	}
-	_ownersAfter := make([][]crypto.PublicKey, n)
-	if n == 1 {
+	_ownersAfter := make([][]crypto.PublicKey, len(amounts))
+	if len(amounts) == 1 {
 		_ownersAfter[0] = ownersAfter
 	} else {
-		if n != len(ownersAfter) {
+		if len(amounts) != len(ownersAfter) {
 			return nil, Error("different number of amounts and ownersAfter")
 		}
 		for i, ownerAfter := range ownersAfter {
@@ -134,11 +146,10 @@ func CreateTx(amounts []int, data Data, ownersAfter []crypto.PublicKey, ownersBe
 	return GenerateTx(amounts, asset, fulfills, nil, CREATE, _ownersAfter, [][]crypto.PublicKey{ownersBefore})
 }
 func TransferTx(amounts []int, assetId, consumeId string, idx int, ownersAfter []crypto.PublicKey, ownersBefore []crypto.PublicKey) (Data, error) {
-	n := len(amounts)
-	if n == 0 {
+	if len(amounts) == 0 {
 		return nil, Error("no amounts")
 	}
-	if n != len(ownersAfter) {
+	if len(amounts) != len(ownersAfter) {
 		return nil, Error("different number of amounts and ownersAfter")
 	}
 	asset := Data{"id": assetId}
@@ -184,15 +195,14 @@ func IndividualFulfillTx(tx Data, privkey crypto.PrivateKey) error {
 }
 
 func MultipleFulfillTx(tx Data, pubkeys []crypto.PublicKey, signatures []string) error {
-	n := len(pubkeys)
-	if n == 0 {
+	if len(pubkeys) == 0 {
 		return Error("no pubkeys")
 	}
-	if n != len(signatures) {
+	if len(pubkeys) != len(signatures) {
 		return Error("different number of pubkeys and signatures")
 	}
 	sig := new(ed25519.Signature)
-	subs := make(cc.Fulfillments, n)
+	subs := make(cc.Fulfillments, len(pubkeys))
 	for i, pubkey := range pubkeys {
 		if err := sig.FromString(signatures[i]); err != nil {
 			return err
@@ -203,12 +213,11 @@ func MultipleFulfillTx(tx Data, pubkeys []crypto.PublicKey, signatures []string)
 }
 
 func FulfillTx(tx Data, fulfillments cc.Fulfillments) error {
-	n := len(fulfillments)
-	if n == 0 {
+	if len(fulfillments) == 0 {
 		return Error("no fulfillments")
 	}
 	inputs := GetTxInputs(tx)
-	if n != len(inputs) {
+	if len(fulfillments) != len(inputs) {
 		return Error("different number of fulfillments and inputs")
 	}
 	for i, fulfillment := range fulfillments {
@@ -262,14 +271,13 @@ func FulfilledTx(tx Data) (bool, error) {
 }
 
 func NewInputs(fulfills []Data, ownersBefore [][]crypto.PublicKey) ([]Data, error) {
-	n := len(fulfills)
-	if n == 0 {
+	if len(fulfills) == 0 {
 		return nil, Error("no fulfills")
 	}
-	if n != len(ownersBefore) {
+	if len(fulfills) != len(ownersBefore) {
 		return nil, Error("different number of fulfills and ownersBefore")
 	}
-	inputs := make([]Data, n)
+	inputs := make([]Data, len(fulfills))
 	for i := range inputs {
 		inputs[i] = NewInput(fulfills[i], ownersBefore[i])
 	}
@@ -285,14 +293,13 @@ func NewInput(fulfills Data, ownersBefore []crypto.PublicKey) Data {
 }
 
 func NewOutputs(amounts []int, ownersAfter [][]crypto.PublicKey) (_ []Data, err error) {
-	n := len(amounts)
-	if n == 0 {
+	if len(amounts) == 0 {
 		return nil, Error("no amounts")
 	}
-	if n != len(ownersAfter) {
+	if len(amounts) != len(ownersAfter) {
 		return nil, Error("different number of amounts and ownersAfter")
 	}
-	outputs := make([]Data, n)
+	outputs := make([]Data, len(amounts))
 	for i, owner := range ownersAfter {
 		outputs[i], err = NewOutput(amounts[i], owner)
 		if err != nil {
@@ -302,25 +309,25 @@ func NewOutputs(amounts []int, ownersAfter [][]crypto.PublicKey) (_ []Data, err 
 	return outputs, nil
 }
 
-func NewOutput(amount int, ownersAfter []crypto.PublicKey) (Data, error) {
-	n := len(ownersAfter)
-	if n == 0 {
+func NewOutput(amount int, ownersAfter []crypto.PublicKey) (_ Data, err error) {
+	if len(ownersAfter) == 0 {
 		return nil, Error("no ownersAfter")
 	}
-	if n == 1 {
-		fulfillment, err := cc.DefaultFulfillmentFromPubkey(ownersAfter[0])
+	var fulfillment cc.Fulfillment
+	if len(ownersAfter) == 1 {
+		fulfillment, err = cc.DefaultFulfillmentFromPubkey(ownersAfter[0])
 		if err != nil {
 			return nil, err
 		}
-		return Data{
-			"amount":      amount,
-			"condition":   fulfillment.Data(),
-			"public_keys": ownersAfter,
-		}, nil
-	}
-	fulfillment, err := cc.DefaultFulfillmentThresholdFromPubkeys(ownersAfter)
-	if err != nil {
-		return nil, err
+	} else {
+		fulfillments := make(cc.Fulfillments, len(ownersAfter))
+		for i, ownerAfter := range ownersAfter {
+			fulfillments[i], err = cc.DefaultFulfillmentFromPubkey(ownerAfter)
+			if err != nil {
+				return nil, err
+			}
+		}
+		fulfillment = cc.DefaultFulfillmentThreshold(fulfillments)
 	}
 	return Data{
 		"amount":      amount,

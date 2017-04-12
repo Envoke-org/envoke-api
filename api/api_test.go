@@ -25,12 +25,12 @@ func GetUserId(data Data) string {
 
 func TestApi(t *testing.T) {
 
-	composer, _ := spec.NewUser("composer@email.com", "", "", nil, "composer", "", "www.composer.com", "Person")
-	performer, _ := spec.NewUser("performer@email.com", "123456789", "", nil, "performer", "ASCAP", "www.performer.com", "MusicGroup")
-	producer, _ := spec.NewUser("producer@email.com", "", "", nil, "producer", "", "www.soundcloud_page.com", "Person")
-	publisher, _ := spec.NewUser("publisher@email.com", "", "", nil, "publisher", "", "www.publisher.com", "Organization")
-	radio, _ := spec.NewUser("radio@email.com", "", "", nil, "radio", "", "www.radio_station.com", "Organization")
-	recordLabel, _ := spec.NewUser("record_label@email.com", "", "", nil, "record_label", "", "www.record_label.com", "Organization")
+	composer, _ := spec.NewUser("composer@email.com", "", nil, "composer", "www.composer.com", "Person")
+	performer, _ := spec.NewUser("performer@email.com", "", nil, "performer", "www.performer.com", "MusicGroup")
+	producer, _ := spec.NewUser("producer@email.com", "", nil, "producer", "www.soundcloud_page.com", "Person")
+	publisher, _ := spec.NewUser("publisher@email.com", "", nil, "publisher", "www.publisher.com", "Organization")
+	radio, _ := spec.NewUser("radio@email.com", "", nil, "radio", "www.radio_station.com", "Organization")
+	recordLabel, _ := spec.NewUser("record_label@email.com", "", nil, "record_label", "www.record_label.com", "Organization")
 
 	api := NewApi()
 	output := MustOpenWriteFile("output.json")
@@ -111,7 +111,7 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	SleepSeconds(2)
-	compositionRightId, err := api.Right(10, "", recordLabelId, compositionId)
+	compositionRightId, err := api.Right(compositionId, "", []string{recordLabelId}, []int{10})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,11 +134,7 @@ func TestApi(t *testing.T) {
 	if err = api.Login(publisherPrivkey.String(), publisherId); err != nil {
 		t.Fatal(err)
 	}
-	mechanicalLicense, err := spec.NewLicense([]string{compositionId}, []string{performerId, producerId}, publisherId, nil, "2016-01-01", "2024-01-01")
-	if err != nil {
-		t.Fatal(err)
-	}
-	mechanicalLicenseId, err := api.License(mechanicalLicense)
+	mechanicalLicenseId, err := api.License([]string{compositionId}, []string{performerId, producerId}, "2017-10-01")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -160,7 +156,7 @@ func TestApi(t *testing.T) {
 	if err = api.Login(performerPrivkey.String(), performerId); err != nil {
 		t.Fatal(err)
 	}
-	recording, err := spec.NewRecording([]string{performerId, producerId}, compositionId, "PT2M43S", "US-S1Z-99-00001", []string{mechanicalLicenseId, mechanicalLicenseId, ""}, []string{recordLabelId}, []string{"", "", compositionRightId}, "www.recording_url.com")
+	recording, err := spec.NewRecording([]string{performerId, producerId}, compositionId, "PT2M43S", "US-S1Z-99-00001", []string{mechanicalLicenseId, mechanicalLicenseId, ""}, []string{recordLabelId}, "www.recording_url.com")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -202,17 +198,25 @@ func TestApi(t *testing.T) {
 	if err = ld.VerifyArtist(producerId, CHALLENGE, recordingId, sig); err != nil {
 		t.Fatal(err)
 	}
-	if err = api.Login(performerPrivkey.String(), performerId); err != nil {
+	if err = api.Login(recordLabelPrivkey.String(), recordLabelId); err != nil {
 		t.Fatal(err)
 	}
-	recordingRightId, err := api.Right(20, "", recordLabelId, recordingId)
-	WriteJSON(output, Data{"recordingRightId": recordingRightId})
-	SleepSeconds(2)
-	sig, err = ld.ProveRightHolder(CHALLENGE, performerPrivkey, performerId, recordingRightId)
+	masterLicenseId, err := api.License([]string{recordingId}, []string{radioId}, "2017-10-01")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err = ld.VerifyRightHolder(CHALLENGE, performerId, recordingRightId, sig); err != nil {
+	WriteJSON(output, Data{"masterLicenseId": masterLicenseId})
+	recordingRightId, err := api.Right(recordingId, "", []string{performerId, producerId}, []int{5, 5})
+	if err != nil {
+		t.Fatal(err)
+	}
+	WriteJSON(output, Data{"recordingRightId": recordingRightId})
+	SleepSeconds(2)
+	sig, err = ld.ProveRightHolder(CHALLENGE, producerPrivkey, producerId, recordingRightId)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = ld.VerifyRightHolder(CHALLENGE, producerId, recordingRightId, sig); err != nil {
 		t.Fatal(err)
 	}
 	sig, err = ld.ProveRightHolder(CHALLENGE, recordLabelPrivkey, recordLabelId, recordingRightId)
@@ -222,18 +226,6 @@ func TestApi(t *testing.T) {
 	if err = ld.VerifyRightHolder(CHALLENGE, recordLabelId, recordingRightId, sig); err != nil {
 		t.Fatal(err)
 	}
-	if err = api.Login(recordLabelPrivkey.String(), recordLabelId); err != nil {
-		t.Fatal(err)
-	}
-	masterLicense, err := spec.NewLicense([]string{recordingId}, []string{radioId}, recordLabelId, []string{recordingRightId}, "2016-01-01", "2022-01-01")
-	if err != nil {
-		t.Fatal(err)
-	}
-	masterLicenseId, err := api.License(masterLicense)
-	if err != nil {
-		t.Fatal(err)
-	}
-	WriteJSON(output, Data{"masterLicenseId": masterLicenseId})
 	sig, err = ld.ProveLicenseHolder(CHALLENGE, radioId, masterLicenseId, radioPrivkey)
 	if err != nil {
 		t.Fatal(err)

@@ -39,13 +39,19 @@ func TestCrypto(t *testing.T) {
 	// Ed25519
 	msg := []byte("deadbeef")
 	privEd25519, _ := ed25519.GenerateKeypairFromPassword("password")
-	f3 := cc.FulfillmentFromPrivKey(msg, privEd25519, 2)
+	f3, err := cc.FulfillmentFromPrivkey(msg, privEd25519, 2)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !f3.Validate(msg) {
 		t.Fatal("Failed to validate ed25519 fulfillment")
 	}
 	// RSA
 	anotherMsg := []byte("foobar")
-	f4 := cc.FulfillmentFromPrivKey(anotherMsg, privRSA, 1)
+	f4, err := cc.FulfillmentFromPrivkey(anotherMsg, privRSA, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !f4.Validate(anotherMsg) {
 		t.Fatal("Failed to validate pre-image fulfillment")
 	}
@@ -86,5 +92,10 @@ func TestCrypto(t *testing.T) {
 	f7 := cc.NewFulfillmentThreshold(subs, threshold, 1)
 	if !f7.Validate(buf2.Bytes()) {
 		t.Fatal("Failed to validate nested thresholds")
+	}
+	// Timeout
+	f8 := cc.NewFulfillmentTimeout(Date(12, 4, 2017, nil).Unix(), 1)
+	if !f8.Validate(nil) {
+		t.Fatal("Failed to validate timeout")
 	}
 }

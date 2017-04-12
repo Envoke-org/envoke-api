@@ -1,4 +1,4 @@
-## spec 
+ß## spec 
 
 *Example scenarios with data models*
 
@@ -51,39 +51,27 @@ Multiple composers and publishers
 
 ### License
 
-License for composition with multiple license-holders (licenser is composer)
+License for composition
 
 ```javascript
 {
   "@context": "<context placeholder>",
   "@type": "License",
-  "licenseFor": [
+  "asset": [
     { 
       "@id": "<compositionId>"
     }
   ],
-  "licenseHolder": [
-    {
-      "@id": "<licenseHolderId>"
-    },
-    {
-      "@id": "<licenseHolderId>"
-    }
-  ],
-  "licenser": {
-    "@id": "<licenserId>"
-  },
-  "validFrom": "2020-01-01",
-  "validThrough": "2024-01-01"
+  "timeout": "<fulfillmentURI>"
 }
 ```
 
-License for composition and recording with single license-holder (licenser has rights to composition and recording)
+License for composition and recording
 ```javascript
 {
   "@context": "<context placeholder>",
   "@type": "License",
-  "licenseFor": [
+  "asset": [
     {
       "@id": "<compositionId>"
     },
@@ -91,30 +79,13 @@ License for composition and recording with single license-holder (licenser has r
       "@id": "<recordingId>"
     }
   ],
-  "licenseHolder": [
-    {
-      "@id": "<licenseHolderId>"
-    }
-  ],
-  "licenser": {
-    "hasRight": [
-      {
-        "@id": "<rightId>"
-      },
-      {
-        "@id": "<rightId>"
-      }
-    ],
-    "@id": "<licenserId>"
-  },
-  "validFrom": "2020-01-01",
-  "validThrough": "2024-01-01"
+  "timeout": "<fulfillmentURI>"
 }
 ```
 
 ### Recording
 
-Single artist (artist composed composition)
+Single artist (artist is composition right-holder)
 
 ```javascript
 {
@@ -170,44 +141,6 @@ Multiple artists with record label (artists and record label have license for co
 }
 ```
 
-### Right
+### Right 
 
-Composition right with multiple right-holders
-```javascript
-{
-  "@context": "<context placeholder>",
-  "@type": "Right",
-  "rightHolder": [
-    {
-      "@id": "<rightHolderId>"
-    },
-    {
-      "@id": "<rightHolderId>"
-    }
-  ],
-  "rightTo": {
-    "@id": "<compositionId>"
-  },
-  "transfer": {
-    "@id": "<transferId>"
-  }
-}
-```
-Recording right with single right-holder
-```javascript
-{
-  "@context": "<context placeholder>",
-  "@type": "Right",
-  "rightHolder": [
-    {
-      "@id": "<rightHolderId>"
-    }
-  ],
-  "rightTo": {
-    "@id": "<recordingId>"
-  },
-  "transfer": {
-    "@id": "<transferId>"
-  }
-}
-```
+TRANSFER tx

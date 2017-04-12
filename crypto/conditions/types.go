@@ -124,19 +124,6 @@ func (f *fulfillmentEd25519) Init() {
 	f.size = ED25519_SIZE
 }
 
-func (f *fulfillmentEd25519) Data() Data {
-	return Data{
-		"details": Data{
-			"bitmask":    f.bitmask,
-			"public_key": f.PublicKey().String(),
-			"signature":  nil,
-			"type":       "fulfillment",
-			"type_id":    f.id,
-		},
-		"uri": GetCondition(f).String(),
-	}
-}
-
 func (f *fulfillmentEd25519) PublicKey() crypto.PublicKey {
 	if f.pubkey.Bytes() == nil {
 		return nil
@@ -287,10 +274,8 @@ func (f *fulfillmentThreshold) Data() Data {
 	// TODO: validate
 	subs := make([]Data, len(f.subs))
 	for i, sub := range f.subs {
-		if sub.PublicKey() != nil {
-			subs[i] = sub.Data().GetData("details")
-			subs[i].Set("weight", sub.Weight())
-		}
+		subs[i] = sub.Data().GetData("details")
+		subs[i].Set("weight", sub.Weight())
 	}
 	return Data{
 		"details": Data{
@@ -525,22 +510,25 @@ func (f *fulfillmentThreshold) Validate(p []byte) bool {
 
 // SHA256 Timeout
 type fulfillmentTimeout struct {
-	expires int64
+	expire int64
 	*fulfillment
 }
 
-func NewFulfillmentTimeout(expires int64, weight int) *fulfillmentTimeout {
+func DefaultFulfillmentTimeout(expire int64) *fulfillmentTimeout {
+	return NewFulfillmentTimeout(expire, 1)
+}
+
+func NewFulfillmentTimeout(expire int64, weight int) *fulfillmentTimeout {
 	f := new(fulfillmentTimeout)
-	payload := TimestampBytes(expires)
-	f.fulfillment = NewFulfillment(TIMEOUT_ID, f, payload, weight)
-	f.expires = expires
+	f.expire = expire
+	f.fulfillment = NewFulfillment(TIMEOUT_ID, f, Int64Bytes(expire), weight)
 	f.Init()
 	return f
 }
 
 func (f *fulfillmentTimeout) Init() {
-	if f.expires == 0 {
-		f.expires = TimestampFromBytes(f.payload)
+	if f.expire == 0 {
+		f.expire = Int64(f.payload)
 	}
 	f.bitmask = TIMEOUT_BITMASK
 	f.hash = Sum256(f.payload)
@@ -551,6 +539,5 @@ func (f *fulfillmentTimeout) Validate(p []byte) bool {
 	if !f.fulfillment.Validate(nil) {
 		return false
 	}
-	timestamp := TimestampFromBytes(p)
-	return timestamp <= f.expires
+	return f.expire >= Int64(p)
 }

@@ -2,6 +2,7 @@ package spec
 
 import (
 	. "github.com/Envoke-org/envoke-api/common"
+	cc "github.com/Envoke-org/envoke-api/crypto/conditions"
 	"github.com/Envoke-org/envoke-api/regex"
 )
 
@@ -23,7 +24,7 @@ func GetType(data Data) string {
 	return data.GetStr("@type")
 }
 
-func NewUser(email, ipi, isni string, memberIds []string, name, pro, sameAs, _type string) (Data, error) {
+func NewUser(email, isni string, memberIds []string, name, sameAs, _type string) (Data, error) {
 	user := Data{
 		"@context": CONTEXT,
 		"@type":    _type,
@@ -31,8 +32,8 @@ func NewUser(email, ipi, isni string, memberIds []string, name, pro, sameAs, _ty
 	}
 	switch _type {
 	case "MusicGroup", "Organization":
-		if n := len(memberIds); n > 0 {
-			member := make([]Data, n)
+		if len(memberIds) > 0 {
+			member := make([]Data, len(memberIds))
 			for i, memberId := range memberIds {
 				if !MatchId(memberId) {
 					return nil, Error("invalid member id")
@@ -49,14 +50,8 @@ func NewUser(email, ipi, isni string, memberIds []string, name, pro, sameAs, _ty
 	if MatchStr(regex.EMAIL, email) {
 		user.Set("email", email)
 	}
-	if MatchStr(regex.IPI, ipi) {
-		user.Set("ipiNumber", ipi)
-	}
 	if MatchStr(regex.ISNI, isni) {
 		user.Set("isniNumber", isni)
-	}
-	if MatchStr(regex.PRO, pro) {
-		user.Set("pro", pro)
 	}
 	if MatchUrlRelaxed(sameAs) {
 		user.Set("sameAs", sameAs)
@@ -66,10 +61,6 @@ func NewUser(email, ipi, isni string, memberIds []string, name, pro, sameAs, _ty
 
 func GetEmail(data Data) string {
 	return data.GetStr("email")
-}
-
-func GetIPI(data Data) string {
-	return data.GetStr("ipiNumber")
 }
 
 func GetISNI(data Data) string {
@@ -89,10 +80,6 @@ func GetName(data Data) string {
 	return data.GetStr("name")
 }
 
-func GetPRO(data Data) string {
-	return data.GetStr("pro")
-}
-
 func GetSameAs(data Data) string {
 	return data.GetStr("sameAs")
 }
@@ -103,11 +90,10 @@ func NewComposition(composerIds []string, inLanguage, iswcCode, name string, pub
 		"@type":    "MusicComposition",
 		"name":     name,
 	}
-	n := len(composerIds)
-	if n == 0 {
+	if len(composerIds) == 0 {
 		return nil, Error("no composer ids")
 	}
-	composers := make([]Data, n)
+	composers := make([]Data, len(composerIds))
 	for i, composerId := range composerIds {
 		if !MatchId(composerId) {
 			return nil, Error("invalid composer id")
@@ -115,8 +101,8 @@ func NewComposition(composerIds []string, inLanguage, iswcCode, name string, pub
 		composers[i] = NewLink(composerId)
 	}
 	composition.Set("composer", composers)
-	if m := len(publisherIds); m > 0 {
-		publishers := make([]Data, m)
+	if len(publisherIds) > 0 {
+		publishers := make([]Data, len(publisherIds))
 		for i, publisherId := range publisherIds {
 			if !MatchId(publisherId) {
 				return nil, Error("invalid publisher id")
@@ -153,28 +139,21 @@ func GetPublishers(data Data) []Data {
 	return AssertDataSlice(data.Get("publisher"))
 }
 
-func NewRecording(artistIds []string, compositionId, duration, isrcCode string, licenseIds, recordLabelIds, rightIds []string, url string) (Data, error) {
+func NewRecording(artistIds []string, compositionId, duration, isrcCode string, licenseIds, recordLabelIds []string, url string) (Data, error) {
 	recording := Data{
 		"@context":    CONTEXT,
 		"@type":       "MusicRecording",
 		"recordingOf": NewLink(compositionId),
 	}
-	n := len(artistIds)
-	if n == 0 {
+	if len(artistIds) == 0 {
 		return nil, Error("no artist ids")
 	}
-	m := len(recordLabelIds)
 	if licenseIds != nil {
-		if len(licenseIds) != n+m {
-			return nil, Error("invalid number of artist/record label and license ids")
+		if len(licenseIds) != len(artistIds)+len(recordLabelIds) {
+			return nil, Error("different number of artist/record label and license ids")
 		}
 	}
-	if rightIds != nil {
-		if len(rightIds) != n+m {
-			return nil, Error("invalid number of artist/record label and right ids")
-		}
-	}
-	artists := make([]Data, n)
+	artists := make([]Data, len(artistIds))
 	for i, artistId := range artistIds {
 		if !MatchId(artistId) {
 			return nil, Error("invalid artist id")
@@ -183,32 +162,20 @@ func NewRecording(artistIds []string, compositionId, duration, isrcCode string, 
 		if licenseIds != nil {
 			if MatchId(licenseIds[i]) {
 				artists[i].Set("hasLicense", NewLink(licenseIds[i]))
-				continue
-			}
-		}
-		if rightIds != nil {
-			if MatchId(rightIds[i]) {
-				artists[i].Set("hasRight", NewLink(rightIds[i]))
 			}
 		}
 	}
 	recording.Set("byArtist", artists)
-	if m > 0 {
-		recordLabels := make([]Data, m)
+	if len(recordLabelIds) > 0 {
+		recordLabels := make([]Data, len(recordLabelIds))
 		for i, recordLabelId := range recordLabelIds {
 			if !MatchId(recordLabelId) {
 				return nil, Error("invalid record label id")
 			}
 			recordLabels[i] = NewLink(recordLabelId)
 			if licenseIds != nil {
-				if MatchId(licenseIds[n+i]) {
-					recordLabels[i].Set("hasLicense", NewLink(licenseIds[n+i]))
-					continue
-				}
-			}
-			if rightIds != nil {
-				if MatchId(rightIds[n+i]) {
-					recordLabels[i].Set("hasRight", NewLink(rightIds[n+i]))
+				if MatchId(licenseIds[len(artistIds)+i]) {
+					recordLabels[i].Set("hasLicense", NewLink(licenseIds[len(artistIds)+i]))
 				}
 			}
 		}
@@ -251,151 +218,38 @@ func GetRecordLabels(data Data) []Data {
 	return AssertDataSlice(data.Get("recordLabel"))
 }
 
-// Note: transferId is the hex id of a TRANSFER tx in BigchainDB/IPDB
-// the output amount(s) will specify shares kept/transferred
-
-func NewRight(rightHolderIds []string, rightTo, transferId string) (Data, error) {
-	n := len(rightHolderIds)
-	if n == 0 {
-		return nil, Error("no right-holder ids")
+func NewLicense(assetIds []string, validThrough string) (Data, error) {
+	if len(assetIds) == 0 {
+		return nil, Error("no asset ids")
 	}
-	rightHolders := make([]Data, n)
-	for i, rightHolderId := range rightHolderIds {
-		rightHolders[i] = NewLink(rightHolderId)
+	asset := make([]Data, len(assetIds))
+	for i, assetId := range assetIds {
+		if !MatchId(assetId) {
+			return nil, ErrInvalidId
+		}
+		asset[i] = NewLink(assetId)
 	}
-	return Data{
-		"@context":    CONTEXT,
-		"@type":       "Right",
-		"rightHolder": rightHolders,
-		"rightTo":     NewLink(rightTo),
-		"transfer":    NewLink(transferId),
-	}, nil
-}
-
-func GetRightToId(data Data) string {
-	composition := data.GetData("rightTo")
-	return GetId(composition)
-}
-
-func GetRightHolderIds(data Data) []string {
-	rightHolders := data.GetDataSlice("rightHolder")
-	rightHolderIds := make([]string, len(rightHolders))
-	for i, rightHolder := range rightHolders {
-		rightHolderIds[i] = GetId(rightHolder)
-	}
-	return rightHolderIds
-}
-
-func GetTransferId(data Data) string {
-	transfer := data.GetData("transfer")
-	return GetId(transfer)
-}
-
-func NewLicense(licenseForIds, licenseHolderIds []string, licenserId string, rightIds []string, validFrom, validThrough string) (Data, error) {
-	dateFrom, err := ParseDate(validFrom)
+	date, err := ParseDate(validThrough)
 	if err != nil {
 		return nil, err
 	}
-	// if dateFrom.Before(Today()) {
-	//	return nil, Error("Invalid timeframe")
-	// }
-	dateThrough, err := ParseDate(validThrough)
-	if err != nil {
-		return nil, err
-	}
-	if !dateThrough.After(dateFrom) {
-		return nil, Error("invalid license timeframe")
-	}
-	n := len(licenseForIds)
-	if n == 0 {
-		return nil, Error("no composition/recording ids")
-	}
-	if rightIds != nil {
-		if len(rightIds) != n {
-			return nil, Error("invalid number of composition/recording and right ids")
-		}
-	}
-	licenseFor := make([]Data, n)
-	rights := make([]Data, n)
-	for i, licenseForId := range licenseForIds {
-		if !MatchId(licenseForId) {
-			return nil, ErrInvalidId
-		}
-		licenseFor[i] = NewLink(licenseForId)
-		if rightIds != nil {
-			if MatchId(rightIds[i]) {
-				rights[i] = NewLink(rightIds[i])
-			}
-		}
-	}
-	n = len(licenseHolderIds)
-	if n == 0 {
-		return nil, Error("no license-holder ids")
-	}
-	licenseHolders := make([]Data, n)
-	for i, licenseHolderId := range licenseHolderIds {
-		if !MatchId(licenseHolderId) {
-			return nil, ErrInvalidId
-		}
-		licenseHolders[i] = NewLink(licenseHolderId)
-	}
-	if !MatchId(licenserId) {
-		return nil, ErrInvalidId
-	}
-	licenser := NewLink(licenserId)
-	if rightIds != nil {
-		licenser.Set("hasRight", rights)
-	}
 	return Data{
-		"@context":      CONTEXT,
-		"@type":         "License",
-		"licenseFor":    licenseFor,
-		"licenseHolder": licenseHolders,
-		"licenser":      licenser,
-		"validFrom":     validFrom,
-		"validThrough":  validThrough,
+		"@context": CONTEXT,
+		"@type":    "License",
+		"asset":    asset,
+		"timeout":  cc.DefaultFulfillmentTimeout(date.Unix()).String(),
 	}, nil
 }
 
-func GetLicenseForIds(data Data) []string {
-	licenseFor := data.GetDataSlice("licenseFor")
-	licenseForIds := make([]string, len(licenseFor))
-	for i := range licenseFor {
-		licenseForIds[i] = GetId(licenseFor[i])
+func GetAssetIds(data Data) []string {
+	asset := data.GetDataSlice("asset")
+	assetIds := make([]string, len(asset))
+	for i := range asset {
+		assetIds[i] = GetId(asset[i])
 	}
-	return licenseForIds
+	return assetIds
 }
 
-func GetLicenseHolderIds(data Data) []string {
-	licenseHolders := data.GetDataSlice("licenseHolder")
-	licenseHolderIds := make([]string, len(licenseHolders))
-	for i, licenseHolder := range licenseHolders {
-		licenseHolderIds[i] = GetId(licenseHolder)
-	}
-	return licenseHolderIds
-}
-
-func GetLicenser(data Data) Data {
-	return data.GetData("licenser")
-}
-
-func GetRightId(data Data) string {
-	return GetId(data.GetData("hasRight"))
-}
-
-func GetRightIds(data Data) []string {
-	rights := data.GetDataSlice("hasRight")
-	rightIds := make([]string, len(rights))
-	for i, right := range rights {
-		rightIds[i] = GetId(right)
-	}
-	return rightIds
-}
-
-func GetValidFrom(data Data) string {
-	return data.GetStr("validFrom")
-}
-
-func GetValidThrough(data Data) string {
-	return data.GetStr("validThrough")
+func GetTimeout(data Data) string {
+	return data.GetStr("timeout")
 }

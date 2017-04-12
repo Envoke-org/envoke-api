@@ -21,15 +21,10 @@
 * **Data Params**
 ```javascript
 u: {
-  // REQUIRED
-  licenseForIds: [array hexadecimal],
-  licenseHolderIds: [array hexadecimal],
-  licenserId: [hexadecimal],
-  validFrom: [date],
-  validThrough: [date],
-
-  // REQUIRED if licenser is not composer/publisher of composition(s) or artist/label on recording(s)
-  rightIds: [array hexadecimal]
+	// REQUIRED
+	assetIds: [array hexadecimal],
+	licenseHolderIds: [array hexadecimal],
+	validThrough: [yyyy-mm-dd]
 }
 ```
 	
@@ -142,10 +137,8 @@ u: {
 		
 		// OPTIONAL
 		email: [email address],
-		ipiNumber: [number],
 		isniNumber: [alphanumeric],
-		memberIds: [array hexadecimal],
-		pro: [string]
+		memberIds: [array hexadecimal]
 	}
 	```
 
@@ -187,13 +180,12 @@ u: {
 		artistIds: [array hexadecimal],
 		compositionId: [hexadecimal],
 
-		// REQUIRED if artists/labels aren't composers/publishers of composition
-		licenseIds: [array hexadecimal],
-		rightIds: [array hexadecimal],
-
 		// REQUIRED if label(s) or multiple artists
 		splits: [array integer],
 		signatures: [array base58],
+
+		// REQUIRED if artists/labels aren't composition right-holders
+		licenseIds: [array hexadecimal],
 
 		// OPTIONAL
 		duration: [alphanumeric],
@@ -231,11 +223,11 @@ u: {
 	```javascript
 	u: {
 		// REQUIRED
-		percentShares: [integer],
-		recipientId: [hexadecimal],
-		rightToId: [hexadecimal],
+		assetId: [hexadecimal],
+		recipientIds: [array hexadecimal],
+		splits: [array integer],
 
-		// REQUIRED if licenser isn't composer/publisher of composition or artist/label on recording
+		// REQUIRED if issuer isn't original right-holder
 		previousRightId: [hexadecimal]
 	}
 	```
@@ -374,12 +366,11 @@ u: {
 		artistIds: [array hexadecimal],
 		compositionId: [hexadecimal],
 
-		// REQUIRED if artists/labels aren't composers/publishers of composition
-		licenseIds: [array hexadecimal],
-		rightIds: [array hexadecimal],
-
 		// REQUIRED if label(s) or multiple artists
 		splits: [array],
+
+		// REQUIRED if artists/labels aren't composition right-holders
+		licenseIds: [array hexadecimal],
 
 		// OPTIONAL
 		duration: [alphanumeric],

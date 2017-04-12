@@ -36,8 +36,8 @@ const (
 	ED25519_BITMASK = 0x20
 	ED25519_SIZE    = ed25519.PUBKEY_SIZE + ed25519.SIGNATURE_SIZE
 
-	TIMEOUT_ID      = 5
-	TIMEOUT_BITMASK = 0x00
+	TIMEOUT_ID      = 99
+	TIMEOUT_BITMASK = 0x09
 )
 
 // Fulfillment
@@ -278,6 +278,10 @@ func UnmarshalBinary(p []byte, weight int) (f Fulfillment, err error) {
 		f = &fulfillmentThreshold{
 			fulfillment: ful,
 		}
+	case TIMEOUT_ID:
+		f = &fulfillmentTimeout{
+			fulfillment: ful,
+		}
 	}
 	f.Init()
 	if !ful.Validate(nil) {
@@ -349,6 +353,10 @@ func UnmarshalURI(uri string, weight int) (f Fulfillment, err error) {
 			f = &fulfillmentThreshold{
 				fulfillment: ful,
 			}
+		case TIMEOUT_ID:
+			f = &fulfillmentTimeout{
+				fulfillment: ful,
+			}
 		}
 		f.Init()
 		if !ful.Validate(nil) {
@@ -371,8 +379,7 @@ type fulfillment struct {
 
 func NewFulfillment(id int, outer Fulfillment, payload []byte, weight int) *fulfillment {
 	switch id {
-	case PREIMAGE_ID, PREFIX_ID, ED25519_ID, RSA_ID, THRESHOLD_ID:
-		//..
+	case PREIMAGE_ID, PREFIX_ID, ED25519_ID, RSA_ID, THRESHOLD_ID, TIMEOUT_ID:
 	default:
 		Panicf("Unexpected id=%d\n", id)
 	}
@@ -392,7 +399,22 @@ func NewFulfillment(id int, outer Fulfillment, payload []byte, weight int) *fulf
 
 func (f *fulfillment) Bitmask() int { return f.bitmask }
 
-func (f *fulfillment) Data() Data { return nil }
+func (f *fulfillment) Data() Data {
+	var pubkey interface{}
+	if f.outer.PublicKey() != nil {
+		pubkey = f.outer.PublicKey().String()
+	}
+	return Data{
+		"details": Data{
+			"bitmask":    f.bitmask,
+			"public_key": pubkey,
+			"signature":  nil,
+			"type":       "fulfillment",
+			"type_id":    f.id,
+		},
+		"uri": GetCondition(f).String(),
+	}
+}
 
 func (f *fulfillment) FromString(uri string) (err error) {
 	if !MatchStr(regex.FULFILLMENT, uri) {
@@ -470,26 +492,13 @@ func (f *fulfillment) Validate(p []byte) bool {
 	case
 		f.id == PREIMAGE_ID && f.bitmask == PREIMAGE_BITMASK,
 		f.id == PREFIX_ID && f.bitmask == PREFIX_BITMASK,
-		f.id == THRESHOLD_ID && f.bitmask >= THRESHOLD_BITMASK:
-		//..
-	case f.id == ED25519_ID && f.bitmask == ED25519_BITMASK:
-		if f.size != ED25519_SIZE {
-			return false
-		}
-	case f.id == RSA_ID && f.bitmask == RSA_BITMASK:
-		if f.size != RSA_SIZE {
-			return false
-		}
-	default:
-		return false
+		f.id == ED25519_ID && f.bitmask == ED25519_BITMASK && f.size == ED25519_SIZE,
+		f.id == RSA_ID && f.bitmask == RSA_BITMASK && f.size == RSA_SIZE,
+		f.id == THRESHOLD_ID && f.bitmask >= THRESHOLD_BITMASK,
+		f.id == TIMEOUT_ID && f.bitmask == TIMEOUT_BITMASK:
+		return f.size <= MAX_PAYLOAD_SIZE && len(f.hash) == HASH_SIZE
 	}
-	switch {
-	case
-		f.size > MAX_PAYLOAD_SIZE,
-		len(f.hash) != HASH_SIZE:
-		return false
-	}
-	return true
+	return false
 }
 
 func (f *fulfillment) Weight() int {

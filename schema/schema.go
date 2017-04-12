@@ -20,8 +20,6 @@ func ValidateSchema(data Data, _type string) error {
 		schemaLoader = LicenseLoader
 	case "recording":
 		schemaLoader = RecordingLoader
-	case "right":
-		schemaLoader = RightLoader
 	case "user":
 		schemaLoader = UserLoader
 	default:
@@ -70,10 +68,6 @@ var UserLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "string",
 			"pattern": "%s"
 		},
-		"ipiNumber": {
-			"type": "string",
-			"pattern": "%s"
-		},
 		"isniNumber": {
 			"type": "string",
 			"pattern": "%s"
@@ -89,16 +83,12 @@ var UserLoader = jsonschema.NewStringLoader(Sprintf(`{
 		"name": {
 			"type": "string"
 		},
-		"pro": {
-			"type": "string",
-			"pattern": "%s"
-		},
 		"sameAs": {
 			"type": "string"
 		}
 	},
 	"required": ["@context", "@type", "name", "sameAs"]
-}`, SCHEMA, link, spec.CONTEXT, regex.EMAIL, regex.IPI, regex.ISNI, regex.PRO))
+}`, SCHEMA, link, spec.CONTEXT, regex.EMAIL, regex.ISNI))
 
 var CompositionLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"$schema": "%s",
@@ -165,14 +155,11 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 					"properties": {
 						"hasLicense": {
 							"$ref": "#/definitions/link"
-						},
-						"hasRight": {
-							"$ref": "#/definitions/link"
 						}
 					}
 				}
 			]
-		}
+		}	
 	},
 	"properties": {
 		"@context": {
@@ -216,41 +203,6 @@ var RecordingLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"required": ["@context", "@type", "byArtist", "recordingOf"]
 }`, SCHEMA, link, spec.CONTEXT, regex.ISRC))
 
-var RightLoader = jsonschema.NewStringLoader(Sprintf(`{
-	"$schema": "%s",
-	"title": "Right",
-	"type": "object",
-	"definitions": {
-		"link": %s
-	},
-	"properties": {
-		"@context": {
-			"type": "string",
-			"pattern": "^%s$"
-		},
-		"@type": {
-			"type": "string",
-			"pattern": "^Right$"
-		},
-		"rightHolder": {
-			"type": "array",
-			"items": {
-				"$ref": "#/definitions/link"
-			},
-			"minItems": 1,
-			"maxItems": 2,
-			"uniqueItems": true
-		},
-		"rightTo": {
-			"$ref": "#/definitions/link"
-		},
-		"transfer": {
-			"$ref": "#/definitions/link"
-		}
-	},
-	"required": ["@context", "@type", "rightHolder", "rightTo", "transfer"]
-}`, SCHEMA, link, spec.CONTEXT))
-
 var LicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 	"$schema": "%s",
 	"title": "License",
@@ -267,7 +219,7 @@ var LicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"type": "string",
 			"pattern": "^License$"
 		},
-		"licenseFor": {
+		"asset": {
 			"type": "array",
 			"items": {
 				"$ref": "#/definitions/link"
@@ -275,41 +227,10 @@ var LicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 			"minItems": 1,
 			"uniqueItems": true
 		},
-		"licenseHolder": {
-			"type": "array",
-			"items": {
-				"$ref": "#/definitions/link"
-			},
-			"minItems": 1,
-			"uniqueItems": true
-		},
-		"licenser": {
-			"allOf": [
-				{
-					"$ref": "#/definitions/link"
-				},
-				{
-					"properties": {
-						"hasRight": {
-							"type": "array",
-							"items": {
-								"$ref": "#/definitions/link"
-							},
-							"minItems": 1,
-							"uniqueItems": true
-						}
-					}
-				}
-			]
-		},
-		"validFrom": {
-			"type": "string",
-			"pattern": "%s"
-		},
-		"validThrough": {
+		"timeout": {
 			"type": "string",
 			"pattern": "%s"
 		}
 	},
-	"required": ["@context", "@type", "licenseFor", "licenseHolder", "licenser", "validFrom", "validThrough"]
-}`, SCHEMA, link, spec.CONTEXT, regex.DATE, regex.DATE))
+	"required": ["@context", "@type", "asset", "timeout"]
+}`, SCHEMA, link, spec.CONTEXT, regex.FULFILLMENT))

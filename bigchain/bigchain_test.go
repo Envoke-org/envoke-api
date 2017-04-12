@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	Alice = "3th33iKfYoPXQ6YL8mXcD3gzgMppEEHFBPFqch4Cn5d3"
-	Bob   = "4ScATKswfFYUw3FDoxDoUWsRzBh3BUqTmizmCBNRoPiz"
+	Alice = "3th32iKfYoPXQ6FL8mXcd3gzgMppEEHFBPFqch4Cn5d1"
+	Bob   = "4ScA2KswfFYUw3fDoxDodWsRzBh3BUqTmizmCBNRoPi2"
 )
 
 func TestBigchain(t *testing.T) {
@@ -21,7 +21,7 @@ func TestBigchain(t *testing.T) {
 	// Data
 	data := Data{"bees": "knees"}
 	// Individual create tx
-	tx, err := IndividualCreateTx(100, data, pubkeyAlice, pubkeyAlice)
+	tx, err := CreateTx([]int{100}, data, []crypto.PublicKey{pubkeyAlice}, []crypto.PublicKey{pubkeyAlice})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,13 +37,13 @@ func TestBigchain(t *testing.T) {
 		t.Fatal("unfulfilled")
 	}
 	WriteJSON(output, Data{"createTx": tx})
-	SleepSeconds(1)
+	SleepSeconds(4)
 	createTxId, err := HttpPostTx(tx)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Divisible transfer tx
-	tx, err = DivisibleTransferTx([]int{40, 60}, createTxId, createTxId, 0, []crypto.PublicKey{pubkeyAlice, pubkeyBob}, pubkeyAlice)
+	tx, err = TransferTx([]int{40, 60}, createTxId, createTxId, 0, []crypto.PublicKey{pubkeyAlice, pubkeyBob}, []crypto.PublicKey{pubkeyAlice})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -62,9 +62,9 @@ func TestBigchain(t *testing.T) {
 		t.Fatal(err)
 	}
 	WriteJSON(output, Data{"transfer1Tx": tx})
-	SleepSeconds(1)
+	SleepSeconds(4)
 	// Transfer Bob's output of divisible transfer to Alice
-	tx, err = IndividualTransferTx(60, createTxId, transferTxId, 1, pubkeyAlice, pubkeyBob)
+	tx, err = TransferTx([]int{60}, createTxId, transferTxId, 1, []crypto.PublicKey{pubkeyAlice}, []crypto.PublicKey{pubkeyBob})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,9 +82,9 @@ func TestBigchain(t *testing.T) {
 		t.Fatal(err)
 	}
 	WriteJSON(output, Data{"transfer2Tx": tx})
-	SleepSeconds(1)
+	SleepSeconds(4)
 	// Multiple outputs tx
-	tx, err = MultipleOwnersCreateTx([]int{2, 1}, data, []crypto.PublicKey{pubkeyAlice, pubkeyBob}, []crypto.PublicKey{pubkeyAlice})
+	tx, err = CreateTx([]int{2, 1}, data, []crypto.PublicKey{pubkeyAlice, pubkeyBob}, []crypto.PublicKey{pubkeyAlice})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -102,9 +102,9 @@ func TestBigchain(t *testing.T) {
 		t.Fatal(err)
 	}
 	WriteJSON(output, Data{"multipleOutputTx": tx})
-	SleepSeconds(1)
+	SleepSeconds(4)
 	// Shared input tx
-	tx, err = MultipleOwnersCreateTx([]int{1}, data, []crypto.PublicKey{pubkeyAlice}, []crypto.PublicKey{pubkeyAlice, pubkeyBob})
+	tx, err = CreateTx([]int{1}, data, []crypto.PublicKey{pubkeyAlice}, []crypto.PublicKey{pubkeyAlice, pubkeyBob})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,9 +125,9 @@ func TestBigchain(t *testing.T) {
 		t.Fatal(err)
 	}
 	WriteJSON(output, Data{"sharedInputTx": tx})
-	SleepSeconds(1)
+	SleepSeconds(4)
 	// Shared output tx
-	tx, err = MultipleOwnersCreateTx([]int{100}, data, []crypto.PublicKey{pubkeyAlice, pubkeyBob}, []crypto.PublicKey{pubkeyAlice})
+	tx, err = CreateTx([]int{100}, data, []crypto.PublicKey{pubkeyAlice, pubkeyBob}, []crypto.PublicKey{pubkeyAlice})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,4 +145,45 @@ func TestBigchain(t *testing.T) {
 		t.Fatal(err)
 	}
 	WriteJSON(output, Data{"sharedOutputTx": tx})
+	SleepSeconds(4)
+	// Individual create tx
+	tx, err = CreateTx([]int{10}, data, []crypto.PublicKey{pubkeyAlice}, []crypto.PublicKey{pubkeyAlice})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = IndividualFulfillTx(tx, privkeyAlice); err != nil {
+		t.Fatal(err)
+	}
+	// Check that it's fulfilled
+	fulfilled, err = FulfilledTx(tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !fulfilled {
+		t.Fatal("unfulfilled")
+	}
+	createTxId, err = HttpPostTx(tx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	WriteJSON(output, Data{"anotherCreateTx": tx})
+	SleepSeconds(4)
+	// Transfer to self
+	tx, err = TransferTx([]int{10}, createTxId, createTxId, 0, []crypto.PublicKey{pubkeyAlice}, []crypto.PublicKey{pubkeyAlice})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = IndividualFulfillTx(tx, privkeyAlice); err != nil {
+		t.Fatal(err)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !fulfilled {
+		t.Fatal("unfulfilled")
+	}
+	if _, err := HttpPostTx(tx); err != nil {
+		t.Fatal(err)
+	}
+	WriteJSON(output, Data{"transferSelfTx": tx})
 }
