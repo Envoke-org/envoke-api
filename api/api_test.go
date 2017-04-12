@@ -111,7 +111,7 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	SleepSeconds(2)
-	compositionRightId, err := api.Right(compositionId, "", []string{recordLabelId}, []int{10})
+	compositionRightId, err := api.Right(compositionId, []string{recordLabelId}, []int{10})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,7 +206,7 @@ func TestApi(t *testing.T) {
 		t.Fatal(err)
 	}
 	WriteJSON(output, Data{"masterLicenseId": masterLicenseId})
-	recordingRightId, err := api.Right(recordingId, "", []string{performerId, producerId}, []int{5, 5})
+	recordingRightId, err := api.Right(recordingId, []string{performerId, producerId}, []int{5, 5})
 	if err != nil {
 		t.Fatal(err)
 	}

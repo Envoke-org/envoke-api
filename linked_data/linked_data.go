@@ -246,7 +246,7 @@ func VerifyPublisher(challenge, compositionId, publisherId string, sig crypto.Si
 	return nil
 }
 
-func AssembleRightTx(assetId string, previousRightId string, privkey crypto.PrivateKey, pubkey crypto.PublicKey, recipientIds []string, splits []int) (Data, error) {
+func AssembleRightTx(assetId string, privkey crypto.PrivateKey, pubkey crypto.PublicKey, recipientIds []string, splits []int) (Data, error) {
 	if len(recipientIds) == 0 {
 		return nil, Error("no recipients")
 	}
@@ -276,45 +276,46 @@ func AssembleRightTx(assetId string, previousRightId string, privkey crypto.Priv
 	if err != nil {
 		return nil, err
 	}
-	consumeId := assetId
-	if spec.MatchId(previousRightId) {
-		tx, err = CheckRightHolderKey(pubkey, previousRightId)
-		if err != nil {
-			return nil, err
-		}
-		if assetId != bigchain.GetTxAssetId(tx) {
-			return nil, Error("previous right doesn't link to composition/recording")
-		}
-		consumeId = previousRightId
-	}
 	txIds, outputs, err := bigchain.HttpGetOutputs(pubkey, true)
 	if err != nil {
 		return nil, err
 	}
-	var i int
-	for i = range txIds {
-		if consumeId == txIds[i] {
-			split := bigchain.GetOutputAmount(bigchain.GetTxOutput(tx, outputs[i]))
-			for i := range splits {
-				split -= splits[i]
-			}
-			if split == 0 {
-				tx, err = bigchain.TransferTx(splits, assetId, consumeId, outputs[i], pubkeys, []crypto.PublicKey{pubkey})
-			} else if split > 0 {
-				pubkeys = append([]crypto.PublicKey{pubkey}, pubkeys...)
-				splits = append([]int{split}, splits...)
-				tx, err = bigchain.TransferTx(splits, assetId, consumeId, outputs[i], pubkeys, []crypto.PublicKey{pubkey})
-			} else {
-				err = Error("you cannot transfer that many shares")
-			}
-			if err != nil {
-				return nil, err
-			}
-			if err = bigchain.IndividualFulfillTx(tx, privkey); err != nil {
-				return nil, err
-			}
-			return tx, nil
+	txs, err := bigchain.HttpGetTransfers(assetId)
+	if err != nil {
+		return nil, err
+	}
+	for i, txId := range txIds {
+		if txId == assetId {
+			goto NEXT
 		}
+		for _, tx = range txs {
+			if txId == bigchain.GetTxId(tx) {
+				goto NEXT
+			}
+		}
+		continue
+	NEXT:
+		split := bigchain.GetOutputAmount(bigchain.GetTxOutput(tx, outputs[i]))
+		for j := range splits {
+			split -= splits[j]
+		}
+		if split == 0 {
+			tx, err = bigchain.TransferTx(splits, assetId, txId, outputs[i], pubkeys, []crypto.PublicKey{pubkey})
+		} else if split > 0 {
+			pubkeys = append([]crypto.PublicKey{pubkey}, pubkeys...)
+			splits = append([]int{split}, splits...)
+			tx, err = bigchain.TransferTx(splits, assetId, txId, outputs[i], pubkeys, []crypto.PublicKey{pubkey})
+		} else {
+			err = Error("you cannot transfer that many shares")
+		}
+		if err != nil {
+			return nil, err
+		}
+		if err = bigchain.IndividualFulfillTx(tx, privkey); err != nil {
+			return nil, err
+		}
+		return tx, nil
+
 	}
 	return nil, Error("you don't have unspent output in consume tx")
 }

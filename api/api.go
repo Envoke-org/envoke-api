@@ -95,7 +95,6 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request, _ httprou
 		return
 	}
 	assetId := req.PostFormValue("assetId")
-	previousRightId := req.PostFormValue("previousRightId")
 	recipientIds := req.PostForm["recipientIds"]
 	splits := make([]int, len(req.PostForm["splits"]))
 	var err error
@@ -106,7 +105,7 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request, _ httprou
 			return
 		}
 	}
-	id, err := api.Right(assetId, previousRightId, recipientIds, splits)
+	id, err := api.Right(assetId, recipientIds, splits)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -114,8 +113,8 @@ func (api *Api) RightHandler(w http.ResponseWriter, req *http.Request, _ httprou
 	w.Write([]byte(id))
 }
 
-func (api *Api) Right(assetId, previousRightId string, recipientIds []string, splits []int) (string, error) {
-	tx, err := ld.AssembleRightTx(assetId, previousRightId, api.privkey, api.pubkey, recipientIds, splits)
+func (api *Api) Right(assetId string, recipientIds []string, splits []int) (string, error) {
+	tx, err := ld.AssembleRightTx(assetId, api.privkey, api.pubkey, recipientIds, splits)
 	if err != nil {
 		return "", ErrorJoin(ErrValidation, err)
 	}

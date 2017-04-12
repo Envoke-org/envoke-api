@@ -225,10 +225,7 @@ u: {
 		// REQUIRED
 		assetId: [hexadecimal],
 		recipientIds: [array hexadecimal],
-		splits: [array integer],
-
-		// REQUIRED if issuer isn't original right-holder
-		previousRightId: [hexadecimal]
+		splits: [array integer]
 	}
 	```
 
