@@ -12,7 +12,9 @@ import (
 // ILP crypto-conditions
 
 const (
+
 	// Params
+
 	HASH_SIZE         = 32
 	MAX_PAYLOAD_SIZE  = 0xfff
 	SUPPORTED_BITMASK = 0x3f
@@ -44,11 +46,11 @@ const (
 
 type Fulfillment interface {
 	Bitmask() int
-	Data() Data
+	Details() Data
 	FromString(string) error
 	Hash() []byte
 	Id() int
-	Init()
+	Init() error
 	IsCondition() bool
 	MarshalBinary() ([]byte, error)
 	PublicKey() crypto.PublicKey
@@ -106,12 +108,12 @@ func FulfillmentFromPrivkey(msg []byte, privkey crypto.PrivateKey, weight int) (
 		privEd25519 := privkey.(*ed25519.PrivateKey)
 		pubEd25519 := privEd25519.Public().(*ed25519.PublicKey)
 		sigEd25519 := privEd25519.Sign(msg).(*ed25519.Signature)
-		return NewFulfillmentEd25519(pubEd25519, sigEd25519, weight), nil
+		return NewFulfillmentEd25519(pubEd25519, sigEd25519, weight)
 	case *rsa.PrivateKey:
 		privRSA := privkey.(*rsa.PrivateKey)
 		pubRSA := privRSA.Public().(*rsa.PublicKey)
 		sigRSA := privRSA.Sign(msg).(*rsa.Signature)
-		return NewFulfillmentRSA(pubRSA, sigRSA, weight), nil
+		return NewFulfillmentRSA(pubRSA, sigRSA, weight)
 	}
 	return nil, ErrInvalidType
 }
@@ -150,10 +152,10 @@ func FulfillmentFromPubKey(pubkey crypto.PublicKey, weight int) (Fulfillment, er
 	switch pubkey.(type) {
 	case *ed25519.PublicKey:
 		pubEd25519 := pubkey.(*ed25519.PublicKey)
-		return NewFulfillmentEd25519(pubEd25519, nil, weight), nil
+		return NewFulfillmentEd25519(pubEd25519, nil, weight)
 	case *rsa.PublicKey:
 		pubRSA := pubkey.(*rsa.PublicKey)
-		return NewFulfillmentRSA(pubRSA, nil, weight), nil
+		return NewFulfillmentRSA(pubRSA, nil, weight)
 	}
 	return nil, ErrInvalidType
 }
@@ -283,7 +285,9 @@ func UnmarshalBinary(p []byte, weight int) (f Fulfillment, err error) {
 			fulfillment: ful,
 		}
 	}
-	f.Init()
+	if err = f.Init(); err != nil {
+		return nil, err
+	}
 	if !ful.Validate(nil) {
 		return nil, ErrInvalidFulfillment
 	}
@@ -358,7 +362,9 @@ func UnmarshalURI(uri string, weight int) (f Fulfillment, err error) {
 				fulfillment: ful,
 			}
 		}
-		f.Init()
+		if err = f.Init(); err != nil {
+			return nil, err
+		}
 		if !ful.Validate(nil) {
 			return nil, ErrInvalidFulfillment
 		}
@@ -399,20 +405,11 @@ func NewFulfillment(id int, outer Fulfillment, payload []byte, weight int) *fulf
 
 func (f *fulfillment) Bitmask() int { return f.bitmask }
 
-func (f *fulfillment) Data() Data {
-	var pubkey interface{}
-	if f.outer.PublicKey() != nil {
-		pubkey = f.outer.PublicKey().String()
-	}
+func (f *fulfillment) Details() Data {
 	return Data{
-		"details": Data{
-			"bitmask":    f.bitmask,
-			"public_key": pubkey,
-			"signature":  nil,
-			"type":       "fulfillment",
-			"type_id":    f.id,
-		},
-		"uri": GetCondition(f).String(),
+		"bitmask": f.bitmask,
+		"type":    "fulfillment",
+		"type_id": f.id,
 	}
 }
 
@@ -430,7 +427,9 @@ func (f *fulfillment) FromString(uri string) (err error) {
 		return err
 	}
 	if f.outer != nil {
-		f.outer.Init()
+		if err = f.outer.Init(); err != nil {
+			return err
+		}
 		if !f.Validate(nil) {
 			return ErrInvalidFulfillment
 		}
@@ -442,7 +441,7 @@ func (f *fulfillment) Hash() []byte { return f.hash }
 
 func (f *fulfillment) Id() int { return f.id }
 
-func (f *fulfillment) Init() { /* no op */ }
+func (f *fulfillment) Init() error { return nil }
 
 func (f *fulfillment) IsCondition() bool { return false }
 
@@ -479,7 +478,9 @@ func (f *fulfillment) UnmarshalBinary(p []byte) (err error) {
 		return err
 	}
 	if f.outer != nil {
-		f.outer.Init()
+		if err = f.outer.Init(); err != nil {
+			return err
+		}
 		if !f.Validate(nil) {
 			return ErrInvalidFulfillment
 		}
@@ -514,7 +515,7 @@ type Condition struct {
 
 func NilCondition() *Condition {
 	return &Condition{
-		fulfillment: &fulfillment{},
+		fulfillment: new(fulfillment),
 	}
 }
 

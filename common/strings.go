@@ -21,6 +21,10 @@ func FormatInt(x int64, base int) string {
 	return strconv.FormatInt(x, base)
 }
 
+func ToUpper(s string) string {
+	return strings.ToUpper(s)
+}
+
 func ToLower(s string) string {
 	return strings.ToLower(s)
 }
@@ -47,6 +51,10 @@ func ParseBool(s string) (bool, error) {
 	return strconv.ParseBool(s)
 }
 
+func ParseFloat64(s string) (float64, error) {
+	return strconv.ParseFloat(s, 64)
+}
+
 func ParseInt32(s string, base int) (int32, error) {
 	x, err := strconv.ParseInt(s, base, 32)
 	if err != nil {
@@ -57,6 +65,12 @@ func ParseInt32(s string, base int) (int32, error) {
 
 func ParseInt64(s string, base int) (int64, error) {
 	return strconv.ParseInt(s, base, 64)
+}
+
+func MustParseFloat64(s string) float64 {
+	x, err := ParseFloat64(s)
+	Check(err)
+	return x
 }
 
 func MustParseInt64(s string, base int) int64 {

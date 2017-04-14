@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/Envoke-org/envoke-api/bigchain"
 	. "github.com/Envoke-org/envoke-api/common"
@@ -11,6 +12,8 @@ import (
 	"github.com/Envoke-org/envoke-api/spec"
 	"github.com/julienschmidt/httprouter"
 )
+
+const MAX_MEMORY = 1000000
 
 var (
 	ErrBigchain   = Error("Bigchain Error")
@@ -46,7 +49,7 @@ func (api *Api) AddRoutes(router *httprouter.Router) {
 	router.GET("/search/:type/:userId/:name", api.SearchNameHandler)
 
 	// should these be POST..?
-	router.GET("/prove/:challenge/:txId/:type/:userId", api.ProveHandler)
+	router.GET("/prove/:challenge/:txId/:type", api.ProveHandler)
 	router.GET("/verify/:challenge/:signature/:txId/:type/:userId", api.VerifyHandler)
 }
 
@@ -250,8 +253,8 @@ func (api *Api) Release(recording Data, signatures []string, splits []int) (stri
 	return api.SendTx(tx)
 }
 
-func (api *Api) License(assetIds, licenseHolderIds []string, validThrough string) (string, error) {
-	tx, err := ld.AssembleLicenseTx(assetIds, licenseHolderIds, api.privkey, api.pubkey, validThrough)
+func (api *Api) License(assetIds []string, expireTimes []time.Time, licenseHolderIds []string) (string, error) {
+	tx, err := ld.AssembleLicenseTx(assetIds, expireTimes, licenseHolderIds, api.privkey, api.pubkey)
 	if err != nil {
 		return "", ErrorJoin(ErrValidation, err)
 	}
@@ -263,11 +266,22 @@ func (api *Api) LicenseHandler(w http.ResponseWriter, req *http.Request, _ httpr
 		http.Error(w, "Not logged in", http.StatusUnauthorized)
 		return
 	}
-	var err error
-	validThrough := req.PostFormValue("validThrough")
+	err := req.ParseMultipartForm(MAX_MEMORY)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	assetIds := req.PostForm["assetIds"]
+	expireTimes := make([]time.Time, len(req.PostForm["expireTimes"]))
+	for i, expireTime := range req.PostForm["expireTimes"] {
+		expireTimes[i], err = ParseDate(expireTime)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
 	licenseHolderIds := req.PostForm["licenseHolderIds"]
-	id, err := api.License(assetIds, licenseHolderIds, validThrough)
+	id, err := api.License(assetIds, expireTimes, licenseHolderIds)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -424,16 +438,19 @@ func (api *Api) ProveHandler(w http.ResponseWriter, req *http.Request, params ht
 	var sig crypto.Signature
 	txId := params.ByName("txId")
 	_type := params.ByName("type")
-	userId := params.ByName("userId")
 	switch _type {
-	case "composition":
-		sig, err = ld.ProveComposer(challenge, userId, txId, api.privkey)
-	case "license":
-		sig, err = ld.ProveLicenseHolder(challenge, userId, txId, api.privkey)
-	case "recording":
-		sig, err = ld.ProveArtist(userId, challenge, api.privkey, txId)
-	case "right":
-		sig, err = ld.ProveRightHolder(challenge, api.privkey, userId, txId)
+	case "artist":
+		sig, err = ld.ProveArtist(api.userId, challenge, api.privkey, txId)
+	case "composer":
+		sig, err = ld.ProveComposer(challenge, api.userId, txId, api.privkey)
+	case "license-holder":
+		sig, err = ld.ProveLicenseHolder(challenge, api.userId, txId, api.privkey)
+	case "publisher":
+		sig, err = ld.ProvePublisher(challenge, txId, api.privkey, api.userId)
+	case "record-label":
+		sig, err = ld.ProveRecordLabel(challenge, api.privkey, txId, api.userId)
+	case "right-holder":
+		sig, err = ld.ProveRightHolder(challenge, api.privkey, api.userId, txId)
 	default:
 		http.Error(w, ErrorAppend(ErrInvalidType, _type).Error(), http.StatusBadRequest)
 		return
@@ -459,12 +476,16 @@ func (api *Api) VerifyHandler(w http.ResponseWriter, req *http.Request, params h
 	if err = sig.FromString(signature); err == nil {
 		_type := params.ByName("type")
 		switch _type {
-		case "composition":
-			err = ld.VerifyComposer(challenge, userId, txId, sig)
-		case "license":
-			err = ld.VerifyLicenseHolder(challenge, userId, txId, sig)
-		case "recording":
+		case "artist":
 			err = ld.VerifyArtist(userId, challenge, txId, sig)
+		case "composer":
+			err = ld.VerifyComposer(challenge, userId, txId, sig)
+		case "license-holder":
+			err = ld.VerifyLicenseHolder(challenge, userId, txId, sig)
+		case "publisher":
+			err = ld.VerifyPublisher(challenge, txId, userId, sig)
+		case "record-label":
+			err = ld.VerifyRecordLabel(challenge, txId, userId, sig)
 		case "right":
 			err = ld.VerifyRightHolder(challenge, txId, userId, sig)
 		default:
@@ -602,11 +623,11 @@ func (api *Api) Login(privstr, userId string) error {
 
 func (api *Api) Register(password string, user Data) (Data, error) {
 	api.privkey, api.pubkey = ed25519.GenerateKeypairFromPassword(password)
-	tx, err := bigchain.CreateTx([]int{1}, user, []crypto.PublicKey{api.pubkey}, []crypto.PublicKey{api.pubkey})
+	tx, err := bigchain.CreateTx([]int{1}, user, nil, []crypto.PublicKey{api.pubkey}, []crypto.PublicKey{api.pubkey})
 	if err != nil {
 		return nil, ErrorJoin(ErrBigchain, err)
 	}
-	if err = bigchain.IndividualFulfillTx(tx, api.privkey); err != nil {
+	if err = bigchain.IndividualFulfillTx(tx, api.privkey, NilTime); err != nil {
 		return nil, ErrorJoin(ErrBigchain, err)
 	}
 	userId, err := api.SendTx(tx)

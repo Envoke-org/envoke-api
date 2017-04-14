@@ -2,12 +2,14 @@ package crypto
 
 import (
 	"bytes"
+	"sort"
+	"testing"
+	"time"
+
 	. "github.com/Envoke-org/envoke-api/common"
 	cc "github.com/Envoke-org/envoke-api/crypto/conditions"
 	"github.com/Envoke-org/envoke-api/crypto/ed25519"
 	"github.com/Envoke-org/envoke-api/crypto/rsa"
-	"sort"
-	"testing"
 )
 
 func TestCrypto(t *testing.T) {
@@ -23,64 +25,73 @@ func TestCrypto(t *testing.T) {
 	}
 	// Sha256 Pre-Image
 	preimage := []byte("helloworld")
-	f1 := cc.NewFulfillmentPreImage(preimage, 1)
+	fulfillmentPreimage, err := cc.NewFulfillmentPreImage(preimage, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
 	// Validate the fulfillment
-	if !f1.Validate(preimage) {
+	if !fulfillmentPreimage.Validate(preimage) {
 		t.Fatal("Failed to validate pre-image fulfillment")
 	}
 	// Sha256 Prefix
 	prefix := []byte("hello")
 	suffix := []byte("world")
-	f2 := cc.NewFulfillmentPrefix(prefix, f1, 1)
+	fulfillmentPrefix, err := cc.NewFulfillmentPrefix(prefix, fulfillmentPreimage, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
 	// Validate the fulfillment
-	if !f2.Validate(suffix) {
+	if !fulfillmentPrefix.Validate(suffix) {
 		t.Fatal("Failed to validate prefix fulfillment")
 	}
 	// Ed25519
 	msg := []byte("deadbeef")
 	privEd25519, _ := ed25519.GenerateKeypairFromPassword("password")
-	f3, err := cc.FulfillmentFromPrivkey(msg, privEd25519, 2)
+	fulfillmentEd25519, err := cc.FulfillmentFromPrivkey(msg, privEd25519, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !f3.Validate(msg) {
+	if !fulfillmentEd25519.Validate(msg) {
 		t.Fatal("Failed to validate ed25519 fulfillment")
 	}
 	// RSA
 	anotherMsg := []byte("foobar")
-	f4, err := cc.FulfillmentFromPrivkey(anotherMsg, privRSA, 1)
+	fulfillmentRSA, err := cc.FulfillmentFromPrivkey(anotherMsg, privRSA, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !f4.Validate(anotherMsg) {
+	if !fulfillmentRSA.Validate(anotherMsg) {
 		t.Fatal("Failed to validate pre-image fulfillment")
 	}
 	// Sha256 Threshold
-	subs := cc.Fulfillments{f1, f2, f3, f4}
+	subs := cc.Fulfillments{fulfillmentPreimage, fulfillmentPrefix, fulfillmentEd25519, fulfillmentRSA}
 	sort.Sort(subs)
 	threshold := 4
-	f5 := cc.NewFulfillmentThreshold(subs, threshold, 1)
+	fulfillmentThreshold, err := cc.NewFulfillmentThreshold(subs, threshold, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
 	buf := new(bytes.Buffer)
 	WriteVarOctet(buf, msg)
 	WriteVarOctet(buf, preimage)
 	WriteVarOctet(buf, suffix)
 	WriteVarOctet(buf, anotherMsg)
-	if !f5.Validate(buf.Bytes()) {
+	if !fulfillmentThreshold.Validate(buf.Bytes()) {
 		t.Fatal("Failed to validate threshold fulfillment")
 	}
 	// Get fulfillment uri
-	uri := f5.String()
+	uri := fulfillmentThreshold.String()
 	// Derive new fulfillment from uri, use same weight
-	f6, err := cc.UnmarshalURI(uri, 1)
+	anotherFulfillmentThreshold, err := cc.UnmarshalURI(uri, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Check whether hashes are the same
-	if !bytes.Equal(f5.Hash(), f6.Hash()) {
+	if !bytes.Equal(fulfillmentThreshold.Hash(), anotherFulfillmentThreshold.Hash()) {
 		t.Fatal("Expected identical fulfillment hashes")
 	}
 	// Nested Thresholds
-	subs = cc.Fulfillments{f1, f2, f3, f4, f5}
+	subs = cc.Fulfillments{fulfillmentPreimage, fulfillmentPrefix, fulfillmentEd25519, fulfillmentRSA, fulfillmentThreshold}
 	sort.Sort(subs)
 	buf2 := new(bytes.Buffer)
 	WriteVarOctet(buf2, msg)
@@ -89,13 +100,20 @@ func TestCrypto(t *testing.T) {
 	WriteVarOctet(buf2, buf.Bytes())
 	WriteVarOctet(buf2, anotherMsg)
 	threshold = 4
-	f7 := cc.NewFulfillmentThreshold(subs, threshold, 1)
-	if !f7.Validate(buf2.Bytes()) {
+	fulfillmentNestedThresholds, err := cc.NewFulfillmentThreshold(subs, threshold, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !fulfillmentNestedThresholds.Validate(buf2.Bytes()) {
 		t.Fatal("Failed to validate nested thresholds")
 	}
 	// Timeout
-	f8 := cc.NewFulfillmentTimeout(Date(12, 4, 2017, nil).Unix(), 1)
-	if !f8.Validate(nil) {
+	fulfillmentTimeout, err := cc.DefaultFulfillmentTimeout(Date(1, 1, 2018, nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !fulfillmentTimeout.Validate([]byte(Timestamp(Date(31, 12, 2017, nil)))) {
 		t.Fatal("Failed to validate timeout")
 	}
+	Println(fulfillmentTimeout, cc.GetCondition(fulfillmentTimeout))
 }

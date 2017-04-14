@@ -2,7 +2,6 @@ package spec
 
 import (
 	. "github.com/Envoke-org/envoke-api/common"
-	cc "github.com/Envoke-org/envoke-api/crypto/conditions"
 	"github.com/Envoke-org/envoke-api/regex"
 )
 
@@ -218,7 +217,7 @@ func GetRecordLabels(data Data) []Data {
 	return AssertDataSlice(data.Get("recordLabel"))
 }
 
-func NewLicense(assetIds []string, validThrough string) (Data, error) {
+func NewLicense(assetIds []string) (Data, error) {
 	if len(assetIds) == 0 {
 		return nil, Error("no asset ids")
 	}
@@ -229,15 +228,10 @@ func NewLicense(assetIds []string, validThrough string) (Data, error) {
 		}
 		asset[i] = NewLink(assetId)
 	}
-	date, err := ParseDate(validThrough)
-	if err != nil {
-		return nil, err
-	}
 	return Data{
 		"@context": CONTEXT,
 		"@type":    "License",
 		"asset":    asset,
-		"timeout":  cc.DefaultFulfillmentTimeout(date.Unix()).String(),
 	}, nil
 }
 

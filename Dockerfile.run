@@ -1,8 +1,0 @@
-# From https://joeshaw.org/smaller-docker-containers-for-go-apps/
-
-FROM joeshaw/busybox-nonroot
-EXPOSE 8888
-
-COPY envoke-api /bin/envoke-api
-
-CMD envoke-api

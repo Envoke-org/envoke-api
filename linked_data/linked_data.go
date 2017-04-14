@@ -1,9 +1,10 @@
 package linked_data
 
 import (
+	"time"
+
 	"github.com/Envoke-org/envoke-api/bigchain"
 	. "github.com/Envoke-org/envoke-api/common"
-	cc "github.com/Envoke-org/envoke-api/crypto/conditions"
 	"github.com/Envoke-org/envoke-api/crypto/crypto"
 	"github.com/Envoke-org/envoke-api/schema"
 	"github.com/Envoke-org/envoke-api/spec"
@@ -101,12 +102,12 @@ func AssembleCompositionTx(composition Data, privkey crypto.PrivateKey, signatur
 	if totalShares != 100 {
 		return nil, Error("total shares don't equal 100")
 	}
-	tx, err := bigchain.CreateTx(splits, composition, pubkeys, pubkeys)
+	tx, err := bigchain.CreateTx(splits, composition, nil, pubkeys, pubkeys)
 	if err != nil {
 		return nil, err
 	}
 	if len(composers)+len(publishers) == 1 {
-		if err = bigchain.IndividualFulfillTx(tx, privkey); err != nil {
+		if err = bigchain.IndividualFulfillTx(tx, privkey, NilTime); err != nil {
 			return nil, err
 		}
 	}
@@ -300,18 +301,18 @@ func AssembleRightTx(assetId string, privkey crypto.PrivateKey, pubkey crypto.Pu
 			split -= splits[j]
 		}
 		if split == 0 {
-			tx, err = bigchain.TransferTx(splits, assetId, txId, outputs[i], pubkeys, []crypto.PublicKey{pubkey})
+			tx, err = bigchain.TransferTx(splits, assetId, txId, nil, outputs[i], pubkeys, []crypto.PublicKey{pubkey})
 		} else if split > 0 {
 			pubkeys = append([]crypto.PublicKey{pubkey}, pubkeys...)
 			splits = append([]int{split}, splits...)
-			tx, err = bigchain.TransferTx(splits, assetId, txId, outputs[i], pubkeys, []crypto.PublicKey{pubkey})
+			tx, err = bigchain.TransferTx(splits, assetId, txId, nil, outputs[i], pubkeys, []crypto.PublicKey{pubkey})
 		} else {
 			err = Error("you cannot transfer that many shares")
 		}
 		if err != nil {
 			return nil, err
 		}
-		if err = bigchain.IndividualFulfillTx(tx, privkey); err != nil {
+		if err = bigchain.IndividualFulfillTx(tx, privkey, NilTime); err != nil {
 			return nil, err
 		}
 		return tx, nil
@@ -391,6 +392,12 @@ func CheckLicenseHolderKey(licenseId string, pubkey crypto.PublicKey) (Data, err
 		if pubkey.Equals(bigchain.DefaultOutputOwnerAfter(output)) {
 			return tx, nil
 		}
+		details := bigchain.GetConditionDetails(bigchain.GetOutputCondition(output))
+		if subs := details.GetDataSlice("subfulfillments"); subs != nil {
+			if !Now().Before(MustParseTimestamp(subs[1].GetStr("expire_time"))) {
+				return nil, Error("license output expired")
+			}
+		}
 	}
 	return nil, Error("license-holder isn't ownerAfter")
 }
@@ -455,9 +462,21 @@ func ValidateLicenseId(licenseId string) (Data, error) {
 	return tx, nil
 }
 
-func AssembleLicenseTx(assetIds []string, licenseHolderIds []string, privkey crypto.PrivateKey, pubkey crypto.PublicKey, validThrough string) (Data, error) {
+func AssembleLicenseTx(assetIds []string, expireTimes []time.Time, licenseHolderIds []string, privkey crypto.PrivateKey, pubkey crypto.PublicKey) (Data, error) {
 	if len(licenseHolderIds) == 0 {
 		return nil, Error("no license-holder ids")
+	}
+	if expireTimes != nil {
+		if len(licenseHolderIds) != len(expireTimes) {
+			return nil, Error("different number of license-holder ids and expire times")
+		}
+		for _, expireTime := range expireTimes {
+			if !expireTime.IsZero() {
+				if !Now().Before(expireTime) {
+					return nil, Error("invalid expire time")
+				}
+			}
+		}
 	}
 	amounts := make([]int, len(licenseHolderIds))
 	pubkeys := make([]crypto.PublicKey, len(licenseHolderIds))
@@ -511,15 +530,15 @@ OUTER:
 		}
 		return nil, Error("couldn't find licenser right")
 	}
-	license, err := spec.NewLicense(assetIds, validThrough)
+	license, err := spec.NewLicense(assetIds)
 	if err != nil {
 		return nil, err
 	}
-	tx, err := bigchain.CreateTx(amounts, license, pubkeys, []crypto.PublicKey{pubkey})
+	tx, err := bigchain.CreateTx(amounts, license, expireTimes, pubkeys, []crypto.PublicKey{pubkey})
 	if err != nil {
 		return nil, err
 	}
-	if err = bigchain.IndividualFulfillTx(tx, privkey); err != nil {
+	if err = bigchain.IndividualFulfillTx(tx, privkey, NilTime); err != nil {
 		return nil, err
 	}
 	return tx, nil
@@ -538,6 +557,18 @@ func ValidateLicenseTx(licenseTx Data) (err error) {
 		// TODO: check amount
 		if _, err = CheckOutputOwnerAfter(output); err != nil {
 			return err
+		}
+		details := bigchain.GetConditionDetails(bigchain.GetOutputCondition(output))
+		subs := details.GetDataSlice("subfulfillments")
+		if subs != nil {
+			if len(subs) != 2 {
+				return Error("should be 2 threshold subfulfillments")
+			}
+			if _, err = ParseTimestamp(subs[1].GetStr("expire_time")); err != nil {
+				return err
+			}
+		} else {
+			//..
 		}
 	}
 	assetIds := spec.GetAssetIds(license)
@@ -578,13 +609,6 @@ OUTER:
 			}
 		}
 		return Error("couldn't find licenser right")
-	}
-	fulfillment, err := cc.DefaultUnmarshalURI(spec.GetTimeout(license))
-	if err != nil {
-		return err
-	}
-	if !fulfillment.Validate(Int64Bytes(Now().Unix())) {
-		return Error("license expired")
 	}
 	return nil
 }
@@ -669,9 +693,21 @@ OUTER:
 				license := bigchain.GetTxAssetData(tx)
 				for _, assetId := range spec.GetAssetIds(license) {
 					if assetId == compositionId {
-						for _, output := range bigchain.GetTxOutputs(tx) {
-							licenseHolders[licenseId] = append(licenseHolders[licenseId], bigchain.DefaultOutputOwnerAfter(output))
+						outputs := bigchain.GetTxOutputs(tx)
+						licenseHolders[licenseId] = make([]crypto.PublicKey, len(outputs))
+						i := 0
+						for _, output := range outputs {
+							details := bigchain.GetConditionDetails(bigchain.GetOutputCondition(output))
+							if subs := details.GetDataSlice("subfulfillments"); subs != nil {
+								if !Now().Before(MustParseTimestamp(subs[1].GetStr("expire_time"))) {
+									Println("license output expired")
+									continue
+								}
+							}
+							licenseHolders[licenseId][i] = bigchain.DefaultOutputOwnerAfter(output)
+							i++
 						}
+						licenseHolders[licenseId] = licenseHolders[licenseId][:i]
 						goto NEXT
 					}
 				}
@@ -705,12 +741,12 @@ OUTER:
 	if totalShares != 100 {
 		return nil, Error("total shares don't equal 100")
 	}
-	tx, err := bigchain.CreateTx(splits, recording, pubkeys, pubkeys)
+	tx, err := bigchain.CreateTx(splits, recording, nil, pubkeys, pubkeys)
 	if err != nil {
 		return nil, err
 	}
 	if len(artists)+len(recordLabels) == 1 {
-		if err = bigchain.IndividualFulfillTx(tx, privkey); err != nil {
+		if err = bigchain.IndividualFulfillTx(tx, privkey, NilTime); err != nil {
 			return nil, err
 		}
 	}
@@ -781,9 +817,21 @@ OUTER:
 				license := bigchain.GetTxAssetData(tx)
 				for _, assetId := range spec.GetAssetIds(license) {
 					if assetId == compositionId {
-						for _, output := range bigchain.GetTxOutputs(tx) {
-							licenseHolders[licenseId] = append(licenseHolders[licenseId], bigchain.DefaultOutputOwnerAfter(output))
+						outputs := bigchain.GetTxOutputs(tx)
+						licenseHolders[licenseId] = make([]crypto.PublicKey, len(outputs))
+						i := 0
+						for _, output := range outputs {
+							details := bigchain.GetConditionDetails(bigchain.GetOutputCondition(output))
+							if subs := details.GetDataSlice("subfulfillments"); subs != nil {
+								if !Now().Before(MustParseTimestamp(subs[1].GetStr("expire_time"))) {
+									Println("license output expired")
+									continue
+								}
+							}
+							licenseHolders[licenseId][i] = bigchain.DefaultOutputOwnerAfter(output)
+							i++
 						}
+						licenseHolders[licenseId] = licenseHolders[licenseId][:i]
 						goto NEXT
 					}
 				}

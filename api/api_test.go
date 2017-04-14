@@ -2,6 +2,7 @@ package api
 
 import (
 	"testing"
+	"time"
 
 	"github.com/Envoke-org/envoke-api/bigchain"
 	. "github.com/Envoke-org/envoke-api/common"
@@ -134,7 +135,7 @@ func TestApi(t *testing.T) {
 	if err = api.Login(publisherPrivkey.String(), publisherId); err != nil {
 		t.Fatal(err)
 	}
-	mechanicalLicenseId, err := api.License([]string{compositionId}, []string{performerId, producerId}, "2017-10-01")
+	mechanicalLicenseId, err := api.License([]string{compositionId}, []time.Time{NilTime, Date(1, 1, 2024, nil)}, []string{performerId, producerId})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -201,7 +202,7 @@ func TestApi(t *testing.T) {
 	if err = api.Login(recordLabelPrivkey.String(), recordLabelId); err != nil {
 		t.Fatal(err)
 	}
-	masterLicenseId, err := api.License([]string{recordingId}, []string{radioId}, "2017-10-01")
+	masterLicenseId, err := api.License([]string{recordingId}, []time.Time{Date(1, 1, 2024, nil)}, []string{radioId})
 	if err != nil {
 		t.Fatal(err)
 	}

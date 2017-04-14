@@ -2,6 +2,7 @@ package bigchain
 
 import (
 	"bytes"
+	"time"
 
 	. "github.com/Envoke-org/envoke-api/common"
 	cc "github.com/Envoke-org/envoke-api/crypto/conditions"
@@ -126,11 +127,16 @@ const (
 	VERSION  = "0.9"
 )
 
-func CreateTx(amounts []int, data Data, ownersAfter []crypto.PublicKey, ownersBefore []crypto.PublicKey) (Data, error) {
+func CreateTx(amounts []int, data Data, expireTimes []time.Time, ownersAfter []crypto.PublicKey, ownersBefore []crypto.PublicKey) (Data, error) {
 	asset := Data{"data": data}
 	fulfills := []Data{nil}
 	if len(amounts) == 0 {
 		return nil, Error("no amounts")
+	}
+	if expireTimes != nil {
+		if len(amounts) != len(expireTimes) {
+			return nil, Error("different number of amounts and expire times")
+		}
 	}
 	_ownersAfter := make([][]crypto.PublicKey, len(amounts))
 	if len(amounts) == 1 {
@@ -143,9 +149,9 @@ func CreateTx(amounts []int, data Data, ownersAfter []crypto.PublicKey, ownersBe
 			_ownersAfter[i] = []crypto.PublicKey{ownerAfter}
 		}
 	}
-	return GenerateTx(amounts, asset, fulfills, nil, CREATE, _ownersAfter, [][]crypto.PublicKey{ownersBefore})
+	return GenerateTx(amounts, asset, expireTimes, fulfills, nil, CREATE, _ownersAfter, [][]crypto.PublicKey{ownersBefore})
 }
-func TransferTx(amounts []int, assetId, consumeId string, idx int, ownersAfter []crypto.PublicKey, ownersBefore []crypto.PublicKey) (Data, error) {
+func TransferTx(amounts []int, assetId, consumeId string, expireTimes []time.Time, idx int, ownersAfter []crypto.PublicKey, ownersBefore []crypto.PublicKey) (Data, error) {
 	if len(amounts) == 0 {
 		return nil, Error("no amounts")
 	}
@@ -158,15 +164,15 @@ func TransferTx(amounts []int, assetId, consumeId string, idx int, ownersAfter [
 	for i, ownerAfter := range ownersAfter {
 		_ownersAfter[i] = []crypto.PublicKey{ownerAfter}
 	}
-	return GenerateTx(amounts, asset, fulfills, nil, TRANSFER, _ownersAfter, [][]crypto.PublicKey{ownersBefore})
+	return GenerateTx(amounts, asset, expireTimes, fulfills, nil, TRANSFER, _ownersAfter, [][]crypto.PublicKey{ownersBefore})
 }
 
-func GenerateTx(amounts []int, asset Data, fulfills []Data, metadata Data, operation string, ownersAfter, ownersBefore [][]crypto.PublicKey) (Data, error) {
+func GenerateTx(amounts []int, asset Data, expireTimes []time.Time, fulfills []Data, metadata Data, operation string, ownersAfter, ownersBefore [][]crypto.PublicKey) (Data, error) {
 	inputs, err := NewInputs(fulfills, ownersBefore)
 	if err != nil {
 		return nil, err
 	}
-	outputs, err := NewOutputs(amounts, ownersAfter)
+	outputs, err := NewOutputs(amounts, expireTimes, ownersAfter)
 	if err != nil {
 		return nil, err
 	}
@@ -186,15 +192,26 @@ func NewTx(asset Data, inputs []Data, metadata Data, operation string, outputs [
 	return tx
 }
 
-func IndividualFulfillTx(tx Data, privkey crypto.PrivateKey) error {
-	fulfillment, err := cc.DefaultFulfillmentFromPrivkey(MustMarshalJSON(tx), privkey)
+func IndividualFulfillTx(tx Data, privkey crypto.PrivateKey, _time time.Time) error {
+	fulfillmentEd25519, err := cc.DefaultFulfillmentFromPrivkey(MustMarshalJSON(tx), privkey)
 	if err != nil {
 		return err
 	}
-	return FulfillTx(tx, cc.Fulfillments{fulfillment})
+	if !_time.IsZero() {
+		fulfillmentTimeout, err := cc.DefaultFulfillmentTimeout(_time)
+		if err != nil {
+			return err
+		}
+		fulfillmentThreshold, err := cc.DefaultFulfillmentThreshold(cc.Fulfillments{fulfillmentEd25519, fulfillmentTimeout})
+		if err != nil {
+			return err
+		}
+		return FulfillTx(tx, cc.Fulfillments{fulfillmentThreshold})
+	}
+	return FulfillTx(tx, cc.Fulfillments{fulfillmentEd25519})
 }
 
-func MultipleFulfillTx(tx Data, pubkeys []crypto.PublicKey, signatures []string) error {
+func MultipleFulfillTx(tx Data, pubkeys []crypto.PublicKey, signatures []string) (err error) {
 	if len(pubkeys) == 0 {
 		return Error("no pubkeys")
 	}
@@ -204,12 +221,19 @@ func MultipleFulfillTx(tx Data, pubkeys []crypto.PublicKey, signatures []string)
 	sig := new(ed25519.Signature)
 	subs := make(cc.Fulfillments, len(pubkeys))
 	for i, pubkey := range pubkeys {
-		if err := sig.FromString(signatures[i]); err != nil {
+		if err = sig.FromString(signatures[i]); err != nil {
 			return err
 		}
-		subs[i] = cc.DefaultFulfillmentEd25519(pubkey.(*ed25519.PublicKey), sig)
+		subs[i], err = cc.DefaultFulfillmentEd25519(pubkey.(*ed25519.PublicKey), sig)
+		if err != nil {
+			return err
+		}
 	}
-	return FulfillTx(tx, cc.Fulfillments{cc.DefaultFulfillmentThreshold(subs)})
+	fulfillment, err := cc.DefaultFulfillmentThreshold(subs)
+	if err != nil {
+		return err
+	}
+	return FulfillTx(tx, cc.Fulfillments{fulfillment})
 }
 
 func FulfillTx(tx Data, fulfillments cc.Fulfillments) error {
@@ -292,16 +316,23 @@ func NewInput(fulfills Data, ownersBefore []crypto.PublicKey) Data {
 	}
 }
 
-func NewOutputs(amounts []int, ownersAfter [][]crypto.PublicKey) (_ []Data, err error) {
+func NewOutputs(amounts []int, expireTimes []time.Time, ownersAfter [][]crypto.PublicKey) (_ []Data, err error) {
 	if len(amounts) == 0 {
 		return nil, Error("no amounts")
 	}
 	if len(amounts) != len(ownersAfter) {
 		return nil, Error("different number of amounts and ownersAfter")
 	}
+	if expireTimes != nil {
+		if len(amounts) != len(expireTimes) {
+			return nil, Error("different number of amounts and expireTimes")
+		}
+	} else {
+		expireTimes = make([]time.Time, len(amounts))
+	}
 	outputs := make([]Data, len(amounts))
 	for i, owner := range ownersAfter {
-		outputs[i], err = NewOutput(amounts[i], owner)
+		outputs[i], err = NewOutput(amounts[i], expireTimes[i], owner)
 		if err != nil {
 			return nil, err
 		}
@@ -309,29 +340,39 @@ func NewOutputs(amounts []int, ownersAfter [][]crypto.PublicKey) (_ []Data, err 
 	return outputs, nil
 }
 
-func NewOutput(amount int, ownersAfter []crypto.PublicKey) (_ Data, err error) {
+func NewOutput(amount int, expireTime time.Time, ownersAfter []crypto.PublicKey) (_ Data, err error) {
 	if len(ownersAfter) == 0 {
 		return nil, Error("no ownersAfter")
 	}
-	var fulfillment cc.Fulfillment
-	if len(ownersAfter) == 1 {
-		fulfillment, err = cc.DefaultFulfillmentFromPubkey(ownersAfter[0])
+	fulfillments := make(cc.Fulfillments, len(ownersAfter))
+	for i, ownerAfter := range ownersAfter {
+		fulfillments[i], err = cc.DefaultFulfillmentFromPubkey(ownerAfter)
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		fulfillments := make(cc.Fulfillments, len(ownersAfter))
-		for i, ownerAfter := range ownersAfter {
-			fulfillments[i], err = cc.DefaultFulfillmentFromPubkey(ownerAfter)
-			if err != nil {
-				return nil, err
-			}
+	}
+	var fulfillment cc.Fulfillment
+	if !expireTime.IsZero() {
+		fulfillment, err = cc.DefaultFulfillmentTimeout(expireTime)
+		if err != nil {
+			return nil, err
 		}
-		fulfillment = cc.DefaultFulfillmentThreshold(fulfillments)
+		fulfillments = append(fulfillments, fulfillment)
+	}
+	if len(fulfillments) == 1 {
+		fulfillment = fulfillments[0]
+	} else {
+		fulfillment, err = cc.DefaultFulfillmentThreshold(fulfillments)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return Data{
-		"amount":      amount,
-		"condition":   fulfillment.Data(),
+		"amount": amount,
+		"condition": Data{
+			"details": fulfillment.Details(),
+			"uri":     cc.GetCondition(fulfillment).String(),
+		},
 		"public_keys": ownersAfter,
 	}, nil
 }
@@ -442,4 +483,14 @@ func GetOutputOwnersAfter(output Data) []crypto.PublicKey {
 		pubkeys[i].FromString(owner)
 	}
 	return pubkeys
+}
+
+// Condition
+
+func GetConditionDetails(condition Data) Data {
+	return condition.GetData("details")
+}
+
+func GetConditionURI(condition Data) string {
+	return condition.GetStr("uri")
 }

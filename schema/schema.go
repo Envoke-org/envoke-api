@@ -226,11 +226,7 @@ var LicenseLoader = jsonschema.NewStringLoader(Sprintf(`{
 			},
 			"minItems": 1,
 			"uniqueItems": true
-		},
-		"timeout": {
-			"type": "string",
-			"pattern": "%s"
 		}
 	},
-	"required": ["@context", "@type", "asset", "timeout"]
-}`, SCHEMA, link, spec.CONTEXT, regex.FULFILLMENT))
+	"required": ["@context", "@type", "asset"]
+}`, SCHEMA, link, spec.CONTEXT))

@@ -15,8 +15,8 @@ func EvenSquare(n int) bool {
 	return float64(int(sqrt)) != sqrt
 }
 
-func Exp2(x int) int {
-	return 1 << uint(x)
+func Exp2(n int) int {
+	return 1 << uint(n)
 }
 
 func Log2Floor(x int) int {
@@ -31,6 +31,24 @@ func Log2Floor(x int) int {
 
 func Log2Ceil(x int) int {
 	log := Log2Floor(x)
+	if Pow2(x) {
+		return log
+	}
+	return log + 1
+}
+
+func Log10Floor(x int) int {
+	i, log := x, 0
+	for {
+		if i /= 10; i == 0 {
+			return log
+		}
+		log++
+	}
+}
+
+func Log10Ceil(x int) int {
+	log := Log10Floor(x)
 	if Pow2(x) {
 		return log
 	}

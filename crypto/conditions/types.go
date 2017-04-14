@@ -3,12 +3,13 @@ package conditions
 import (
 	"bytes"
 	"crypto/sha256"
+	"sort"
+	"time"
 
 	. "github.com/Envoke-org/envoke-api/common"
 	"github.com/Envoke-org/envoke-api/crypto/crypto"
 	"github.com/Envoke-org/envoke-api/crypto/ed25519"
 	"github.com/Envoke-org/envoke-api/crypto/rsa"
-	"sort"
 )
 
 func Sum256(p []byte) []byte {
@@ -22,17 +23,20 @@ type fulfillmentPreImage struct {
 	*fulfillment
 }
 
-func NewFulfillmentPreImage(preimage []byte, weight int) *fulfillmentPreImage {
+func NewFulfillmentPreImage(preimage []byte, weight int) (*fulfillmentPreImage, error) {
 	f := new(fulfillmentPreImage)
 	f.fulfillment = NewFulfillment(PREIMAGE_ID, f, preimage, weight)
-	f.Init()
-	return f
+	if err := f.Init(); err != nil {
+		return nil, err
+	}
+	return f, nil
 }
 
-func (f *fulfillmentPreImage) Init() {
+func (f *fulfillmentPreImage) Init() error {
 	f.bitmask = PREIMAGE_BITMASK
 	f.hash = Sum256(f.payload)
 	f.size = len(f.payload)
+	return nil
 }
 
 // SHA256 Prefix
@@ -43,7 +47,7 @@ type fulfillmentPrefix struct {
 	sub    Fulfillment
 }
 
-func NewFulfillmentPrefix(prefix []byte, sub Fulfillment, weight int) *fulfillmentPrefix {
+func NewFulfillmentPrefix(prefix []byte, sub Fulfillment, weight int) (*fulfillmentPrefix, error) {
 	if sub.IsCondition() {
 		panic("Expected non-condition fulfillment")
 	}
@@ -53,30 +57,36 @@ func NewFulfillmentPrefix(prefix []byte, sub Fulfillment, weight int) *fulfillme
 	f.fulfillment = NewFulfillment(PREFIX_ID, f, payload, weight)
 	f.prefix = prefix
 	f.sub = sub
-	f.Init()
-	return f
+	if err := f.Init(); err != nil {
+		return nil, err
+	}
+	return f, nil
 }
 
-func (f *fulfillmentPrefix) Init() {
+func (f *fulfillmentPrefix) Init() (err error) {
 	if f.prefix == nil && f.sub == nil {
 		buf := new(bytes.Buffer)
 		buf.Write(f.payload)
 		f.prefix = MustReadVarOctet(buf)
-		var err error
 		f.sub, err = UnmarshalBinary(buf.Bytes(), f.weight)
-		Check(err)
+		if err != nil {
+			return err
+		}
 		if f.sub.IsCondition() {
-			panic("Expected non-condition fulfillment")
+			return Error("expected non-condition fulfillment")
 		}
 	}
 	if f.prefix != nil && f.sub != nil {
 		f.bitmask = PREFIX_BITMASK
-		p, _ := GetCondition(f.sub).MarshalBinary()
+		p, err := GetCondition(f.sub).MarshalBinary()
+		if err != nil {
+			return err
+		}
 		f.hash = Sum256(append(f.prefix, p...))
 		f.size = len(f.payload)
-		return
+		return nil
 	}
-	panic("Prefix and subfulfillment must both be set")
+	return Error("prefix and subfulfillment must both be set")
 }
 
 func (f *fulfillmentPrefix) Validate(p []byte) bool {
@@ -94,34 +104,44 @@ type fulfillmentEd25519 struct {
 	sig    *ed25519.Signature
 }
 
-func DefaultFulfillmentEd25519(pubkey *ed25519.PublicKey, sig *ed25519.Signature) *fulfillmentEd25519 {
+func DefaultFulfillmentEd25519(pubkey *ed25519.PublicKey, sig *ed25519.Signature) (*fulfillmentEd25519, error) {
 	return NewFulfillmentEd25519(pubkey, sig, 1)
 }
 
-func NewFulfillmentEd25519(pubkey *ed25519.PublicKey, sig *ed25519.Signature, weight int) *fulfillmentEd25519 {
+func NewFulfillmentEd25519(pubkey *ed25519.PublicKey, sig *ed25519.Signature, weight int) (*fulfillmentEd25519, error) {
 	f := new(fulfillmentEd25519)
 	payload := append(pubkey.Bytes(), sig.Bytes()...)
 	f.fulfillment = NewFulfillment(ED25519_ID, f, payload, weight)
 	f.pubkey = pubkey
 	f.sig = sig
-	f.Init()
-	return f
+	if err := f.Init(); err != nil {
+		return nil, err
+	}
+	return f, nil
 }
 
-func (f *fulfillmentEd25519) Init() {
+func (f *fulfillmentEd25519) Details() Data {
+	details := f.fulfillment.Details()
+	details.Set("public_key", f.pubkey)
+	details.Set("signature", nil)
+	return details
+}
+
+func (f *fulfillmentEd25519) Init() error {
 	if f.pubkey.Bytes() == nil {
 		f.pubkey = new(ed25519.PublicKey)
-		err := f.pubkey.FromBytes(f.payload[:ed25519.PUBKEY_SIZE])
-		Check(err)
+		if err := f.pubkey.FromBytes(f.payload[:ed25519.PUBKEY_SIZE]); err != nil {
+			return err
+		}
 	}
 	if f.sig.Bytes() == nil {
 		f.sig = new(ed25519.Signature)
 		f.sig.FromBytes(f.payload[ed25519.PUBKEY_SIZE:])
-		// ignore err for now
 	}
 	f.bitmask = ED25519_BITMASK
 	f.hash = f.pubkey.Bytes()
 	f.size = ED25519_SIZE
+	return nil
 }
 
 func (f *fulfillmentEd25519) PublicKey() crypto.PublicKey {
@@ -153,30 +173,40 @@ type fulfillmentRSA struct {
 	sig    *rsa.Signature
 }
 
-func NewFulfillmentRSA(pubkey *rsa.PublicKey, sig *rsa.Signature, weight int) *fulfillmentRSA {
+func NewFulfillmentRSA(pubkey *rsa.PublicKey, sig *rsa.Signature, weight int) (*fulfillmentRSA, error) {
 	f := new(fulfillmentRSA)
 	payload := append(pubkey.Bytes(), sig.Bytes()...)
 	f.fulfillment = NewFulfillment(RSA_ID, f, payload, weight)
 	f.pubkey = pubkey
 	f.sig = sig
-	f.Init()
-	return f
+	if err := f.Init(); err != nil {
+		return nil, err
+	}
+	return f, nil
 }
 
-func (f *fulfillmentRSA) Init() {
+func (f *fulfillmentRSA) Details() Data {
+	details := f.fulfillment.Details()
+	details.Set("public_key", f.pubkey)
+	details.Set("signature", nil)
+	return details
+}
+
+func (f *fulfillmentRSA) Init() error {
 	if f.pubkey.Bytes() == nil {
 		f.pubkey = new(rsa.PublicKey)
-		err := f.pubkey.FromBytes(f.payload[:rsa.KEY_SIZE])
-		Check(err)
+		if err := f.pubkey.FromBytes(f.payload[:rsa.KEY_SIZE]); err != nil {
+			return err
+		}
 	}
 	if f.sig.Bytes() == nil {
 		f.sig = new(rsa.Signature)
-		err := f.sig.FromBytes(f.payload[rsa.KEY_SIZE:])
-		Check(err)
+		f.sig.FromBytes(f.payload[rsa.KEY_SIZE:])
 	}
 	f.bitmask = RSA_BITMASK
 	f.hash = Sum256(f.pubkey.Bytes())
 	f.size = RSA_SIZE
+	return nil
 }
 
 func (f *fulfillmentRSA) PublicKey() crypto.PublicKey {
@@ -208,16 +238,16 @@ type fulfillmentThreshold struct {
 	threshold int
 }
 
-func DefaultFulfillmentThreshold(subs Fulfillments) *fulfillmentThreshold {
+func DefaultFulfillmentThreshold(subs Fulfillments) (*fulfillmentThreshold, error) {
 	return NewFulfillmentThreshold(subs, len(subs), 1)
 }
 
-func NewFulfillmentThreshold(subs Fulfillments, threshold, weight int) *fulfillmentThreshold {
+func NewFulfillmentThreshold(subs Fulfillments, threshold, weight int) (*fulfillmentThreshold, error) {
 	if len(subs) == 0 {
-		panic("Must have more than 0 subs")
+		return nil, Error("must have more than 0 subs")
 	}
 	if threshold <= 0 {
-		panic("Threshold must be greater than 0")
+		return nil, Error("threshold must be greater than 0")
 	}
 	sort.Sort(subs)
 	payload := ThresholdPayload(subs, threshold)
@@ -226,19 +256,22 @@ func NewFulfillmentThreshold(subs Fulfillments, threshold, weight int) *fulfillm
 	f.subs = subs
 	f.threshold = threshold
 	f.Init()
-	return f
+	return f, nil
 }
 
-func (f *fulfillmentThreshold) Init() {
+func (f *fulfillmentThreshold) Init() error {
 	if f.subs == nil && f.threshold == 0 {
-		f.ThresholdSubs()
+		if err := f.ThresholdSubs(); err != nil {
+			return err
+		}
 	}
 	if f.subs == nil || f.threshold <= 0 {
-		Panicf("Cannot have %d subs, threshold=%d\n", len(f.subs), f.threshold)
+		return Errorf("cannot have %d subs, threshold=%d", len(f.subs), f.threshold)
 	}
 	f.bitmask = ThresholdBitmask(f.subs)
 	f.hash = ThresholdHash(f.subs, f.threshold)
 	f.size = ThresholdSize(f.subs, f.threshold)
+	return nil
 }
 
 func DefaultFulfillmentThresholdFromPubkeys(pubkeys []crypto.PublicKey) (*fulfillmentThreshold, error) {
@@ -246,7 +279,7 @@ func DefaultFulfillmentThresholdFromPubkeys(pubkeys []crypto.PublicKey) (*fulfil
 	if err != nil {
 		return nil, err
 	}
-	return NewFulfillmentThreshold(subs, len(pubkeys), 1), nil
+	return NewFulfillmentThreshold(subs, len(pubkeys), 1)
 }
 
 func FulfillmentThresholdFromPubkeys(pubkeys []crypto.PublicKey, threshold, weight int, weights []int) (*fulfillmentThreshold, error) {
@@ -254,7 +287,7 @@ func FulfillmentThresholdFromPubkeys(pubkeys []crypto.PublicKey, threshold, weig
 	if err != nil {
 		return nil, err
 	}
-	return NewFulfillmentThreshold(subs, threshold, weight), nil
+	return NewFulfillmentThreshold(subs, threshold, weight)
 }
 
 // For testing..
@@ -267,26 +300,20 @@ func DefaultFulfillmentThresholdFromPrivkeys(msg []byte, privkeys ...crypto.Priv
 			return nil, err
 		}
 	}
-	return NewFulfillmentThreshold(subs, n, 1), nil
+	return NewFulfillmentThreshold(subs, n, 1)
 }
 
-func (f *fulfillmentThreshold) Data() Data {
+func (f *fulfillmentThreshold) Details() Data {
 	// TODO: validate
 	subs := make([]Data, len(f.subs))
 	for i, sub := range f.subs {
-		subs[i] = sub.Data().GetData("details")
+		subs[i] = sub.Details()
 		subs[i].Set("weight", sub.Weight())
 	}
-	return Data{
-		"details": Data{
-			"bitmask":         f.bitmask,
-			"subfulfillments": subs,
-			"threshold":       f.threshold,
-			"type":            "fulfillment",
-			"type_id":         f.id,
-		},
-		"uri": GetCondition(f).String(),
-	}
+	details := f.fulfillment.Details()
+	details.Set("subfulfillments", subs)
+	details.Set("threshold", f.threshold)
+	return details
 }
 
 func ThresholdBitmask(subs Fulfillments) int {
@@ -364,17 +391,16 @@ OUTER:
 
 func (f *fulfillmentThreshold) Subfulfillments() Fulfillments { return f.subs }
 
-func (f *fulfillmentThreshold) ThresholdSubs() {
+func (f *fulfillmentThreshold) ThresholdSubs() (err error) {
 	if f.subs != nil && f.threshold > 0 {
-		return
+		return nil
 	}
 	if f.subs == nil && f.threshold == 0 {
-		var err error
 		f.subs, f.threshold, err = ThresholdSubs(f.payload)
-		Check(err)
-		return
+	} else {
+		err = Errorf("cannot have %d subs, threshold=%d", len(f.subs), f.threshold)
 	}
-	Panicf("Cannot have %d subs, threshold=%d\n", len(f.subs), f.threshold)
+	return err
 }
 
 func ThresholdSubs(p []byte) (Fulfillments, int, error) {
@@ -510,34 +536,48 @@ func (f *fulfillmentThreshold) Validate(p []byte) bool {
 
 // SHA256 Timeout
 type fulfillmentTimeout struct {
-	expire int64
+	expire time.Time
 	*fulfillment
 }
 
-func DefaultFulfillmentTimeout(expire int64) *fulfillmentTimeout {
+func DefaultFulfillmentTimeout(expire time.Time) (*fulfillmentTimeout, error) {
 	return NewFulfillmentTimeout(expire, 1)
 }
 
-func NewFulfillmentTimeout(expire int64, weight int) *fulfillmentTimeout {
+func NewFulfillmentTimeout(expire time.Time, weight int) (*fulfillmentTimeout, error) {
 	f := new(fulfillmentTimeout)
 	f.expire = expire
-	f.fulfillment = NewFulfillment(TIMEOUT_ID, f, Int64Bytes(expire), weight)
-	f.Init()
-	return f
+	f.fulfillment = NewFulfillment(TIMEOUT_ID, f, []byte(Timestamp(expire)), weight)
+	if err := f.Init(); err != nil {
+		return nil, err
+	}
+	return f, nil
 }
 
-func (f *fulfillmentTimeout) Init() {
-	if f.expire == 0 {
-		f.expire = Int64(f.payload)
+func (f *fulfillmentTimeout) Details() Data {
+	details := f.fulfillment.Details()
+	details.Set("expire_time", string(f.payload))
+	return details
+}
+
+func (f *fulfillmentTimeout) Init() (err error) {
+	f.expire, err = ParseTimestamp(string(f.payload))
+	if err != nil {
+		return err
 	}
 	f.bitmask = TIMEOUT_BITMASK
 	f.hash = Sum256(f.payload)
 	f.size = len(f.payload)
+	return nil
 }
 
 func (f *fulfillmentTimeout) Validate(p []byte) bool {
 	if !f.fulfillment.Validate(nil) {
 		return false
 	}
-	return f.expire >= Int64(p)
+	t, err := ParseTimestamp(string(p))
+	if err != nil {
+		return false
+	}
+	return !t.After(f.expire)
 }
